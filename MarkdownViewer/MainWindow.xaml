@@ -52,17 +52,17 @@
                 PreviewMouseWheel="DragOverlay_PreviewMouseWheel"
                 Cursor="SizeAll"/>
 
-        <!-- ファイル未読み込み時のプレースホルダー -->
+        <!-- Placeholder when no file is loaded -->
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="📝" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
                 <TextBlock Text="Markdown Viewer" FontSize="24" FontWeight="SemiBold" 
                            Foreground="#24292e" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                <TextBlock Text="ファイルをドラッグ＆ドロップ" FontSize="14" 
+                <TextBlock Text="Drag &amp; drop a file here" FontSize="14" 
                            Foreground="#586069" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                <TextBlock Text="または Ctrl+O でファイルを開く" FontSize="12" 
+                <TextBlock Text="or press Ctrl+O to open" FontSize="12" 
                            Foreground="#6a737d" HorizontalAlignment="Center"/>
-                <TextBlock Text="F5 で再読み込み" FontSize="12" 
+                <TextBlock Text="F5 to reload" FontSize="12" 
                            Foreground="#6a737d" HorizontalAlignment="Center" Margin="0,8,0,0"/>
             </StackPanel>
         </Border>
