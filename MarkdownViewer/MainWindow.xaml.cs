@@ -44,12 +44,20 @@ namespace MarkdownViewer
         private const double ScrollbarWidth = 20.0;
         private const double MinWindowWidth = 400.0;
         
+        private static readonly string[] SupportedExtensions = { ".md", ".markdown", ".txt" };
+        
         private readonly MarkdownPipeline _pipeline;
         private readonly ObservableCollection<TabItemData> _tabs = new();
         private DispatcherTimer? _zoomAnimationTimer;
         private double _lastZoomFactor = 1.0;
         private double _targetZoomFactor = 1.0;
         private bool _isDragMoveMode = false;
+
+        private static bool IsSupportedFile(string filePath)
+        {
+            var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            return Array.Exists(SupportedExtensions, e => e == ext);
+        }
 
         public MainWindow()
         {
@@ -135,8 +143,7 @@ namespace MarkdownViewer
                     var files = (string[])e.Data.GetData(DataFormats.FileDrop);
                     foreach (var file in files)
                     {
-                        var ext = Path.GetExtension(file).ToLowerInvariant();
-                        if (ext == ".md" || ext == ".markdown" || ext == ".txt")
+                        if (IsSupportedFile(file))
                         {
                             LoadMarkdownFile(file);
                         }
@@ -163,8 +170,7 @@ namespace MarkdownViewer
                 {
                     var uri = new Uri(e.Uri);
                     var path = uri.LocalPath;
-                    var ext = Path.GetExtension(path).ToLowerInvariant();
-                    if (ext == ".md" || ext == ".markdown" || ext == ".txt")
+                    if (IsSupportedFile(path))
                     {
                         LoadMarkdownFile(path);
                     }
@@ -196,9 +202,7 @@ namespace MarkdownViewer
                     {
                         var fileUri = new Uri(uri);
                         var path = Uri.UnescapeDataString(fileUri.LocalPath);
-                        var ext = Path.GetExtension(path).ToLowerInvariant();
-                        
-                        if (ext == ".md" || ext == ".markdown" || ext == ".txt")
+                        if (IsSupportedFile(path))
                         {
                             // Open Markdown files in new tab
                             if (File.Exists(path))
@@ -686,8 +690,7 @@ namespace MarkdownViewer
                 var files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 foreach (var file in files)
                 {
-                    var ext = Path.GetExtension(file).ToLowerInvariant();
-                    if (ext == ".md" || ext == ".markdown" || ext == ".txt")
+                    if (IsSupportedFile(file))
                     {
                         LoadMarkdownFile(file);
                     }
