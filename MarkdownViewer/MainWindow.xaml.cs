@@ -84,8 +84,19 @@ namespace MarkdownViewer
                 WebView = new WebView2()
             };
 
-            // WebView2 の初期化
-            InitializeTabWebView(newTab);
+            // WebView2 の初期化（fire-and-forget、例外は内部でハンドル）
+            _ = InitializeTabWebViewAsync(newTab).ContinueWith(t =>
+            {
+                if (t.IsFaulted && t.Exception != null)
+                {
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        MessageBox.Show($"WebView2 の初期化に失敗しました:\n{t.Exception.InnerException?.Message ?? t.Exception.Message}", 
+                            "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                        CloseTab(newTab);
+                    });
+                }
+            }, TaskScheduler.Default);
             
             _tabs.Add(newTab);
             FileTabControl.SelectedItem = newTab;
@@ -97,138 +108,133 @@ namespace MarkdownViewer
             UpdateWindowTitle();
         }
 
-        private async void InitializeTabWebView(TabItemData tab)
+        private async Task InitializeTabWebViewAsync(TabItemData tab)
         {
-            try
+            // WebView2上のドロップをウィンドウレベルで処理
+            tab.WebView.AllowDrop = true;
+            tab.WebView.PreviewDragOver += (s, e) =>
             {
-                // WebView2上のドロップをウィンドウレベルで処理
-                tab.WebView.AllowDrop = true;
-                tab.WebView.PreviewDragOver += (s, e) =>
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
                 {
-                    if (e.Data.GetDataPresent(DataFormats.FileDrop))
-                    {
-                        e.Effects = DragDropEffects.Copy;
-                        e.Handled = true;
-                    }
-                };
-                tab.WebView.PreviewDrop += (s, e) =>
-                {
-                    if (e.Data.GetDataPresent(DataFormats.FileDrop))
-                    {
-                        var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                        foreach (var file in files)
-                        {
-                            var ext = Path.GetExtension(file).ToLowerInvariant();
-                            if (ext == ".md" || ext == ".markdown" || ext == ".txt")
-                            {
-                                LoadMarkdownFile(file);
-                            }
-                        }
-                        e.Handled = true;
-                    }
-                };
-                
-                await tab.WebView.EnsureCoreWebView2Async(null);
-                
-                // WebView2 の設定
-                tab.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-                tab.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
-                tab.WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
-                
-                // ドロップされたファイルを新しいウィンドウで開かせない
-                tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
-                {
+                    e.Effects = DragDropEffects.Copy;
                     e.Handled = true;
-                    if (e.Uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+                }
+            };
+            tab.WebView.PreviewDrop += (s, e) =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                    foreach (var file in files)
                     {
-                        var uri = new Uri(e.Uri);
-                        var path = uri.LocalPath;
-                        var ext = Path.GetExtension(path).ToLowerInvariant();
+                        var ext = Path.GetExtension(file).ToLowerInvariant();
                         if (ext == ".md" || ext == ".markdown" || ext == ".txt")
                         {
-                            LoadMarkdownFile(path);
+                            LoadMarkdownFile(file);
                         }
                     }
-                };
-                
-                // リンククリック時の処理（JavaScriptからのメッセージ）
-                tab.WebView.CoreWebView2.WebMessageReceived += (s, e) =>
+                    e.Handled = true;
+                }
+            };
+            
+            await tab.WebView.EnsureCoreWebView2Async(null);
+            
+            // タブがまだ存在するか確認
+            if (!_tabs.Contains(tab)) return;
+            
+            // WebView2 の設定
+            tab.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            tab.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+            tab.WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            
+            // ドロップされたファイルを新しいウィンドウで開かせない
+            tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
+            {
+                e.Handled = true;
+                if (e.Uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
                 {
-                    var uri = e.TryGetWebMessageAsString();
-                    
-                    if (string.IsNullOrEmpty(uri))
+                    var uri = new Uri(e.Uri);
+                    var path = uri.LocalPath;
+                    var ext = Path.GetExtension(path).ToLowerInvariant();
+                    if (ext == ".md" || ext == ".markdown" || ext == ".txt")
                     {
-                        return;
+                        LoadMarkdownFile(path);
                     }
-                    
-                    // リモートURL（http/https）はブラウザで開く
-                    if (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
-                        uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                }
+            };
+            
+            // リンククリック時の処理（JavaScriptからのメッセージ）
+            tab.WebView.CoreWebView2.WebMessageReceived += (s, e) =>
+            {
+                var uri = e.TryGetWebMessageAsString();
+                
+                if (string.IsNullOrEmpty(uri))
+                {
+                    return;
+                }
+                
+                // リモートURL（http/https）はブラウザで開く
+                if (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                    uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
+                    return;
+                }
+                
+                // ローカルファイル
+                if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
                     {
-                        Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
-                        return;
-                    }
-                    
-                    // ローカルファイル
-                    if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
-                    {
-                        try
+                        var fileUri = new Uri(uri);
+                        var path = Uri.UnescapeDataString(fileUri.LocalPath);
+                        var ext = Path.GetExtension(path).ToLowerInvariant();
+                        
+                        if (ext == ".md" || ext == ".markdown" || ext == ".txt")
                         {
-                            var fileUri = new Uri(uri);
-                            var path = Uri.UnescapeDataString(fileUri.LocalPath);
-                            var ext = Path.GetExtension(path).ToLowerInvariant();
-                            
-                            if (ext == ".md" || ext == ".markdown" || ext == ".txt")
+                            // Markdownファイルは新しいタブで開く
+                            if (File.Exists(path))
                             {
-                                // Markdownファイルは新しいタブで開く
-                                if (File.Exists(path))
-                                {
-                                    LoadMarkdownFile(path);
-                                }
-                                else
-                                {
-                                    MessageBox.Show($"ファイルが見つかりません: {path}", "エラー", 
-                                        MessageBoxButton.OK, MessageBoxImage.Warning);
-                                }
+                                LoadMarkdownFile(path);
                             }
                             else
                             {
-                                // その他のファイルはデフォルトアプリで開く
-                                if (File.Exists(path))
-                                {
-                                    Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-                                }
-                                else
-                                {
-                                    MessageBox.Show($"ファイルが見つかりません: {path}", "エラー", 
-                                        MessageBoxButton.OK, MessageBoxImage.Warning);
-                                }
+                                MessageBox.Show($"ファイルが見つかりません: {path}", "エラー", 
+                                    MessageBoxButton.OK, MessageBoxImage.Warning);
                             }
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            MessageBox.Show($"ファイルを開けませんでした: {ex.Message}", "エラー", 
-                                MessageBoxButton.OK, MessageBoxImage.Error);
+                            // その他のファイルはデフォルトアプリで開く
+                            if (File.Exists(path))
+                            {
+                                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                            }
+                            else
+                            {
+                                MessageBox.Show($"ファイルが見つかりません: {path}", "エラー", 
+                                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                            }
                         }
                     }
-                };
-                
-                // ズーム設定
-                SetupZoomForTab(tab);
-                
-                tab.IsInitialized = true;
-                
-                // ファイル監視を設定
-                SetupFileWatcher(tab);
-                
-                // Markdown を表示
-                RenderMarkdown(tab);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"WebView2 の初期化に失敗しました:\n{ex.Message}", 
-                    "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"ファイルを開けませんでした: {ex.Message}", "エラー", 
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            };
+            
+            // ズーム設定
+            SetupZoomForTab(tab);
+            
+            tab.IsInitialized = true;
+            
+            // ファイル監視を設定
+            SetupFileWatcher(tab);
+            
+            // Markdown を表示
+            RenderMarkdown(tab);
         }
 
         private void SetupZoomForTab(TabItemData tab)
