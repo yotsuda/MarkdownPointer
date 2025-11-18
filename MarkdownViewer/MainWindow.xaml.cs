@@ -315,7 +315,13 @@ namespace MarkdownViewer
             var directory = Path.GetDirectoryName(tab.FilePath);
             var fileName = Path.GetFileName(tab.FilePath);
 
-            tab.Watcher = new FileSystemWatcher(directory!)
+            // ディレクトリが取得できない場合は監視しない
+            if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
+            {
+                return;
+            }
+
+            tab.Watcher = new FileSystemWatcher(directory)
             {
                 Filter = fileName,
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName
@@ -330,6 +336,9 @@ namespace MarkdownViewer
             tab.DebounceTimer.Tick += (s, e) =>
             {
                 tab.DebounceTimer.Stop();
+                // タブがまだ存在するか確認
+                if (!_tabs.Contains(tab)) return;
+                
                 RenderMarkdown(tab);
                 if (FileTabControl.SelectedItem == tab)
                 {
@@ -339,8 +348,11 @@ namespace MarkdownViewer
 
             tab.Watcher.Changed += (s, e) =>
             {
-                Dispatcher.Invoke(() =>
+                Dispatcher.BeginInvoke(() =>
                 {
+                    // タブがまだ存在するか確認
+                    if (!_tabs.Contains(tab)) return;
+                    
                     tab.DebounceTimer?.Stop();
                     tab.DebounceTimer?.Start();
                     if (FileTabControl.SelectedItem == tab)
@@ -352,16 +364,22 @@ namespace MarkdownViewer
 
             tab.Watcher.Deleted += (s, e) =>
             {
-                Dispatcher.Invoke(() =>
+                Dispatcher.BeginInvoke(() =>
                 {
+                    // タブがまだ存在するか確認
+                    if (!_tabs.Contains(tab)) return;
+                    
                     CloseTab(tab);
                 });
             };
 
             tab.Watcher.Renamed += (s, e) =>
             {
-                Dispatcher.Invoke(() =>
+                Dispatcher.BeginInvoke(() =>
                 {
+                    // タブがまだ存在するか確認
+                    if (!_tabs.Contains(tab)) return;
+                    
                     tab.FilePath = e.FullPath;
                     tab.Title = e.Name ?? Path.GetFileName(e.FullPath);
                     
