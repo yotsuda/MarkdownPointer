@@ -72,6 +72,23 @@ namespace MarkdownViewer
             return new Point(0, 0);
         }
         
+        // Find another MainWindow at the given screen position (excluding this window)
+        private MainWindow? FindWindowAtPosition(Point screenPos)
+        {
+            foreach (Window window in Application.Current.Windows)
+            {
+                if (window is MainWindow mw && mw != this)
+                {
+                    var rect = new Rect(mw.Left, mw.Top, mw.Width, mw.Height);
+                    if (rect.Contains(screenPos))
+                    {
+                        return mw;
+                    }
+                }
+            }
+            return null;
+        }
+        
         // Constants
         private const double ZoomStep = 0.01;
         private const double MinZoom = 0.25;
@@ -174,6 +191,18 @@ namespace MarkdownViewer
             tab.WebView.AllowDrop = true;
             tab.WebView.PreviewDragOver += (s, e) =>
             {
+                // Accept tab drops from other MarkdownViewer windows
+                if (e.Data.GetDataPresent(DataFormats.Text))
+                {
+                    var text = e.Data.GetData(DataFormats.Text) as string;
+                    if (!string.IsNullOrEmpty(text) && text.StartsWith("MDVIEWER:"))
+                    {
+                        e.Effects = DragDropEffects.Move;
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                
                 if (e.Data.GetDataPresent(DataFormats.FileDrop))
                 {
                     e.Effects = DragDropEffects.Copy;
@@ -182,6 +211,23 @@ namespace MarkdownViewer
             };
             tab.WebView.PreviewDrop += (s, e) =>
             {
+                // Handle tab drop from another MarkdownViewer window
+                if (e.Data.GetDataPresent(DataFormats.Text))
+                {
+                    var text = e.Data.GetData(DataFormats.Text) as string;
+                    if (!string.IsNullOrEmpty(text) && text.StartsWith("MDVIEWER:"))
+                    {
+                        var filePath = text.Substring(9);
+                        if (IsSupportedFile(filePath))
+                        {
+                            LoadMarkdownFile(filePath);
+                            e.Effects = DragDropEffects.Move;
+                            e.Handled = true;
+                            return;
+                        }
+                    }
+                }
+                
                 if (e.Data.GetDataPresent(DataFormats.FileDrop))
                 {
                     var files = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -207,6 +253,7 @@ namespace MarkdownViewer
             tab.WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             tab.WebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
             tab.WebView.CoreWebView2.Settings.AreHostObjectsAllowed = false;
+
             
             // Prevent dropped files from opening in new window
             tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
@@ -493,12 +540,8 @@ namespace MarkdownViewer
             
             if (_tabs.Count == 0)
             {
-                FileTabControl.Visibility = Visibility.Collapsed;
-                PlaceholderPanel.Visibility = Visibility.Visible;
-                Title = "Markdown Viewer";
-                LinkStatusText.Text = "";
-                StatusText.Text = "";
-                WatchStatusText.Text = "";
+                // No tabs left - close this window
+                Close();
             }
             else
             {
@@ -794,6 +837,24 @@ namespace MarkdownViewer
 
         private void Window_Drop(object sender, DragEventArgs e)
         {
+            // Handle tab drop from another MarkdownViewer window
+            if (e.Data.GetDataPresent(DataFormats.Text))
+            {
+                var text = e.Data.GetData(DataFormats.Text) as string;
+                if (!string.IsNullOrEmpty(text) && text.StartsWith("MDVIEWER:"))
+                {
+                    var filePath = text.Substring(9); // Remove "MDVIEWER:" prefix
+                    if (IsSupportedFile(filePath))
+                    {
+                        LoadMarkdownFile(filePath);
+                        e.Effects = DragDropEffects.Move;
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+            
+            // Handle file drop from Explorer
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 var files = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -809,6 +870,19 @@ namespace MarkdownViewer
 
         private void Window_DragOver(object sender, DragEventArgs e)
         {
+            // Accept tab drops from other MarkdownViewer windows
+            if (e.Data.GetDataPresent(DataFormats.Text))
+            {
+                var text = e.Data.GetData(DataFormats.Text) as string;
+                if (!string.IsNullOrEmpty(text) && text.StartsWith("MDVIEWER:"))
+                {
+                    e.Effects = DragDropEffects.Move;
+                    e.Handled = true;
+                    return;
+                }
+            }
+            
+            // Accept file drops from Explorer
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 e.Effects = DragDropEffects.Copy;
@@ -947,9 +1021,9 @@ namespace MarkdownViewer
                 // Create preview window at tab's actual position
                 CreateDragPreviewWindow(tab, tabScreenPos, panel.ActualWidth, panel.ActualHeight);
                 
-                // Start drag operation with custom format only (prevents other apps from accepting drop)
+                // Start drag operation - use Text format for cross-window compatibility
                 var data = new DataObject();
-                data.SetData("MarkdownViewerTabDetach", tab);
+                data.SetData(DataFormats.Text, "MDVIEWER:" + tab.FilePath);
                 var result = DragDrop.DoDragDrop(panel, data, DragDropEffects.Move);
                 
                 // Get preview window position before closing it
@@ -962,17 +1036,30 @@ namespace MarkdownViewer
                 // Cleanup preview window
                 CloseDragPreviewWindow();
                 
-                // After drag ends, check if dropped outside window
-                if (_tabs.Count > 1)
+                // Check drop result
+                var screenPoint = GetCursorPosDip();
+                var windowRect = new Rect(Left, Top, Width, Height);
+                
+                if (!windowRect.Contains(screenPoint))
                 {
-                    var screenPoint = GetCursorPosDip();
-                    var windowRect = new Rect(Left, Top, Width, Height);
+                    // Dropped outside this window - check if over another MarkdownViewer window
+                    var targetWindow = FindWindowAtPosition(screenPoint);
                     
-                    if (!windowRect.Contains(screenPoint))
+                    if (targetWindow != null)
                     {
+                        // Drop on another MarkdownViewer window - transfer the tab
+                        var filePath = tab.FilePath;
+                        CloseTab(tab);
+                        targetWindow.LoadMarkdownFile(filePath);
+                        targetWindow.Activate();
+                    }
+                    else if (_tabs.Count > 1)
+                    {
+                        // Dropped on empty space - create new window
                         DetachTabToNewWindow(tab, previewPos);
                     }
                 }
+                // If dropped on same window, do nothing (tab is already here)
                 
                 _isTabDragging = false;
                 _draggedTab = null;
@@ -1057,9 +1144,23 @@ namespace MarkdownViewer
             
             if (_isTabDragging)
             {
-                // Use custom cursor to avoid "forbidden" icon when dragging outside window
                 e.UseDefaultCursors = false;
-                Mouse.SetCursor(Cursors.SizeAll);
+                
+                // Check if cursor is over another MarkdownViewer window
+                var screenPoint = GetCursorPosDip();
+                var targetWindow = FindWindowAtPosition(screenPoint);
+                
+                if (targetWindow != null)
+                {
+                    // Over another window - show hand cursor (will merge)
+                    Mouse.SetCursor(Cursors.Hand);
+                }
+                else
+                {
+                    // Not over another window - show move cursor (will create new window)
+                    Mouse.SetCursor(Cursors.SizeAll);
+                }
+                
                 e.Handled = true;
             }
         }
