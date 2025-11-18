@@ -378,11 +378,12 @@ namespace MarkdownViewer
                 // Check if tab still exists
                 if (!_tabs.Contains(tab)) return;
                 
+                // Bring the updated tab to front
+                FileTabControl.SelectedItem = tab;
+                Activate();
+                
                 RenderMarkdown(tab);
-                if (FileTabControl.SelectedItem == tab)
-                {
-                    StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
-                }
+                StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
             };
 
             tab.Watcher.Changed += (s, e) =>
