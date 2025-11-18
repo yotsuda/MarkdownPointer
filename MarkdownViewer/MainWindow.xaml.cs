@@ -135,6 +135,22 @@ namespace MarkdownViewer
                 tab.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
                 tab.WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 
+                // ドロップされたファイルを新しいウィンドウで開かせない
+                tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
+                {
+                    e.Handled = true;
+                    if (e.Uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var uri = new Uri(e.Uri);
+                        var path = uri.LocalPath;
+                        var ext = Path.GetExtension(path).ToLowerInvariant();
+                        if (ext == ".md" || ext == ".markdown" || ext == ".txt")
+                        {
+                            LoadMarkdownFile(path);
+                        }
+                    }
+                };
+                
                 // ズーム設定
                 SetupZoomForTab(tab);
                 
@@ -187,11 +203,19 @@ namespace MarkdownViewer
                         {
                             currentTab.WebView.ZoomFactor = _targetZoomFactor;
                             _zoomAnimationTimer.Stop();
+                            AdjustWindowSizeForZoom(_targetZoomFactor);
                             return;
                         }
                         
                         var step = diff * 0.1;
-                        currentTab.WebView.ZoomFactor = currentZoom + step;
+                        var newZoom = currentZoom + step;
+                        currentTab.WebView.ZoomFactor = newZoom;
+                        
+                        // ドラッグ移動モードではZoomFactorChangedが発火しないので直接呼び出す
+                        if (_isDragMoveMode)
+                        {
+                            AdjustWindowSizeForZoom(newZoom);
+                        }
                     }
                 };
             }
