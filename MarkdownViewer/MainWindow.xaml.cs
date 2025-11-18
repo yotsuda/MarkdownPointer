@@ -846,10 +846,21 @@ namespace MarkdownViewer
 
         private void DragOverlay_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (Keyboard.Modifiers == ModifierKeys.Control && FileTabControl.SelectedItem is TabItemData)
+            if (FileTabControl.SelectedItem is TabItemData tab)
             {
-                e.Handled = true;
-                ApplyZoomDelta(e.Delta);
+                if (Keyboard.Modifiers == ModifierKeys.Control)
+                {
+                    // Ctrl+Wheel: Zoom
+                    e.Handled = true;
+                    ApplyZoomDelta(e.Delta);
+                }
+                else
+                {
+                    // Normal wheel: Scroll
+                    e.Handled = true;
+                    var scrollAmount = -e.Delta;
+                    tab.WebView.CoreWebView2?.ExecuteScriptAsync($"window.scrollBy(0, {scrollAmount})");
+                }
             }
         }
 
