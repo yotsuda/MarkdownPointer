@@ -179,62 +179,96 @@ namespace MarkdownViewer
                 }
             };
             
-            // Handle link clicks (messages from JavaScript)
+            // Handle messages from JavaScript (link clicks and hovers)
             tab.WebView.CoreWebView2.WebMessageReceived += (s, e) =>
             {
-                var uri = e.TryGetWebMessageAsString();
+                var message = e.TryGetWebMessageAsString();
                 
-                if (string.IsNullOrEmpty(uri))
+                if (string.IsNullOrEmpty(message))
                 {
                     return;
                 }
                 
-                // Open remote URLs (http/https) in browser
-                if (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
-                    uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                // Handle link hover
+                if (message.StartsWith("hover:", StringComparison.Ordinal))
                 {
-                    Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
-                    return;
-                }
-                
-                // Local file
-                if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
-                {
-                    try
+                    var url = message.Substring(6);
+                    // Remove file:// prefix for local files to show clean path
+                    if (url.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
                     {
-                        var fileUri = new Uri(uri);
-                        var path = Uri.UnescapeDataString(fileUri.LocalPath);
-                        if (IsSupportedFile(path))
+                        try
                         {
-                            // Open Markdown files in new tab
-                            if (File.Exists(path))
-                            {
-                                LoadMarkdownFile(path);
-                            }
-                            else
-                            {
-                                MessageBox.Show($"File not found: {path}", "Error", 
-                                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                            }
+                            var fileUri = new Uri(url);
+                            url = Uri.UnescapeDataString(fileUri.LocalPath);
                         }
-                        else
+                        catch
                         {
-                            // Open other files with default app
-                            if (File.Exists(path))
-                            {
-                                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-                            }
-                            else
-                            {
-                                MessageBox.Show($"File not found: {path}", "Error", 
-                                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                            }
+                            // Keep original URL if parsing fails
                         }
                     }
-                    catch (Exception ex)
+                    LinkStatusText.Text = url;
+                    return;
+                }
+
+                // Handle mouse leave from link
+                if (message == "leave:")
+                {
+                    LinkStatusText.Text = "";
+                    return;
+                }
+                
+                // Handle link click
+                if (message.StartsWith("click:", StringComparison.Ordinal))
+                {
+                    var uri = message.Substring(6);
+                    
+                    // Open remote URLs (http/https) in browser
+                    if (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                        uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     {
-                        MessageBox.Show($"Failed to open file: {ex.Message}", "Error", 
-                            MessageBoxButton.OK, MessageBoxImage.Error);
+                        Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
+                        return;
+                    }
+                    
+                    // Local file
+                    if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            var fileUri = new Uri(uri);
+                            var path = Uri.UnescapeDataString(fileUri.LocalPath);
+                            if (IsSupportedFile(path))
+                            {
+                                // Open Markdown files in new tab
+                                if (File.Exists(path))
+                                {
+                                    LoadMarkdownFile(path);
+                                }
+                                else
+                                {
+                                    MessageBox.Show($"File not found: {path}", "Error", 
+                                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                                }
+                            }
+                            else
+                            {
+                                // Open other files with default app
+                                if (File.Exists(path))
+                                {
+                                    Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                                }
+                                else
+                                {
+                                    MessageBox.Show($"File not found: {path}", "Error", 
+                                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Failed to open file: {ex.Message}", "Error", 
+                                MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
                     }
                 }
             };
@@ -417,7 +451,7 @@ namespace MarkdownViewer
                 FileTabControl.Visibility = Visibility.Collapsed;
                 PlaceholderPanel.Visibility = Visibility.Visible;
                 Title = "Markdown Viewer";
-                FilePathText.Text = "";
+                LinkStatusText.Text = "";
                 StatusText.Text = "";
                 WatchStatusText.Text = "";
             }
@@ -432,7 +466,7 @@ namespace MarkdownViewer
             if (FileTabControl.SelectedItem is TabItemData tab)
             {
                 Title = $"Markdown Viewer - {tab.Title}";
-                FilePathText.Text = $"📄 {tab.Title}";
+                LinkStatusText.Text = "";
                 WatchStatusText.Text = "👁 Watching";
             }
         }
@@ -631,6 +665,7 @@ namespace MarkdownViewer
             html.AppendLine("</style>");
             html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(@"
+                // Handle link clicks
                 document.addEventListener('click', function(e) {
                     var target = e.target;
                     while (target && target.tagName !== 'A') {
@@ -638,7 +673,29 @@ namespace MarkdownViewer
                     }
                     if (target && target.href) {
                         e.preventDefault();
-                        window.chrome.webview.postMessage(target.href);
+                        window.chrome.webview.postMessage('click:' + target.href);
+                    }
+                });
+                
+                // Handle link hover
+                document.addEventListener('mouseover', function(e) {
+                    var target = e.target;
+                    while (target && target.tagName !== 'A') {
+                        target = target.parentElement;
+                    }
+                    if (target && target.href) {
+                        window.chrome.webview.postMessage('hover:' + target.href);
+                    }
+                });
+                
+                // Handle mouse leave from link
+                document.addEventListener('mouseout', function(e) {
+                    var target = e.target;
+                    while (target && target.tagName !== 'A') {
+                        target = target.parentElement;
+                    }
+                    if (target && target.tagName === 'A') {
+                        window.chrome.webview.postMessage('leave:');
                     }
                 });
             ");
