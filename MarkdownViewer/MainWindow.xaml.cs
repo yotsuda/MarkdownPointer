@@ -14,9 +14,10 @@ namespace MarkdownViewer
         private FileSystemWatcher? _watcher;
         private string? _currentFilePath;
         private readonly MarkdownPipeline _pipeline;
-        private DispatcherTimer? _zoomTimer;
         private DispatcherTimer? _debounceTimer;
+        private DispatcherTimer? _zoomAnimationTimer;
         private double _lastZoomFactor = 1.0;
+        private double _targetZoomFactor = 1.0;
         private string? _pendingFilePath;
         private bool _isInitialized = false;
 
@@ -57,6 +58,7 @@ namespace MarkdownViewer
                 
                 // ズーム変更を監視するタイマーを設定
                 SetupZoomMonitoring();
+                _targetZoomFactor = WebView.ZoomFactor;
                 
                 // 保留中のファイルがあれば読み込む
                 if (!string.IsNullOrEmpty(_pendingFilePath))
@@ -73,25 +75,67 @@ namespace MarkdownViewer
 
         private void SetupZoomMonitoring()
         {
-            _zoomTimer = new DispatcherTimer
+            // ZoomFactorChanged イベントでズーム変更を検知
+            WebView.ZoomFactorChanged += (s, e) =>
             {
-                Interval = TimeSpan.FromMilliseconds(100)
-            };
-            
-            _zoomTimer.Tick += (s, e) =>
-            {
-                if (WebView?.CoreWebView2 != null)
+                var currentZoom = WebView.ZoomFactor;
+                if (Math.Abs(currentZoom - _lastZoomFactor) > 0.001)
                 {
-                    var currentZoom = WebView.ZoomFactor;
-                    if (Math.Abs(currentZoom - _lastZoomFactor) > 0.01)
-                    {
-                        _lastZoomFactor = currentZoom;
-                        AdjustWindowSizeForZoom(currentZoom);
-                    }
+                    _lastZoomFactor = currentZoom;
+                    AdjustWindowSizeForZoom(currentZoom);
                 }
             };
             
-            _zoomTimer.Start();
+            // アニメーション用タイマーを設定
+            _zoomAnimationTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(16) // 約60fps
+            };
+            
+            _zoomAnimationTimer.Tick += (s, e) =>
+            {
+                var currentZoom = WebView.ZoomFactor;
+                var diff = _targetZoomFactor - currentZoom;
+                
+                // 目標に十分近づいたら停止
+                if (Math.Abs(diff) < 0.005)
+                {
+                    WebView.ZoomFactor = _targetZoomFactor;
+                    _zoomAnimationTimer.Stop();
+                    return;
+                }
+                
+                // イージング: 差分の10%ずつ近づく（よりゆっくり滑らかに減速）
+                var step = diff * 0.1;
+                WebView.ZoomFactor = currentZoom + step;
+            };
+            
+            // カスタムのマウスホイールハンドリング
+            WebView.PreviewMouseWheel += (s, e) =>
+            {
+                if (Keyboard.Modifiers == ModifierKeys.Control)
+                {
+                    e.Handled = true;
+                    
+                    // ズームステップ (1% 刻みで目標を設定)
+                    double zoomStep = 0.01;
+                    
+                    if (e.Delta > 0)
+                    {
+                        _targetZoomFactor = Math.Min(5.0, _targetZoomFactor + zoomStep);
+                    }
+                    else
+                    {
+                        _targetZoomFactor = Math.Max(0.25, _targetZoomFactor - zoomStep);
+                    }
+                    
+                    // アニメーション開始
+                    if (!_zoomAnimationTimer.IsEnabled)
+                    {
+                        _zoomAnimationTimer.Start();
+                    }
+                }
+            };
         }
 
         private void AdjustWindowSizeForZoom(double zoomFactor)
@@ -439,8 +483,8 @@ namespace MarkdownViewer
         protected override void OnClosed(EventArgs e)
         {
             _watcher?.Dispose();
-            _zoomTimer?.Stop();
             _debounceTimer?.Stop();
+            _zoomAnimationTimer?.Stop();
             base.OnClosed(e);
         }
 
