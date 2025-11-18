@@ -157,10 +157,12 @@ namespace MarkdownViewer
             // Check if tab still exists
             if (!_tabs.Contains(tab)) return;
             
-            // Configure WebView2 settings
+            // Configure WebView2 settings for security
             tab.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             tab.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
             tab.WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            tab.WebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
+            tab.WebView.CoreWebView2.Settings.AreHostObjectsAllowed = false;
             
             // Prevent dropped files from opening in new window
             tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
@@ -527,10 +529,15 @@ namespace MarkdownViewer
             // Convert path for file:// URL
             var baseUrl = new Uri(baseDir + Path.DirectorySeparatorChar).AbsoluteUri;
             
+            // Generate nonce for CSP
+            var nonce = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            
             var html = new StringBuilder();
             html.AppendLine("<!DOCTYPE html>");
             html.AppendLine("<html><head>");
             html.AppendLine("<meta charset='utf-8'/>");
+            // Content Security Policy to prevent XSS attacks
+            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src file: data:; script-src 'nonce-{nonce}'; font-src 'none';\"/>");
             html.AppendLine($"<base href='{baseUrl}'/>");
             html.AppendLine("<style>");
             html.AppendLine(@"
@@ -622,7 +629,7 @@ namespace MarkdownViewer
                 }
             ");
             html.AppendLine("</style>");
-            html.AppendLine("<script>");
+            html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(@"
                 document.addEventListener('click', function(e) {
                     var target = e.target;
