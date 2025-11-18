@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -20,6 +19,7 @@ namespace MarkdownViewer
         private double _targetZoomFactor = 1.0;
         private string? _pendingFilePath;
         private bool _isInitialized = false;
+        private bool _isDragMoveMode = false;
 
         public MainWindow()
         {
@@ -478,6 +478,23 @@ namespace MarkdownViewer
                 OpenFileDialog();
                 e.Handled = true;
             }
+        }
+
+        private void TopmostToggle_Click(object sender, RoutedEventArgs e)
+        {
+            Topmost = TopmostToggle.IsChecked == true;
+        }
+
+        private void DragMoveToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _isDragMoveMode = DragMoveToggle.IsChecked == true;
+            DragOverlay.Visibility = _isDragMoveMode ? Visibility.Visible : Visibility.Collapsed;
+            WebView.IsEnabled = !_isDragMoveMode;
+        }
+
+        private void DragOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            DragMove();
         }
 
         protected override void OnClosed(EventArgs e)

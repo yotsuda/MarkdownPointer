@@ -18,6 +18,13 @@
         <!-- WebView2 でコンテンツ表示 -->
         <wv2:WebView2 x:Name="WebView" Grid.Row="0"/>
 
+        <!-- ドラッグ移動モード用のオーバーレイ -->
+        <Border x:Name="DragOverlay" Grid.Row="0" 
+                Background="#01000000" 
+                Visibility="Collapsed"
+                MouseLeftButtonDown="DragOverlay_MouseLeftButtonDown"
+                Cursor="SizeAll"/>
+
         <!-- ファイル未読み込み時のプレースホルダー -->
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -57,7 +64,27 @@
                     <TextBlock x:Name="WatchStatusText" 
                                VerticalAlignment="Center" 
                                FontSize="11"
-                               Foreground="#586069"/>
+                               Foreground="#586069"
+                               Margin="0,0,12,0"/>
+                    
+                    <!-- トグルボタン -->
+                    <ToggleButton x:Name="TopmostToggle" 
+                                  Content="📌" 
+                                  ToolTip="常に前面に表示"
+                                  Click="TopmostToggle_Click"
+                                  Width="24" Height="20"
+                                  FontSize="10"
+                                  Margin="0,0,4,0"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
+                    <ToggleButton x:Name="DragMoveToggle" 
+                                  Content="✋" 
+                                  ToolTip="ドラッグ移動モード (オフ: テキスト選択)"
+                                  Click="DragMoveToggle_Click"
+                                  Width="24" Height="20"
+                                  FontSize="10"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
                 </StackPanel>
             </Grid>
         </Border>
