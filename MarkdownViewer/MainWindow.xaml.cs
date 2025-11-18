@@ -36,6 +36,14 @@ namespace MarkdownViewer
 
     public partial class MainWindow : Window
     {
+        // Constants
+        private const double ZoomStep = 0.01;
+        private const double MinZoom = 0.25;
+        private const double MaxZoom = 5.0;
+        private const double BaseContentWidth = 1060.0;
+        private const double ScrollbarWidth = 20.0;
+        private const double MinWindowWidth = 400.0;
+        
         private readonly MarkdownPipeline _pipeline;
         private readonly ObservableCollection<TabItemData> _tabs = new();
         private DispatcherTimer? _zoomAnimationTimer;
@@ -294,22 +302,7 @@ namespace MarkdownViewer
                 if (Keyboard.Modifiers == ModifierKeys.Control)
                 {
                     e.Handled = true;
-                    
-                    double zoomStep = 0.01;
-                    
-                    if (e.Delta > 0)
-                    {
-                        _targetZoomFactor = Math.Min(5.0, _targetZoomFactor + zoomStep);
-                    }
-                    else
-                    {
-                        _targetZoomFactor = Math.Max(0.25, _targetZoomFactor - zoomStep);
-                    }
-                    
-                    if (!_zoomAnimationTimer!.IsEnabled)
-                    {
-                        _zoomAnimationTimer.Start();
-                    }
+                    ApplyZoomDelta(e.Delta);
                 }
             };
         }
@@ -482,17 +475,31 @@ namespace MarkdownViewer
 
         private void AdjustWindowSizeForZoom(double zoomFactor)
         {
-            const double baseContentWidth = 1060.0;
-            const double scrollbarWidth = 20.0;
-            
-            var targetWidth = (baseContentWidth * zoomFactor) + scrollbarWidth;
-            targetWidth = Math.Max(400, Math.Min(targetWidth, SystemParameters.WorkArea.Width * 0.9));
+            var targetWidth = (BaseContentWidth * zoomFactor) + ScrollbarWidth;
+            targetWidth = Math.Max(MinWindowWidth, Math.Min(targetWidth, SystemParameters.WorkArea.Width * 0.9));
             
             Width = targetWidth;
             
             if (Left + Width > SystemParameters.WorkArea.Width)
             {
                 Left = Math.Max(0, SystemParameters.WorkArea.Width - Width);
+            }
+        }
+
+        private void ApplyZoomDelta(int delta)
+        {
+            if (delta > 0)
+            {
+                _targetZoomFactor = Math.Min(MaxZoom, _targetZoomFactor + ZoomStep);
+            }
+            else
+            {
+                _targetZoomFactor = Math.Max(MinZoom, _targetZoomFactor - ZoomStep);
+            }
+            
+            if (!_zoomAnimationTimer!.IsEnabled)
+            {
+                _zoomAnimationTimer.Start();
             }
         }
 
@@ -762,25 +769,10 @@ namespace MarkdownViewer
 
         private void DragOverlay_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (Keyboard.Modifiers == ModifierKeys.Control && FileTabControl.SelectedItem is TabItemData tab)
+            if (Keyboard.Modifiers == ModifierKeys.Control && FileTabControl.SelectedItem is TabItemData)
             {
                 e.Handled = true;
-                
-                double zoomStep = 0.01;
-                
-                if (e.Delta > 0)
-                {
-                    _targetZoomFactor = Math.Min(5.0, _targetZoomFactor + zoomStep);
-                }
-                else
-                {
-                    _targetZoomFactor = Math.Max(0.25, _targetZoomFactor - zoomStep);
-                }
-                
-                if (!_zoomAnimationTimer!.IsEnabled)
-                {
-                    _zoomAnimationTimer.Start();
-                }
+                ApplyZoomDelta(e.Delta);
             }
         }
 
