@@ -1,6 +1,6 @@
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -147,6 +147,68 @@ namespace MarkdownViewer
                         if (ext == ".md" || ext == ".markdown" || ext == ".txt")
                         {
                             LoadMarkdownFile(path);
+                        }
+                    }
+                };
+                
+                // リンククリック時の処理（JavaScriptからのメッセージ）
+                tab.WebView.CoreWebView2.WebMessageReceived += (s, e) =>
+                {
+                    var uri = e.TryGetWebMessageAsString();
+                    
+                    if (string.IsNullOrEmpty(uri))
+                    {
+                        return;
+                    }
+                    
+                    // リモートURL（http/https）はブラウザで開く
+                    if (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                        uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
+                        return;
+                    }
+                    
+                    // ローカルファイル
+                    if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            var fileUri = new Uri(uri);
+                            var path = Uri.UnescapeDataString(fileUri.LocalPath);
+                            var ext = Path.GetExtension(path).ToLowerInvariant();
+                            
+                            if (ext == ".md" || ext == ".markdown" || ext == ".txt")
+                            {
+                                // Markdownファイルは新しいタブで開く
+                                if (File.Exists(path))
+                                {
+                                    LoadMarkdownFile(path);
+                                }
+                                else
+                                {
+                                    MessageBox.Show($"ファイルが見つかりません: {path}", "エラー", 
+                                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                                }
+                            }
+                            else
+                            {
+                                // その他のファイルはデフォルトアプリで開く
+                                if (File.Exists(path))
+                                {
+                                    Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                                }
+                                else
+                                {
+                                    MessageBox.Show($"ファイルが見つかりません: {path}", "エラー", 
+                                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"ファイルを開けませんでした: {ex.Message}", "エラー", 
+                                MessageBoxButton.OK, MessageBoxImage.Error);
                         }
                     }
                 };
@@ -357,7 +419,8 @@ namespace MarkdownViewer
             try
             {
                 var markdown = File.ReadAllText(tab.FilePath, Encoding.UTF8);
-                var html = ConvertMarkdownToHtml(markdown);
+                var baseDir = Path.GetDirectoryName(tab.FilePath);
+                var html = ConvertMarkdownToHtml(markdown, baseDir!);
                 tab.WebView.NavigateToString(html);
             }
             catch (Exception ex)
@@ -391,14 +454,18 @@ namespace MarkdownViewer
 
         #region HTML変換
 
-        private string ConvertMarkdownToHtml(string markdown)
+        private string ConvertMarkdownToHtml(string markdown, string baseDir)
         {
             var htmlContent = Markdown.ToHtml(markdown, _pipeline);
+            
+            // file:// URL用にパスを変換
+            var baseUrl = new Uri(baseDir + Path.DirectorySeparatorChar).AbsoluteUri;
             
             var html = new StringBuilder();
             html.AppendLine("<!DOCTYPE html>");
             html.AppendLine("<html><head>");
             html.AppendLine("<meta charset='utf-8'/>");
+            html.AppendLine($"<base href='{baseUrl}'/>");
             html.AppendLine("<style>");
             html.AppendLine(@"
                 body { 
@@ -489,6 +556,20 @@ namespace MarkdownViewer
                 }
             ");
             html.AppendLine("</style>");
+            html.AppendLine("<script>");
+            html.AppendLine(@"
+                document.addEventListener('click', function(e) {
+                    var target = e.target;
+                    while (target && target.tagName !== 'A') {
+                        target = target.parentElement;
+                    }
+                    if (target && target.href) {
+                        e.preventDefault();
+                        window.chrome.webview.postMessage(target.href);
+                    }
+                });
+            ");
+            html.AppendLine("</script>");
             html.AppendLine("</head><body>");
             html.AppendLine(htmlContent);
             html.AppendLine("</body></html>");
