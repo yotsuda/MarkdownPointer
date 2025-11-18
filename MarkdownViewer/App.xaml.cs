@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 
 namespace MarkdownViewer
@@ -9,7 +9,7 @@ namespace MarkdownViewer
         {
             base.OnStartup(e);
 
-            // コマンドライン引数からファイルパスを取得
+            // Get file path from command line arguments
             if (e.Args.Length > 0 && File.Exists(e.Args[0]))
             {
                 var mainWindow = new MainWindow();

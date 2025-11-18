@@ -13,7 +13,7 @@ using Microsoft.Win32;
 
 namespace MarkdownViewer
 {
-    // タブのデータモデル
+    // Tab data model
     public class TabItemData : INotifyPropertyChanged
     {
         private string _title = "";
@@ -47,7 +47,7 @@ namespace MarkdownViewer
         {
             InitializeComponent();
             
-            // Markdig パイプラインを設定
+            // Configure Markdig pipeline
             _pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
                 .Build();
@@ -55,18 +55,18 @@ namespace MarkdownViewer
             FileTabControl.ItemsSource = _tabs;
         }
 
-        #region タブ管理
+        #region Tab Management
 
         public void LoadMarkdownFile(string filePath)
         {
             if (!File.Exists(filePath))
             {
-                MessageBox.Show($"ファイルが見つかりません: {filePath}", "エラー", 
+                MessageBox.Show($"File not found: {filePath}", "Error", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
-            // 既に開いているファイルかチェック
+            // Check if file is already open
             foreach (var tab in _tabs)
             {
                 if (string.Equals(tab.FilePath, filePath, StringComparison.OrdinalIgnoreCase))
@@ -76,7 +76,7 @@ namespace MarkdownViewer
                 }
             }
 
-            // 新しいタブを作成
+            // Create new tab
             var newTab = new TabItemData
             {
                 FilePath = filePath,
@@ -84,15 +84,15 @@ namespace MarkdownViewer
                 WebView = new WebView2()
             };
 
-            // WebView2 の初期化（fire-and-forget、例外は内部でハンドル）
+            // Initialize WebView2 (fire-and-forget, exceptions handled internally)
             _ = InitializeTabWebViewAsync(newTab).ContinueWith(t =>
             {
                 if (t.IsFaulted && t.Exception != null)
                 {
                     Dispatcher.BeginInvoke(() =>
                     {
-                        MessageBox.Show($"WebView2 の初期化に失敗しました:\n{t.Exception.InnerException?.Message ?? t.Exception.Message}", 
-                            "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show($"Failed to initialize WebView2:\n{t.Exception.InnerException?.Message ?? t.Exception.Message}", 
+                            "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                         CloseTab(newTab);
                     });
                 }
@@ -101,7 +101,7 @@ namespace MarkdownViewer
             _tabs.Add(newTab);
             FileTabControl.SelectedItem = newTab;
             
-            // プレースホルダーを非表示、タブコントロールを表示
+            // Hide placeholder, show tab control
             PlaceholderPanel.Visibility = Visibility.Collapsed;
             FileTabControl.Visibility = Visibility.Visible;
             
@@ -110,7 +110,7 @@ namespace MarkdownViewer
 
         private async Task InitializeTabWebViewAsync(TabItemData tab)
         {
-            // WebView2上のドロップをウィンドウレベルで処理
+            // Handle drops on WebView2 at window level
             tab.WebView.AllowDrop = true;
             tab.WebView.PreviewDragOver += (s, e) =>
             {
@@ -139,15 +139,15 @@ namespace MarkdownViewer
             
             await tab.WebView.EnsureCoreWebView2Async(null);
             
-            // タブがまだ存在するか確認
+            // Check if tab still exists
             if (!_tabs.Contains(tab)) return;
             
-            // WebView2 の設定
+            // Configure WebView2 settings
             tab.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             tab.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
             tab.WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             
-            // ドロップされたファイルを新しいウィンドウで開かせない
+            // Prevent dropped files from opening in new window
             tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
             {
                 e.Handled = true;
@@ -163,7 +163,7 @@ namespace MarkdownViewer
                 }
             };
             
-            // リンククリック時の処理（JavaScriptからのメッセージ）
+            // Handle link clicks (messages from JavaScript)
             tab.WebView.CoreWebView2.WebMessageReceived += (s, e) =>
             {
                 var uri = e.TryGetWebMessageAsString();
@@ -173,7 +173,7 @@ namespace MarkdownViewer
                     return;
                 }
                 
-                // リモートURL（http/https）はブラウザで開く
+                // Open remote URLs (http/https) in browser
                 if (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
                     uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 {
@@ -181,7 +181,7 @@ namespace MarkdownViewer
                     return;
                 }
                 
-                // ローカルファイル
+                // Local file
                 if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
                 {
                     try
@@ -192,48 +192,48 @@ namespace MarkdownViewer
                         
                         if (ext == ".md" || ext == ".markdown" || ext == ".txt")
                         {
-                            // Markdownファイルは新しいタブで開く
+                            // Open Markdown files in new tab
                             if (File.Exists(path))
                             {
                                 LoadMarkdownFile(path);
                             }
                             else
                             {
-                                MessageBox.Show($"ファイルが見つかりません: {path}", "エラー", 
+                                MessageBox.Show($"File not found: {path}", "Error", 
                                     MessageBoxButton.OK, MessageBoxImage.Warning);
                             }
                         }
                         else
                         {
-                            // その他のファイルはデフォルトアプリで開く
+                            // Open other files with default app
                             if (File.Exists(path))
                             {
                                 Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
                             }
                             else
                             {
-                                MessageBox.Show($"ファイルが見つかりません: {path}", "エラー", 
+                                MessageBox.Show($"File not found: {path}", "Error", 
                                     MessageBoxButton.OK, MessageBoxImage.Warning);
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"ファイルを開けませんでした: {ex.Message}", "エラー", 
+                        MessageBox.Show($"Failed to open file: {ex.Message}", "Error", 
                             MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
             };
             
-            // ズーム設定
+            // Setup zoom
             SetupZoomForTab(tab);
             
             tab.IsInitialized = true;
             
-            // ファイル監視を設定
+            // Setup file watcher
             SetupFileWatcher(tab);
             
-            // Markdown を表示
+            // Render Markdown
             RenderMarkdown(tab);
         }
 
@@ -252,7 +252,7 @@ namespace MarkdownViewer
                 }
             };
             
-            // アニメーション用タイマー（ウィンドウ共通）
+            // Animation timer (shared across window)
             if (_zoomAnimationTimer == null)
             {
                 _zoomAnimationTimer = new DispatcherTimer
@@ -279,7 +279,7 @@ namespace MarkdownViewer
                         var newZoom = currentZoom + step;
                         currentTab.WebView.ZoomFactor = newZoom;
                         
-                        // ドラッグ移動モードではZoomFactorChangedが発火しないので直接呼び出す
+                        // Call directly in drag move mode as ZoomFactorChanged does not fire
                         if (_isDragMoveMode)
                         {
                             AdjustWindowSizeForZoom(newZoom);
@@ -288,7 +288,7 @@ namespace MarkdownViewer
                 };
             }
             
-            // マウスホイールハンドリング
+            // Mouse wheel handling
             tab.WebView.PreviewMouseWheel += (s, e) =>
             {
                 if (Keyboard.Modifiers == ModifierKeys.Control)
@@ -321,7 +321,7 @@ namespace MarkdownViewer
             var directory = Path.GetDirectoryName(tab.FilePath);
             var fileName = Path.GetFileName(tab.FilePath);
 
-            // ディレクトリが取得できない場合は監視しない
+            // Skip watching if directory cannot be obtained
             if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
             {
                 return;
@@ -333,7 +333,7 @@ namespace MarkdownViewer
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName
             };
 
-            // デバウンス用タイマー
+            // Debounce timer
             tab.DebounceTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(200)
@@ -342,7 +342,7 @@ namespace MarkdownViewer
             tab.DebounceTimer.Tick += (s, e) =>
             {
                 tab.DebounceTimer.Stop();
-                // タブがまだ存在するか確認
+                // Check if tab still exists
                 if (!_tabs.Contains(tab)) return;
                 
                 RenderMarkdown(tab);
@@ -356,7 +356,7 @@ namespace MarkdownViewer
             {
                 Dispatcher.BeginInvoke(() =>
                 {
-                    // タブがまだ存在するか確認
+                    // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
                     
                     tab.DebounceTimer?.Stop();
@@ -372,7 +372,7 @@ namespace MarkdownViewer
             {
                 Dispatcher.BeginInvoke(() =>
                 {
-                    // タブがまだ存在するか確認
+                    // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
                     
                     CloseTab(tab);
@@ -383,7 +383,7 @@ namespace MarkdownViewer
             {
                 Dispatcher.BeginInvoke(() =>
                 {
-                    // タブがまだ存在するか確認
+                    // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
                     
                     tab.FilePath = e.FullPath;
@@ -434,7 +434,7 @@ namespace MarkdownViewer
             {
                 Title = $"Markdown Viewer - {tab.Title}";
                 FilePathText.Text = $"📄 {tab.Title}";
-                WatchStatusText.Text = "👁 監視中";
+                WatchStatusText.Text = "👁 Watching";
             }
         }
 
@@ -449,14 +449,14 @@ namespace MarkdownViewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Markdown の表示エラー: {ex.Message}", "エラー", 
+                MessageBox.Show($"Markdown rendering error: {ex.Message}", "Error", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         #endregion
 
-        #region ウィンドウサイズ調整
+        #region Window Size Adjustment
 
         private void AdjustWindowSizeForZoom(double zoomFactor)
         {
@@ -476,13 +476,13 @@ namespace MarkdownViewer
 
         #endregion
 
-        #region HTML変換
+        #region HTML Conversion
 
         private string ConvertMarkdownToHtml(string markdown, string baseDir)
         {
             var htmlContent = Markdown.ToHtml(markdown, _pipeline);
             
-            // file:// URL用にパスを変換
+            // Convert path for file:// URL
             var baseUrl = new Uri(baseDir + Path.DirectorySeparatorChar).AbsoluteUri;
             
             var html = new StringBuilder();
@@ -603,14 +603,14 @@ namespace MarkdownViewer
 
         #endregion
 
-        #region ファイル操作
+        #region File Operations
 
         private void OpenFileDialog()
         {
             var dialog = new OpenFileDialog
             {
                 Filter = "Markdown files (*.md;*.markdown)|*.md;*.markdown|All files (*.*)|*.*",
-                Title = "Markdown ファイルを開く"
+                Title = "Open Markdown File"
             };
 
             if (dialog.ShowDialog() == true)
@@ -621,7 +621,7 @@ namespace MarkdownViewer
 
         #endregion
 
-        #region イベントハンドラー
+        #region Event Handlers
 
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -696,7 +696,7 @@ namespace MarkdownViewer
             }
             else if (e.Key == Key.Tab && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift))
             {
-                // Ctrl+Shift+Tab: 前のタブへ
+                // Ctrl+Shift+Tab: Previous tab
                 if (_tabs.Count > 1)
                 {
                     var currentIndex = FileTabControl.SelectedIndex;
@@ -706,7 +706,7 @@ namespace MarkdownViewer
             }
             else if (e.Key == Key.Tab && Keyboard.Modifiers == ModifierKeys.Control)
             {
-                // Ctrl+Tab: 次のタブへ
+                // Ctrl+Tab: Next tab
                 if (_tabs.Count > 1)
                 {
                     var currentIndex = FileTabControl.SelectedIndex;
@@ -726,7 +726,7 @@ namespace MarkdownViewer
             _isDragMoveMode = DragMoveToggle.IsChecked == true;
             DragOverlay.Visibility = _isDragMoveMode ? Visibility.Visible : Visibility.Collapsed;
             
-            // 全タブの WebView を無効化/有効化
+            // Enable/disable WebView for all tabs
             foreach (var tab in _tabs)
             {
                 tab.WebView.IsEnabled = !_isDragMoveMode;
