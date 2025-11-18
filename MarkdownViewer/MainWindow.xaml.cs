@@ -438,11 +438,33 @@ namespace MarkdownViewer
             }
         }
 
-        private void RenderMarkdown(TabItemData tab)
+        private async void RenderMarkdown(TabItemData tab)
         {
             try
             {
-                var markdown = File.ReadAllText(tab.FilePath, Encoding.UTF8);
+                // Read file asynchronously with retry for locked files
+                string? markdown = null;
+                for (int i = 0; i < 3; i++)
+                {
+                    try
+                    {
+                        markdown = await File.ReadAllTextAsync(tab.FilePath, Encoding.UTF8);
+                        break;
+                    }
+                    catch (IOException) when (i < 2)
+                    {
+                        await Task.Delay(100);
+                    }
+                }
+                
+                if (markdown == null)
+                {
+                    markdown = await File.ReadAllTextAsync(tab.FilePath, Encoding.UTF8);
+                }
+                
+                // Check if tab still exists after async operation
+                if (!_tabs.Contains(tab)) return;
+                
                 var baseDir = Path.GetDirectoryName(tab.FilePath);
                 var html = ConvertMarkdownToHtml(markdown, baseDir!);
                 tab.WebView.NavigateToString(html);
