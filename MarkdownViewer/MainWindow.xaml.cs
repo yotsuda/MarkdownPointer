@@ -23,7 +23,7 @@ namespace MarkdownViewer
             get => _title;
             set { _title = value; OnPropertyChanged(nameof(Title)); }
         }
-        
+
         public string FilePath { get; set; } = "";
         public WebView2 WebView { get; set; } = null!;
         public FileSystemWatcher? Watcher { get; set; }
@@ -41,14 +41,14 @@ namespace MarkdownViewer
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetCursorPos(out POINT lpPoint);
-        
+
         [StructLayout(LayoutKind.Sequential)]
         private struct POINT
         {
             public int X;
             public int Y;
         }
-        
+
         // Get cursor position in WPF DIP coordinates
         // Convert physical pixels to WPF DIP coordinates
         private Point PhysicalToDip(Point physical)
@@ -61,7 +61,7 @@ namespace MarkdownViewer
             }
             return physical;
         }
-        
+
         // Get cursor position in WPF DIP coordinates
         private Point GetCursorPosDip()
         {
@@ -71,7 +71,7 @@ namespace MarkdownViewer
             }
             return new Point(0, 0);
         }
-        
+
         // Find another MainWindow at the given screen position (excluding this window)
         private MainWindow? FindWindowAtPosition(Point screenPos)
         {
@@ -88,7 +88,7 @@ namespace MarkdownViewer
             }
             return null;
         }
-        
+
         // Constants
         private const double ZoomStep = 0.01;
         private const double MinZoom = 0.25;
@@ -96,16 +96,16 @@ namespace MarkdownViewer
         private const double BaseContentWidth = 1060.0;
         private const double ScrollbarWidth = 20.0;
         private const double MinWindowWidth = 400.0;
-        
+
         private static readonly string[] SupportedExtensions = { ".md", ".markdown", ".txt" };
-        
+
         private readonly MarkdownPipeline _pipeline;
         private readonly ObservableCollection<TabItemData> _tabs = new();
         private DispatcherTimer? _zoomAnimationTimer;
         private double _lastZoomFactor = 1.0;
         private double _targetZoomFactor = 1.0;
         private bool _isDragMoveMode = false;
-        
+
         // Tab drag state
         private Point _tabDragStartPoint;
         private Point _dragStartCursorPos;
@@ -123,12 +123,12 @@ namespace MarkdownViewer
         public MainWindow()
         {
             InitializeComponent();
-            
+
             // Configure Markdig pipeline
             _pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
                 .Build();
-            
+
             FileTabControl.ItemsSource = _tabs;
         }
 
@@ -138,18 +138,33 @@ namespace MarkdownViewer
         {
             if (!File.Exists(filePath))
             {
-                MessageBox.Show($"File not found: {filePath}", "Error", 
+                MessageBox.Show($"File not found: {filePath}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
-            // Check if file is already open
+            // Check if file is already open in this window
             foreach (var tab in _tabs)
             {
                 if (string.Equals(tab.FilePath, filePath, StringComparison.OrdinalIgnoreCase))
                 {
                     FileTabControl.SelectedItem = tab;
                     return;
+                }
+            }
+
+            // Close the file if it's open in another window
+            foreach (Window window in Application.Current.Windows)
+            {
+                if (window is MainWindow mw && mw != this)
+                {
+                    var tabToClose = mw._tabs.FirstOrDefault(t =>
+                        string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+                    if (tabToClose != null)
+                    {
+                        mw.CloseTab(tabToClose);
+                        break;
+                    }
                 }
             }
 
@@ -168,20 +183,20 @@ namespace MarkdownViewer
                 {
                     Dispatcher.BeginInvoke(() =>
                     {
-                        MessageBox.Show($"Failed to initialize WebView2:\n{t.Exception.InnerException?.Message ?? t.Exception.Message}", 
+                        MessageBox.Show($"Failed to initialize WebView2:\n{t.Exception.InnerException?.Message ?? t.Exception.Message}",
                             "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                         CloseTab(newTab);
                     });
                 }
             }, TaskScheduler.Default);
-            
+
             _tabs.Add(newTab);
             FileTabControl.SelectedItem = newTab;
-            
+
             // Hide placeholder, show tab control
             PlaceholderPanel.Visibility = Visibility.Collapsed;
             FileTabControl.Visibility = Visibility.Visible;
-            
+
             UpdateWindowTitle();
         }
 
@@ -202,7 +217,7 @@ namespace MarkdownViewer
                         return;
                     }
                 }
-                
+
                 if (e.Data.GetDataPresent(DataFormats.FileDrop))
                 {
                     e.Effects = DragDropEffects.Copy;
@@ -227,7 +242,7 @@ namespace MarkdownViewer
                         }
                     }
                 }
-                
+
                 if (e.Data.GetDataPresent(DataFormats.FileDrop))
                 {
                     var files = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -241,12 +256,12 @@ namespace MarkdownViewer
                     e.Handled = true;
                 }
             };
-            
+
             await tab.WebView.EnsureCoreWebView2Async(null);
-            
+
             // Check if tab still exists
             if (!_tabs.Contains(tab)) return;
-            
+
             // Configure WebView2 settings for security
             tab.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             tab.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
@@ -254,7 +269,6 @@ namespace MarkdownViewer
             tab.WebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
             tab.WebView.CoreWebView2.Settings.AreHostObjectsAllowed = false;
 
-            
             // Prevent dropped files from opening in new window
             tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
             {
@@ -269,17 +283,17 @@ namespace MarkdownViewer
                     }
                 }
             };
-            
+
             // Handle messages from JavaScript (link clicks and hovers)
             tab.WebView.CoreWebView2.WebMessageReceived += (s, e) =>
             {
                 var message = e.TryGetWebMessageAsString();
-                
+
                 if (string.IsNullOrEmpty(message))
                 {
                     return;
                 }
-                
+
                 // Handle link hover
                 if (message.StartsWith("hover:", StringComparison.Ordinal))
                 {
@@ -307,12 +321,12 @@ namespace MarkdownViewer
                     LinkStatusText.Text = "";
                     return;
                 }
-                
+
                 // Handle link click
                 if (message.StartsWith("click:", StringComparison.Ordinal))
                 {
                     var uri = message.Substring(6);
-                    
+
                     // Open remote URLs (http/https) in browser
                     if (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
                         uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
@@ -320,7 +334,7 @@ namespace MarkdownViewer
                         Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
                         return;
                     }
-                    
+
                     // Local file
                     if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
                     {
@@ -337,7 +351,7 @@ namespace MarkdownViewer
                                 }
                                 else
                                 {
-                                    MessageBox.Show($"File not found: {path}", "Error", 
+                                    MessageBox.Show($"File not found: {path}", "Error",
                                         MessageBoxButton.OK, MessageBoxImage.Warning);
                                 }
                             }
@@ -350,28 +364,28 @@ namespace MarkdownViewer
                                 }
                                 else
                                 {
-                                    MessageBox.Show($"File not found: {path}", "Error", 
+                                    MessageBox.Show($"File not found: {path}", "Error",
                                         MessageBoxButton.OK, MessageBoxImage.Warning);
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
-                            MessageBox.Show($"Failed to open file: {ex.Message}", "Error", 
+                            MessageBox.Show($"Failed to open file: {ex.Message}", "Error",
                                 MessageBoxButton.OK, MessageBoxImage.Error);
                         }
                     }
                 }
             };
-            
+
             // Setup zoom
             SetupZoomForTab(tab);
-            
+
             tab.IsInitialized = true;
-            
+
             // Setup file watcher
             SetupFileWatcher(tab);
-            
+
             // Render Markdown
             RenderMarkdown(tab);
         }
@@ -390,7 +404,7 @@ namespace MarkdownViewer
                     }
                 }
             };
-            
+
             // Animation timer (shared across window)
             if (_zoomAnimationTimer == null)
             {
@@ -398,14 +412,14 @@ namespace MarkdownViewer
                 {
                     Interval = TimeSpan.FromMilliseconds(16)
                 };
-                
+
                 _zoomAnimationTimer.Tick += (s, e) =>
                 {
                     if (FileTabControl.SelectedItem is TabItemData currentTab)
                     {
                         var currentZoom = currentTab.WebView.ZoomFactor;
                         var diff = _targetZoomFactor - currentZoom;
-                        
+
                         if (Math.Abs(diff) < 0.005)
                         {
                             currentTab.WebView.ZoomFactor = _targetZoomFactor;
@@ -413,11 +427,11 @@ namespace MarkdownViewer
                             AdjustWindowSizeForZoom(_targetZoomFactor);
                             return;
                         }
-                        
+
                         var step = diff * 0.1;
                         var newZoom = currentZoom + step;
                         currentTab.WebView.ZoomFactor = newZoom;
-                        
+
                         // Call directly in drag move mode as ZoomFactorChanged does not fire
                         if (_isDragMoveMode)
                         {
@@ -426,7 +440,7 @@ namespace MarkdownViewer
                     }
                 };
             }
-            
+
             // Mouse wheel handling
             tab.WebView.PreviewMouseWheel += (s, e) =>
             {
@@ -462,17 +476,17 @@ namespace MarkdownViewer
             {
                 Interval = TimeSpan.FromMilliseconds(200)
             };
-            
+
             tab.DebounceTimer.Tick += (s, e) =>
             {
                 tab.DebounceTimer.Stop();
                 // Check if tab still exists
                 if (!_tabs.Contains(tab)) return;
-                
+
                 // Bring the updated tab to front
                 FileTabControl.SelectedItem = tab;
                 Activate();
-                
+
                 RenderMarkdown(tab);
                 StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
             };
@@ -483,7 +497,7 @@ namespace MarkdownViewer
                 {
                     // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
-                    
+
                     tab.DebounceTimer?.Stop();
                     tab.DebounceTimer?.Start();
                     if (FileTabControl.SelectedItem == tab)
@@ -499,7 +513,7 @@ namespace MarkdownViewer
                 {
                     // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
-                    
+
                     CloseTab(tab);
                 });
             };
@@ -510,15 +524,15 @@ namespace MarkdownViewer
                 {
                     // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
-                    
+
                     tab.FilePath = e.FullPath;
                     tab.Title = e.Name ?? Path.GetFileName(e.FullPath);
-                    
+
                     if (tab.Watcher != null && e.Name != null)
                     {
                         tab.Watcher.Filter = e.Name;
                     }
-                    
+
                     UpdateWindowTitle();
                     if (FileTabControl.SelectedItem == tab)
                     {
@@ -535,9 +549,9 @@ namespace MarkdownViewer
             tab.Watcher?.Dispose();
             tab.DebounceTimer?.Stop();
             tab.WebView.Dispose();
-            
+
             _tabs.Remove(tab);
-            
+
             if (_tabs.Count == 0)
             {
                 // No tabs left - close this window
@@ -577,22 +591,22 @@ namespace MarkdownViewer
                         await Task.Delay(100);
                     }
                 }
-                
+
                 if (markdown == null)
                 {
                     markdown = await File.ReadAllTextAsync(tab.FilePath, Encoding.UTF8);
                 }
-                
+
                 // Check if tab still exists after async operation
                 if (!_tabs.Contains(tab)) return;
-                
+
                 var baseDir = Path.GetDirectoryName(tab.FilePath);
                 var html = ConvertMarkdownToHtml(markdown, baseDir!);
                 tab.WebView.NavigateToString(html);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Markdown rendering error: {ex.Message}", "Error", 
+                MessageBox.Show($"Markdown rendering error: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -605,9 +619,9 @@ namespace MarkdownViewer
         {
             var targetWidth = (BaseContentWidth * zoomFactor) + ScrollbarWidth;
             targetWidth = Math.Max(MinWindowWidth, Math.Min(targetWidth, SystemParameters.WorkArea.Width * 0.9));
-            
+
             Width = targetWidth;
-            
+
             if (Left + Width > SystemParameters.WorkArea.Width)
             {
                 Left = Math.Max(0, SystemParameters.WorkArea.Width - Width);
@@ -624,7 +638,7 @@ namespace MarkdownViewer
             {
                 _targetZoomFactor = Math.Max(MinZoom, _targetZoomFactor - ZoomStep);
             }
-            
+
             // In drag move mode, apply zoom immediately without animation for better performance
             if (_isDragMoveMode && FileTabControl.SelectedItem is TabItemData tab)
             {
@@ -633,7 +647,7 @@ namespace MarkdownViewer
                 AdjustWindowSizeForZoom(_targetZoomFactor);
                 return;
             }
-            
+
             if (!_zoomAnimationTimer!.IsEnabled)
             {
                 _zoomAnimationTimer.Start();
@@ -647,13 +661,13 @@ namespace MarkdownViewer
         private string ConvertMarkdownToHtml(string markdown, string baseDir)
         {
             var htmlContent = Markdown.ToHtml(markdown, _pipeline);
-            
+
             // Convert path for file:// URL
             var baseUrl = new Uri(baseDir + Path.DirectorySeparatorChar).AbsoluteUri;
-            
+
             // Generate nonce for CSP
             var nonce = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-            
+
             var html = new StringBuilder();
             html.AppendLine("<!DOCTYPE html>");
             html.AppendLine("<html><head>");
@@ -663,7 +677,7 @@ namespace MarkdownViewer
             html.AppendLine($"<base href='{baseUrl}'/>");
             html.AppendLine("<style>");
             html.AppendLine(@"
-                body { 
+                body {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
                     line-height: 1.6;
                     padding: 40px;
@@ -672,26 +686,26 @@ namespace MarkdownViewer
                     background-color: #ffffff;
                     color: #24292e;
                 }
-                h1, h2, h3, h4, h5, h6 { 
-                    margin-top: 24px; 
-                    margin-bottom: 16px; 
-                    font-weight: 600; 
+                h1, h2, h3, h4, h5, h6 {
+                    margin-top: 24px;
+                    margin-bottom: 16px;
+                    font-weight: 600;
                     line-height: 1.25;
                 }
                 h1 { font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
                 h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
                 h3 { font-size: 1.25em; }
-                code { 
-                    background-color: rgba(27,31,35,0.05); 
-                    padding: 0.2em 0.4em; 
+                code {
+                    background-color: rgba(27,31,35,0.05);
+                    padding: 0.2em 0.4em;
                     margin: 0;
                     border-radius: 3px;
                     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
                     font-size: 85%;
                 }
-                pre { 
-                    background-color: #f6f8fa; 
-                    padding: 16px; 
+                pre {
+                    background-color: #f6f8fa;
+                    padding: 16px;
                     border-radius: 6px;
                     overflow: auto;
                     line-height: 1.45;
@@ -707,8 +721,8 @@ namespace MarkdownViewer
                     border-left: 0.25em solid #dfe2e5;
                     margin: 0 0 16px 0;
                 }
-                ul, ol { 
-                    padding-left: 2em; 
+                ul, ol {
+                    padding-left: 2em;
                     margin-bottom: 16px;
                 }
                 li { margin-bottom: 4px; }
@@ -764,7 +778,7 @@ namespace MarkdownViewer
                         window.chrome.webview.postMessage('click:' + target.href);
                     }
                 });
-                
+
                 // Handle link hover
                 document.addEventListener('mouseover', function(e) {
                     var target = e.target;
@@ -775,7 +789,7 @@ namespace MarkdownViewer
                         window.chrome.webview.postMessage('hover:' + target.href);
                     }
                 });
-                
+
                 // Handle mouse leave from link
                 document.addEventListener('mouseout', function(e) {
                     var target = e.target;
@@ -791,7 +805,7 @@ namespace MarkdownViewer
             html.AppendLine("</head><body>");
             html.AppendLine(htmlContent);
             html.AppendLine("</body></html>");
-            
+
             return html.ToString();
         }
 
@@ -853,7 +867,7 @@ namespace MarkdownViewer
                     }
                 }
             }
-            
+
             // Handle file drop from Explorer
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
@@ -881,7 +895,7 @@ namespace MarkdownViewer
                     return;
                 }
             }
-            
+
             // Accept file drops from Explorer
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
@@ -949,7 +963,7 @@ namespace MarkdownViewer
         {
             _isDragMoveMode = DragMoveToggle.IsChecked == true;
             DragOverlay.Visibility = _isDragMoveMode ? Visibility.Visible : Visibility.Collapsed;
-            
+
             // Enable/disable WebView for all tabs
             foreach (var tab in _tabs)
             {
@@ -1003,48 +1017,48 @@ namespace MarkdownViewer
             var diff = _tabDragStartPoint - currentPos;
 
             // Check if moved enough to start drag
-            if (!_isTabDragging && 
+            if (!_isTabDragging &&
                 (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
                  Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance))
             {
                 _isTabDragging = true;
                 _draggedTab = tab;
-                
+
                 // Get tab header's screen position and convert to DIP
                 var tabScreenPosPhysical = panel.PointToScreen(new Point(0, 0));
                 var tabScreenPos = PhysicalToDip(tabScreenPosPhysical);
-                
+
                 // Record initial cursor position (DIP) and window position (DIP)
                 _dragStartCursorPos = GetCursorPosDip();
                 _dragStartWindowPos = tabScreenPos;
-                
+
                 // Create preview window at tab's actual position
                 CreateDragPreviewWindow(tab, tabScreenPos, panel.ActualWidth, panel.ActualHeight);
-                
+
                 // Start drag operation - use Text format for cross-window compatibility
                 var data = new DataObject();
                 data.SetData(DataFormats.Text, "MDVIEWER:" + tab.FilePath);
                 var result = DragDrop.DoDragDrop(panel, data, DragDropEffects.Move);
-                
+
                 // Get preview window position before closing it
                 Point previewPos = new Point(0, 0);
                 if (_dragPreviewWindow != null)
                 {
                     previewPos = new Point(_dragPreviewWindow.Left, _dragPreviewWindow.Top);
                 }
-                
+
                 // Cleanup preview window
                 CloseDragPreviewWindow();
-                
+
                 // Check drop result
                 var screenPoint = GetCursorPosDip();
                 var windowRect = new Rect(Left, Top, Width, Height);
-                
+
                 if (!windowRect.Contains(screenPoint))
                 {
                     // Dropped outside this window - check if over another MarkdownViewer window
                     var targetWindow = FindWindowAtPosition(screenPoint);
-                    
+
                     if (targetWindow != null)
                     {
                         // Drop on another MarkdownViewer window - transfer the tab
@@ -1060,7 +1074,7 @@ namespace MarkdownViewer
                     }
                 }
                 // If dropped on same window, do nothing (tab is already here)
-                
+
                 _isTabDragging = false;
                 _draggedTab = null;
             }
@@ -1071,7 +1085,7 @@ namespace MarkdownViewer
             // Use actual tab size with some padding
             var previewWidth = Math.Max(tabWidth + 16, 100);
             var previewHeight = Math.Max(tabHeight + 8, 28);
-            
+
             _dragPreviewWindow = new Window
             {
                 Width = previewWidth,
@@ -1083,7 +1097,7 @@ namespace MarkdownViewer
                 ShowInTaskbar = false,
                 IsHitTestVisible = false
             };
-            
+
             var border = new Border
             {
                 Background = new System.Windows.Media.SolidColorBrush(
@@ -1094,21 +1108,21 @@ namespace MarkdownViewer
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(8, 4, 8, 4)
             };
-            
+
             var textBlock = new TextBlock
             {
                 Text = tab.Title,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
-            
+
             border.Child = textBlock;
             _dragPreviewWindow.Content = border;
-            
+
             // Position at tab's screen position (adjust for border)
             _dragPreviewWindow.Left = tabScreenPos.X - 8;
             _dragPreviewWindow.Top = tabScreenPos.Y - 4;
-            
+
             _dragPreviewWindow.Show();
         }
 
@@ -1120,13 +1134,14 @@ namespace MarkdownViewer
                 _dragPreviewWindow = null;
             }
         }
+
         protected override void OnQueryContinueDrag(QueryContinueDragEventArgs e)
         {
             base.OnQueryContinueDrag(e);
-            
+
             if (!_isTabDragging || _draggedTab == null)
                 return;
-            
+
             // Update preview window position based on cursor movement from start (using DIP coordinates)
             if (_dragPreviewWindow != null)
             {
@@ -1141,15 +1156,15 @@ namespace MarkdownViewer
         protected override void OnGiveFeedback(GiveFeedbackEventArgs e)
         {
             base.OnGiveFeedback(e);
-            
+
             if (_isTabDragging)
             {
                 e.UseDefaultCursors = false;
-                
+
                 // Check if cursor is over another MarkdownViewer window
                 var screenPoint = GetCursorPosDip();
                 var targetWindow = FindWindowAtPosition(screenPoint);
-                
+
                 if (targetWindow != null)
                 {
                     // Over another window - show hand cursor (will merge)
@@ -1160,7 +1175,7 @@ namespace MarkdownViewer
                     // Not over another window - show move cursor (will create new window)
                     Mouse.SetCursor(Cursors.SizeAll);
                 }
-                
+
                 e.Handled = true;
             }
         }
@@ -1181,10 +1196,10 @@ namespace MarkdownViewer
         {
             // Save file path before closing tab
             var filePath = tab.FilePath;
-            
+
             // Close tab in current window
             CloseTab(tab);
-            
+
             // Create new window
             // Position so that the tab in new window aligns with where preview was
             // Preview was at (tabScreenPos.X - 8, tabScreenPos.Y - 4)
@@ -1192,12 +1207,12 @@ namespace MarkdownViewer
             // New window needs to account for title bar height
             var titleBarHeight = SystemParameters.WindowCaptionHeight + 
                                  SystemParameters.ResizeFrameHorizontalBorderHeight;
-            
+
             var newWindow = new MainWindow();
             newWindow.Left = previewPosition.X + 8;  // Adjust for preview border padding
             newWindow.Top = previewPosition.Y + 4 - titleBarHeight;  // Adjust for title bar
             newWindow.Show();
-            
+
             // Load file in new window
             newWindow.LoadMarkdownFile(filePath);
         }
