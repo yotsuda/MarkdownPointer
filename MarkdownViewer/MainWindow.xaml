@@ -1,10 +1,14 @@
-<Window x:Class="MarkdownViewer.MainWindow"
+﻿<Window x:Class="MarkdownViewer.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="Markdown Viewer" Height="768" Width="1024"
         WindowStartupLocation="CenterScreen"
-        Background="#FFFFFF">
+        Background="#FFFFFF"
+        AllowDrop="True"
+        PreviewDrop="Window_Drop"
+        PreviewDragOver="Window_DragOver"
+        KeyDown="Window_KeyDown">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
@@ -13,6 +17,21 @@
 
         <!-- WebView2 でコンテンツ表示 -->
         <wv2:WebView2 x:Name="WebView" Grid.Row="0"/>
+
+        <!-- ファイル未読み込み時のプレースホルダー -->
+        <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="📝" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                <TextBlock Text="Markdown Viewer" FontSize="24" FontWeight="SemiBold" 
+                           Foreground="#24292e" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                <TextBlock Text="ファイルをドラッグ＆ドロップ" FontSize="14" 
+                           Foreground="#586069" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock Text="または Ctrl+O でファイルを開く" FontSize="12" 
+                           Foreground="#6a737d" HorizontalAlignment="Center"/>
+                <TextBlock Text="F5 で再読み込み" FontSize="12" 
+                           Foreground="#6a737d" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+            </StackPanel>
+        </Border>
 
         <!-- シンプルなステータスバー -->
         <Border Grid.Row="1" Background="#F8F9FA" BorderBrush="#E1E4E8" BorderThickness="0,1,0,0">
@@ -35,7 +54,7 @@
                                FontSize="11"
                                Foreground="#28A745"
                                Margin="0,0,12,0"/>
-                    <TextBlock x:Name="StatusBarText" 
+                    <TextBlock x:Name="WatchStatusText" 
                                VerticalAlignment="Center" 
                                FontSize="11"
                                Foreground="#586069"/>
