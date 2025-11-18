@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -36,6 +37,41 @@ namespace MarkdownViewer
 
     public partial class MainWindow : Window
     {
+        // P/Invoke for getting cursor position
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+        
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+        
+        // Get cursor position in WPF DIP coordinates
+        // Convert physical pixels to WPF DIP coordinates
+        private Point PhysicalToDip(Point physical)
+        {
+            var source = PresentationSource.FromVisual(this);
+            if (source?.CompositionTarget != null)
+            {
+                var transform = source.CompositionTarget.TransformFromDevice;
+                return new Point(physical.X * transform.M11, physical.Y * transform.M22);
+            }
+            return physical;
+        }
+        
+        // Get cursor position in WPF DIP coordinates
+        private Point GetCursorPosDip()
+        {
+            if (GetCursorPos(out POINT pt))
+            {
+                return PhysicalToDip(new Point(pt.X, pt.Y));
+            }
+            return new Point(0, 0);
+        }
+        
         // Constants
         private const double ZoomStep = 0.01;
         private const double MinZoom = 0.25;
@@ -52,6 +88,14 @@ namespace MarkdownViewer
         private double _lastZoomFactor = 1.0;
         private double _targetZoomFactor = 1.0;
         private bool _isDragMoveMode = false;
+        
+        // Tab drag state
+        private Point _tabDragStartPoint;
+        private Point _dragStartCursorPos;
+        private Point _dragStartWindowPos;
+        private bool _isTabDragging = false;
+        private TabItemData? _draggedTab = null;
+        private Window? _dragPreviewWindow = null;
 
         private static bool IsSupportedFile(string filePath)
         {
@@ -864,8 +908,202 @@ namespace MarkdownViewer
             }
         }
 
+        private void TabHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _tabDragStartPoint = e.GetPosition(this);
+            _isTabDragging = false;
+        }
+
+        private void TabHeader_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                _isTabDragging = false;
+                return;
+            }
+
+            if (sender is not StackPanel panel || panel.Tag is not TabItemData tab)
+                return;
+
+            var currentPos = e.GetPosition(this);
+            var diff = _tabDragStartPoint - currentPos;
+
+            // Check if moved enough to start drag
+            if (!_isTabDragging && 
+                (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                 Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance))
+            {
+                _isTabDragging = true;
+                _draggedTab = tab;
+                
+                // Get tab header's screen position and convert to DIP
+                var tabScreenPosPhysical = panel.PointToScreen(new Point(0, 0));
+                var tabScreenPos = PhysicalToDip(tabScreenPosPhysical);
+                
+                // Record initial cursor position (DIP) and window position (DIP)
+                _dragStartCursorPos = GetCursorPosDip();
+                _dragStartWindowPos = tabScreenPos;
+                
+                // Create preview window at tab's actual position
+                CreateDragPreviewWindow(tab, tabScreenPos, panel.ActualWidth, panel.ActualHeight);
+                
+                // Start drag operation with custom format only (prevents other apps from accepting drop)
+                var data = new DataObject();
+                data.SetData("MarkdownViewerTabDetach", tab);
+                var result = DragDrop.DoDragDrop(panel, data, DragDropEffects.Move);
+                
+                // Get preview window position before closing it
+                Point previewPos = new Point(0, 0);
+                if (_dragPreviewWindow != null)
+                {
+                    previewPos = new Point(_dragPreviewWindow.Left, _dragPreviewWindow.Top);
+                }
+                
+                // Cleanup preview window
+                CloseDragPreviewWindow();
+                
+                // After drag ends, check if dropped outside window
+                if (_tabs.Count > 1)
+                {
+                    var screenPoint = GetCursorPosDip();
+                    var windowRect = new Rect(Left, Top, Width, Height);
+                    
+                    if (!windowRect.Contains(screenPoint))
+                    {
+                        DetachTabToNewWindow(tab, previewPos);
+                    }
+                }
+                
+                _isTabDragging = false;
+                _draggedTab = null;
+            }
+        }
+
+        private void CreateDragPreviewWindow(TabItemData tab, Point tabScreenPos, double tabWidth, double tabHeight)
+        {
+            // Use actual tab size with some padding
+            var previewWidth = Math.Max(tabWidth + 16, 100);
+            var previewHeight = Math.Max(tabHeight + 8, 28);
+            
+            _dragPreviewWindow = new Window
+            {
+                Width = previewWidth,
+                Height = previewHeight,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = System.Windows.Media.Brushes.Transparent,
+                Topmost = true,
+                ShowInTaskbar = false,
+                IsHitTestVisible = false
+            };
+            
+            var border = new Border
+            {
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromArgb(230, 255, 255, 255)),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0, 120, 215)),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+            
+            var textBlock = new TextBlock
+            {
+                Text = tab.Title,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            
+            border.Child = textBlock;
+            _dragPreviewWindow.Content = border;
+            
+            // Position at tab's screen position (adjust for border)
+            _dragPreviewWindow.Left = tabScreenPos.X - 8;
+            _dragPreviewWindow.Top = tabScreenPos.Y - 4;
+            
+            _dragPreviewWindow.Show();
+        }
+
+        private void CloseDragPreviewWindow()
+        {
+            if (_dragPreviewWindow != null)
+            {
+                _dragPreviewWindow.Close();
+                _dragPreviewWindow = null;
+            }
+        }
+        protected override void OnQueryContinueDrag(QueryContinueDragEventArgs e)
+        {
+            base.OnQueryContinueDrag(e);
+            
+            if (!_isTabDragging || _draggedTab == null)
+                return;
+            
+            // Update preview window position based on cursor movement from start (using DIP coordinates)
+            if (_dragPreviewWindow != null)
+            {
+                var currentCursor = GetCursorPosDip();
+                var deltaX = currentCursor.X - _dragStartCursorPos.X;
+                var deltaY = currentCursor.Y - _dragStartCursorPos.Y;
+                _dragPreviewWindow.Left = _dragStartWindowPos.X - 8 + deltaX;
+                _dragPreviewWindow.Top = _dragStartWindowPos.Y - 4 + deltaY;
+            }
+        }
+
+        protected override void OnGiveFeedback(GiveFeedbackEventArgs e)
+        {
+            base.OnGiveFeedback(e);
+            
+            if (_isTabDragging)
+            {
+                // Use custom cursor to avoid "forbidden" icon when dragging outside window
+                e.UseDefaultCursors = false;
+                Mouse.SetCursor(Cursors.SizeAll);
+                e.Handled = true;
+            }
+        }
+
+        protected override void OnDrop(DragEventArgs e)
+        {
+            // Handle tab detach drop - this fires when dropped back on same window
+            base.OnDrop(e);
+        }
+
+        protected override void OnPreviewMouseLeftButtonUp(MouseButtonEventArgs e)
+        {
+            base.OnPreviewMouseLeftButtonUp(e);
+            _isTabDragging = false;
+        }
+
+        private void DetachTabToNewWindow(TabItemData tab, Point previewPosition)
+        {
+            // Save file path before closing tab
+            var filePath = tab.FilePath;
+            
+            // Close tab in current window
+            CloseTab(tab);
+            
+            // Create new window
+            // Position so that the tab in new window aligns with where preview was
+            // Preview was at (tabScreenPos.X - 8, tabScreenPos.Y - 4)
+            // So tab position = preview + (8, 4)
+            // New window needs to account for title bar height
+            var titleBarHeight = SystemParameters.WindowCaptionHeight + 
+                                 SystemParameters.ResizeFrameHorizontalBorderHeight;
+            
+            var newWindow = new MainWindow();
+            newWindow.Left = previewPosition.X + 8;  // Adjust for preview border padding
+            newWindow.Top = previewPosition.Y + 4 - titleBarHeight;  // Adjust for title bar
+            newWindow.Show();
+            
+            // Load file in new window
+            newWindow.LoadMarkdownFile(filePath);
+        }
+
         protected override void OnClosed(EventArgs e)
         {
+            CloseDragPreviewWindow();
             foreach (var tab in _tabs)
             {
                 tab.Watcher?.Dispose();

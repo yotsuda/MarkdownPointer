@@ -21,9 +21,12 @@
                     Visibility="Collapsed">
             <TabControl.ItemTemplate>
                 <DataTemplate>
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal"
+                                MouseLeftButtonDown="TabHeader_MouseLeftButtonDown"
+                                MouseMove="TabHeader_MouseMove"
+                                Tag="{Binding}">
                         <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
-                        <Button Content="✕" 
+                        <Button Content="?" 
                                 Click="CloseTab_Click"
                                 Tag="{Binding}"
                                 Width="16" Height="16" 
