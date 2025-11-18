@@ -497,6 +497,15 @@ namespace MarkdownViewer
                 _targetZoomFactor = Math.Max(MinZoom, _targetZoomFactor - ZoomStep);
             }
             
+            // In drag move mode, apply zoom immediately without animation for better performance
+            if (_isDragMoveMode && FileTabControl.SelectedItem is TabItemData tab)
+            {
+                tab.WebView.ZoomFactor = _targetZoomFactor;
+                _lastZoomFactor = _targetZoomFactor;
+                AdjustWindowSizeForZoom(_targetZoomFactor);
+                return;
+            }
+            
             if (!_zoomAnimationTimer!.IsEnabled)
             {
                 _zoomAnimationTimer.Start();
