@@ -181,6 +181,25 @@ namespace MarkdownViewer
                 });
             };
 
+            _watcher.Renamed += (s, e) =>
+            {
+                // ファイル名が変更されたら新しいファイル名で監視を継続
+                Dispatcher.Invoke(() =>
+                {
+                    _currentFilePath = e.FullPath;
+                    FilePathText.Text = $"📄 {e.Name}";
+                    Title = $"Markdown Viewer - {e.Name}";
+                    
+                    // FileSystemWatcher のフィルターを更新
+                    if (_watcher != null && e.Name != null)
+                    {
+                        _watcher.Filter = e.Name;
+                    }
+                    
+                    StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
+                });
+            };
+
             _watcher.EnableRaisingEvents = true;
             WatchStatusText.Text = "👁 監視中";
         }
