@@ -67,16 +67,29 @@ namespace MarkdownViewer
     {
         protected override void Write(HtmlRenderer renderer, CodeBlock obj)
         {
-            renderer.Write($"<pre data-line=\"{obj.Line + 1}\"><code");
+            var isMermaid = obj is FencedCodeBlock fenced && 
+                           string.Equals(fenced.Info, "mermaid", StringComparison.OrdinalIgnoreCase);
             
-            if (obj is FencedCodeBlock fenced && !string.IsNullOrEmpty(fenced.Info))
+            if (isMermaid)
             {
-                renderer.Write($" class=\"language-{fenced.Info}\"");
+                // Mermaid needs: <pre class="mermaid">content</pre>
+                renderer.Write($"<pre class=\"mermaid\" data-line=\"{obj.Line + 1}\">");
+                renderer.WriteLeafRawLines(obj, true, true, true);
+                renderer.WriteLine("</pre>");
             }
-            
-            renderer.Write(">");
-            renderer.WriteLeafRawLines(obj, true, true, true);
-            renderer.WriteLine("</code></pre>");
+            else
+            {
+                renderer.Write($"<pre data-line=\"{obj.Line + 1}\"><code");
+                
+                if (obj is FencedCodeBlock fc && !string.IsNullOrEmpty(fc.Info))
+                {
+                    renderer.Write($" class=\"language-{fc.Info}\"");
+                }
+                
+                renderer.Write(">");
+                renderer.WriteLeafRawLines(obj, true, true, true);
+                renderer.WriteLine("</code></pre>");
+            }
         }
     }
     

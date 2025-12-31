@@ -339,12 +339,36 @@ namespace MarkdownViewer
             if (!_tabs.Contains(tab)) return;
 
             // Configure WebView2 settings for security
-            tab.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            tab.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             tab.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
             tab.WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             tab.WebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
             tab.WebView.CoreWebView2.Settings.AreHostObjectsAllowed = false;
 
+            // Custom context menu for Mermaid diagrams
+            tab.WebView.CoreWebView2.ContextMenuRequested += (s, e) =>
+            {
+                var menuItems = e.MenuItems;
+                menuItems.Clear();
+                
+                var copyItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
+                    "Copy diagram as SVG", null, 
+                    Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
+                copyItem.CustomItemSelected += async (sender, args) =>
+                {
+                    await CopyMermaidDiagramAtCursor(tab);
+                };
+                menuItems.Add(copyItem);
+                
+                var copyPngItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
+                    "Copy diagram as PNG", null,
+                    Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
+                copyPngItem.CustomItemSelected += async (sender, args) =>
+                {
+                    await CopyMermaidDiagramAsPngAtCursor(tab);
+                };
+                menuItems.Add(copyPngItem);
+            };
             // Prevent dropped files from opening in new window
             tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
             {
@@ -748,7 +772,7 @@ namespace MarkdownViewer
             html.AppendLine("<html><head>");
             html.AppendLine("<meta charset='utf-8'/>");
             // Content Security Policy to prevent XSS attacks
-            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src file: data:; script-src 'nonce-{nonce}' https://cdn.jsdelivr.net; font-src 'none';\"/>");
+            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src file: data: blob:; script-src 'nonce-{nonce}' 'unsafe-eval' https://cdn.jsdelivr.net; font-src 'none';\"/>");
             html.AppendLine($"<base href='{baseUrl}'/>");
             html.AppendLine("<style>");
             html.AppendLine(@"
@@ -1377,6 +1401,142 @@ namespace MarkdownViewer
             // Load file in new window
             newWindow.LoadMarkdownFile(filePath);
         }
+
+        #region Mermaid Diagram Copy
+
+        private async Task CopyMermaidDiagramAtCursor(TabItemData tab)
+        {
+            var script = @"
+                (function() {
+                    var mermaid = document.querySelector('.mermaid svg');
+                    if (mermaid) {
+                        var serializer = new XMLSerializer();
+                        return serializer.serializeToString(mermaid);
+                    }
+                    return '';
+                })()";
+            
+            var result = await tab.WebView.CoreWebView2.ExecuteScriptAsync(script);
+            // Remove surrounding quotes and unescape
+            if (result.StartsWith("\"") && result.EndsWith("\""))
+            {
+                result = result.Substring(1, result.Length - 2);
+                result = System.Text.RegularExpressions.Regex.Unescape(result);
+            }
+            
+            if (!string.IsNullOrEmpty(result) && result.Contains("<svg"))
+            {
+                Clipboard.SetText(result);
+                StatusText.Text = "✓ SVG copied";
+            }
+            else
+            {
+                StatusText.Text = "No diagram found";
+            }
+        }
+
+        private async Task CopyMermaidDiagramAsPngAtCursor(TabItemData tab)
+        {
+            var tcs = new TaskCompletionSource<string>();
+            
+            void handler(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+            {
+                var msg = e.TryGetWebMessageAsString();
+                if (msg != null && msg.StartsWith("PNG:"))
+                {
+                    tab.WebView.CoreWebView2.WebMessageReceived -= handler;
+                    tcs.TrySetResult(msg.Substring(4));
+                }
+            }
+            
+            tab.WebView.CoreWebView2.WebMessageReceived += handler;
+            
+            // Use JavaScript to convert SVG to PNG via canvas with data URL
+            var script = @"
+                (async function() {
+                    var mermaidDiv = document.querySelector('.mermaid');
+                    if (!mermaidDiv) { window.chrome.webview.postMessage('PNG:'); return; }
+                    
+                    var svg = mermaidDiv.querySelector('svg');
+                    if (!svg) { window.chrome.webview.postMessage('PNG:'); return; }
+                    
+                    var bbox = svg.getBoundingClientRect();
+                    var width = Math.ceil(bbox.width);
+                    var height = Math.ceil(bbox.height);
+                    
+                    var clonedSvg = svg.cloneNode(true);
+                    clonedSvg.setAttribute('width', width);
+                    clonedSvg.setAttribute('height', height);
+                    
+                    var serializer = new XMLSerializer();
+                    var svgStr = serializer.serializeToString(clonedSvg);
+                    
+                    var svgBase64 = btoa(unescape(encodeURIComponent(svgStr)));
+                    var dataUrl = 'data:image/svg+xml;base64,' + svgBase64;
+                    
+                    var canvas = document.createElement('canvas');
+                    canvas.width = width * 2;
+                    canvas.height = height * 2;
+                    var ctx = canvas.getContext('2d');
+                    ctx.scale(2, 2);
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    var img = new Image();
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0);
+                        window.chrome.webview.postMessage('PNG:' + canvas.toDataURL('image/png'));
+                    };
+                    img.onerror = function() {
+                        window.chrome.webview.postMessage('PNG:error');
+                    };
+                    img.src = dataUrl;
+                })()";
+            
+            await tab.WebView.CoreWebView2.ExecuteScriptAsync(script);
+            
+            // Wait for result with timeout
+            var timeoutTask = Task.Delay(5000);
+            var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+            
+            if (completedTask == timeoutTask)
+            {
+                tab.WebView.CoreWebView2.WebMessageReceived -= handler;
+                StatusText.Text = "✗ PNG copy timeout";
+                return;
+            }
+            
+            var result = await tcs.Task;
+            
+            if (!string.IsNullOrEmpty(result) && result.StartsWith("data:image/png;base64,"))
+            {
+                try
+                {
+                    var base64 = result.Substring("data:image/png;base64,".Length);
+                    var bytes = Convert.FromBase64String(base64);
+                    using var stream = new System.IO.MemoryStream(bytes);
+                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bitmap.StreamSource = stream;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+                    
+                    Clipboard.SetImage(bitmap);
+                    StatusText.Text = "✓ PNG copied";
+                }
+                catch
+                {
+                    StatusText.Text = "✗ PNG copy failed";
+                }
+            }
+            else
+            {
+                StatusText.Text = "No diagram found";
+            }
+        }
+
+        #endregion
 
         protected override void OnClosed(EventArgs e)
         {
