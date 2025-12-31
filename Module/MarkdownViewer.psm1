@@ -121,4 +121,4 @@ function Get-MarkdownTab {
     }
 }
 
-Export-ModuleMember -Function Show-Markdown, Get-MarkdownTab, Start-MarkdownViewer
+Export-ModuleMember -Function Show-Markdown, Get-MarkdownTab

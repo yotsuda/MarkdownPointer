@@ -5,7 +5,7 @@
     Author = 'Yoshifumi Tsuda'
     Description = 'PowerShell module for controlling MarkdownViewer'
     PowerShellVersion = '5.1'
-    FunctionsToExport = @('Show-Markdown', 'Get-MarkdownTab', 'Start-MarkdownViewer')
+    FunctionsToExport = @('Show-Markdown', 'Get-MarkdownTab')
     CmdletsToExport = @()
     VariablesToExport = @()
     AliasesToExport = @()
