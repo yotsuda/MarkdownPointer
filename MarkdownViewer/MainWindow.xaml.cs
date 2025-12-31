@@ -1089,6 +1089,28 @@ namespace MarkdownViewer
             }
         }
 
+        private void OpenInCodeButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FileTabControl.SelectedItem is TabItemData tab && !string.IsNullOrEmpty(tab.FilePath))
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c code \"{tab.FilePath}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to open VS Code: {ex.Message}", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         private void DragOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _isDocumentScrolling = true;
