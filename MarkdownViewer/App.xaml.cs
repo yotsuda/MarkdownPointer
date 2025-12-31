@@ -128,7 +128,20 @@ namespace MarkdownViewer
                         var window = Windows.OfType<MainWindow>().FirstOrDefault();
                         if (window != null)
                         {
-                            window.LoadMarkdownFile(message.Path, message.Line);
+                            window.LoadMarkdownFile(message.Path, message.Line, message.Title);
+                            window.Activate();
+                            return new PipeResponse { Success = true };
+                        }
+                    }
+                    return new PipeResponse { Success = false, Error = "File not found" };
+                    
+                case "openTemp":
+                    if (!string.IsNullOrEmpty(message.Path) && File.Exists(message.Path))
+                    {
+                        var window = Windows.OfType<MainWindow>().FirstOrDefault();
+                        if (window != null)
+                        {
+                            window.LoadMarkdownFile(message.Path, message.Line, message.Title, isTemp: true);
                             window.Activate();
                             return new PipeResponse { Success = true };
                         }
@@ -190,6 +203,7 @@ namespace MarkdownViewer
             public string? Path { get; set; }
             public int? Index { get; set; }
             public int? Line { get; set; }
+            public string? Title { get; set; }
         }
         
         private class PipeResponse

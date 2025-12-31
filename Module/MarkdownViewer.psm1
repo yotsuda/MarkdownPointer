@@ -70,16 +70,21 @@ function Start-MarkdownViewer {
 function Show-Markdown {
     <#
     .SYNOPSIS
-    Opens a Markdown file in MarkdownViewer.
+    Opens a Markdown file or content in MarkdownViewer.
     
     .DESCRIPTION
-    Opens the specified Markdown file in MarkdownViewer. If MarkdownViewer is not running, it will be started automatically.
+    Opens the specified Markdown file or renders Markdown content directly in MarkdownViewer. 
+    If MarkdownViewer is not running, it will be started automatically.
+    When a string is piped, it's treated as Markdown content if it doesn't exist as a file path.
     
     .PARAMETER Path
-    The path to the Markdown file to open.
+    The path to the Markdown file to open, or Markdown content as a string.
     
     .PARAMETER Line
     The line number to scroll to after opening the file.
+    
+    .PARAMETER Title
+    Custom title for the tab when displaying Markdown content directly. Defaults to "Preview".
     
     .EXAMPLE
     Show-Markdown .\README.md
@@ -89,6 +94,18 @@ function Show-Markdown {
     
     .EXAMPLE
     Get-ChildItem *.md | Show-Markdown
+    
+    .EXAMPLE
+    "# Hello World`n`nThis is **bold** text." | Show-Markdown
+    
+    .EXAMPLE
+    @"
+    # Report
+    
+    | Item | Value |
+    |------|-------|
+    | CPU  | 80%   |
+    "@ | Show-Markdown -Title "System Report"
     #>
     [CmdletBinding()]
     param(
@@ -97,7 +114,10 @@ function Show-Markdown {
         [string[]]$Path,
         
         [Parameter(Position = 1)]
-        [int]$Line
+        [int]$Line,
+        
+        [Parameter()]
+        [string]$Title = "Preview"
     )
     
     begin {
@@ -106,19 +126,60 @@ function Show-Markdown {
         if (-not $process) {
             Start-MarkdownViewer
         }
+        
+        # Collect content for inline markdown
+        $contentLines = [System.Collections.Generic.List[string]]::new()
+        $isContentMode = $false
     }
     
     process {
         foreach ($p in $Path) {
-            $fullPath = Resolve-Path -Path $p -ErrorAction SilentlyContinue
-            if (-not $fullPath) {
-                Write-Error "File not found: $p"
-                continue
+            # Check if this is a file path or markdown content
+            $resolvedPath = Resolve-Path -Path $p -ErrorAction SilentlyContinue
+            
+            if ($resolvedPath) {
+                # It's a file path
+                $message = @{
+                    Command = "open"
+                    Path = $resolvedPath.Path
+                }
+                
+                if ($PSBoundParameters.ContainsKey('Line')) {
+                    $message.Line = $Line
+                }
+                
+                $result = Send-MarkdownViewerCommand -Message $message
+                
+                if ($result) {
+                    Write-Verbose "Opened: $($resolvedPath.Path)"
+                }
+            }
+            else {
+                # Not a valid file path - treat as markdown content
+                $isContentMode = $true
+                $contentLines.Add($p)
+            }
+        }
+    }
+    
+    end {
+        if ($isContentMode -and $contentLines.Count -gt 0) {
+            # Create temp file with markdown content
+            $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "MarkdownViewer"
+            if (-not (Test-Path $tempDir)) {
+                New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
             }
             
+            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+            $safeTitle = $Title -replace '[\\/:*?"<>|]', '_'
+            $tempFile = Join-Path $tempDir "$safeTitle`_$timestamp.md"
+            
+            $contentLines -join "`n" | Set-Content -Path $tempFile -Encoding UTF8
+            
             $message = @{
-                Command = "open"
-                Path = $fullPath.Path
+                Command = "openTemp"
+                Path = $tempFile
+                Title = $Title
             }
             
             if ($PSBoundParameters.ContainsKey('Line')) {
@@ -128,7 +189,7 @@ function Show-Markdown {
             $result = Send-MarkdownViewerCommand -Message $message
             
             if ($result) {
-                Write-Verbose "Opened: $($fullPath.Path)"
+                Write-Verbose "Opened preview: $Title"
             }
         }
     }

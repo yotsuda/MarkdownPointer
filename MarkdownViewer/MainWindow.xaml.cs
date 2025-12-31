@@ -31,6 +31,7 @@ namespace MarkdownViewer
         public DispatcherTimer? DebounceTimer { get; set; }
         public bool IsInitialized { get; set; }
         public int? PendingScrollLine { get; set; }
+        public bool IsTemp { get; set; }
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) => 
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -168,11 +169,20 @@ namespace MarkdownViewer
             }
         }
         
+        public void RefreshTab(TabItemData tab)
+        {
+            if (tab.IsInitialized)
+            {
+                RenderMarkdown(tab);
+                StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
+            }
+        }
+        
         #endregion
 
         #region Tab Management
 
-        public void LoadMarkdownFile(string filePath, int? line = null)
+        public void LoadMarkdownFile(string filePath, int? line = null, string? title = null, bool isTemp = false)
         {
             if (!File.Exists(filePath))
             {
@@ -181,31 +191,55 @@ namespace MarkdownViewer
                 return;
             }
 
-            // Check if file is already open in this window
-            foreach (var tab in _tabs)
+            // For temp files, always create a new tab (or reuse existing temp tab with same title)
+            if (!isTemp)
             {
-                if (string.Equals(tab.FilePath, filePath, StringComparison.OrdinalIgnoreCase))
+                // Check if file is already open in this window
+                foreach (var tab in _tabs)
                 {
-                    FileTabControl.SelectedItem = tab;
-                    if (line.HasValue)
+                    if (string.Equals(tab.FilePath, filePath, StringComparison.OrdinalIgnoreCase))
                     {
-                        ScrollToLine(tab, line.Value);
+                        FileTabControl.SelectedItem = tab;
+                        if (line.HasValue)
+                        {
+                            ScrollToLine(tab, line.Value);
+                        }
+                        return;
                     }
-                    return;
+                }
+
+                // Close the file if it's open in another window
+                foreach (Window window in Application.Current.Windows)
+                {
+                    if (window is MainWindow mw && mw != this)
+                    {
+                        var tabToClose = mw._tabs.FirstOrDefault(t =>
+                            string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+                        if (tabToClose != null)
+                        {
+                            mw.CloseTab(tabToClose);
+                            break;
+                        }
+                    }
                 }
             }
-
-            // Close the file if it's open in another window
-            foreach (Window window in Application.Current.Windows)
+            else
             {
-                if (window is MainWindow mw && mw != this)
+                // For temp files, reuse existing tab with same title if exists
+                var displayTitle = title ?? Path.GetFileName(filePath);
+                foreach (var tab in _tabs)
                 {
-                    var tabToClose = mw._tabs.FirstOrDefault(t =>
-                        string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
-                    if (tabToClose != null)
+                    if (tab.IsTemp && tab.Title == displayTitle)
                     {
-                        mw.CloseTab(tabToClose);
-                        break;
+                        // Update existing temp tab
+                        tab.FilePath = filePath;
+                        FileTabControl.SelectedItem = tab;
+                        RefreshTab(tab);
+                        if (line.HasValue)
+                        {
+                            ScrollToLine(tab, line.Value);
+                        }
+                        return;
                     }
                 }
             }
@@ -214,10 +248,10 @@ namespace MarkdownViewer
             var newTab = new TabItemData
             {
                 FilePath = filePath,
-                Title = Path.GetFileName(filePath),
-                WebView = new WebView2()
+                Title = title ?? Path.GetFileName(filePath),
+                WebView = new WebView2(),
+                IsTemp = isTemp
             };
-
             // Initialize WebView2 (fire-and-forget, exceptions handled internally)
             _ = InitializeTabWebViewAsync(newTab).ContinueWith(t =>
             {
