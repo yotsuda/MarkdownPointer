@@ -1181,6 +1181,24 @@ namespace MarkdownViewer
             }
         }
 
+        private void DragOverlay_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (FileTabControl.SelectedItem is TabItemData tab)
+            {
+                var contextMenu = new ContextMenu();
+                
+                var copySvgItem = new MenuItem { Header = "Copy diagram as SVG" };
+                copySvgItem.Click += async (s, args) => await CopyMermaidDiagramAtCursor(tab);
+                contextMenu.Items.Add(copySvgItem);
+                
+                var copyPngItem = new MenuItem { Header = "Copy diagram as PNG" };
+                copyPngItem.Click += async (s, args) => await CopyMermaidDiagramAsPngAtCursor(tab);
+                contextMenu.Items.Add(copyPngItem);
+                
+                contextMenu.IsOpen = true;
+            }
+        }
+
         private void TabHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _tabDragStartPoint = e.GetPosition(this);

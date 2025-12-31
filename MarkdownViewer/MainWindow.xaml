@@ -53,6 +53,7 @@
                 Margin="0,22,0,0"
                 MouseLeftButtonDown="DragOverlay_MouseLeftButtonDown" MouseMove="DragOverlay_MouseMove" MouseLeftButtonUp="DragOverlay_MouseLeftButtonUp"
                 PreviewMouseWheel="DragOverlay_PreviewMouseWheel"
+                MouseRightButtonUp="DragOverlay_MouseRightButtonUp"
                 />
 
         <!-- Placeholder when no file is loaded -->
