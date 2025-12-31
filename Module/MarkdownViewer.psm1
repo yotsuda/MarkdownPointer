@@ -134,7 +134,6 @@ function Show-MarkdownViewer {
     
     process {
         foreach ($p in $Path) {
-            # Check if this is a file path or markdown content
             $resolvedPath = Resolve-Path -Path $p -ErrorAction Ignore
             
             if ($resolvedPath) {
@@ -154,10 +153,14 @@ function Show-MarkdownViewer {
                     Write-Verbose "Opened: $($resolvedPath.Path)"
                 }
             }
-            else {
-                # Not a valid file path - treat as markdown content
+            elseif ($MyInvocation.ExpectingInput) {
+                # Pipeline input that's not a valid path - treat as markdown content
                 $isContentMode = $true
                 $contentLines.Add($p)
+            }
+            else {
+                # Direct argument but file not found - error
+                Write-Error "File not found: $p" -Category ObjectNotFound -TargetObject $p
             }
         }
     }
