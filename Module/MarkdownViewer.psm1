@@ -173,9 +173,8 @@ function Show-MarkdownViewer {
                 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
             }
             
-            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
             $safeTitle = $Title -replace '[\\/:*?"<>|]', '_'
-            $tempFile = Join-Path $tempDir "$safeTitle`_$timestamp.md"
+            $tempFile = Join-Path $tempDir "$safeTitle.md"
             
             $contentLines -join "`n" | Set-Content -Path $tempFile -Encoding UTF8
             

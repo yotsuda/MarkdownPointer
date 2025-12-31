@@ -31,6 +31,7 @@ namespace MarkdownViewer
         public DispatcherTimer? DebounceTimer { get; set; }
         public bool IsInitialized { get; set; }
         public int? PendingScrollLine { get; set; }
+        public DateTime LastFileWriteTime { get; set; }
         public bool IsTemp { get; set; }
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) => 
@@ -253,6 +254,7 @@ namespace MarkdownViewer
                     {
                         // Update existing temp tab
                         tab.FilePath = filePath;
+                        tab.LastFileWriteTime = File.GetLastWriteTime(filePath);
                         FileTabControl.SelectedItem = tab;
                         SetupFileWatcher(tab);  // Re-setup watcher for new file
                         RefreshTab(tab);
@@ -546,7 +548,9 @@ namespace MarkdownViewer
             SetupFileWatcher(tab);
 
             // Render Markdown
+            tab.LastFileWriteTime = File.GetLastWriteTime(tab.FilePath);
             RenderMarkdown(tab);
+            StatusText.Text = $"✓ {tab.LastFileWriteTime:HH:mm:ss}";
         }
 
         private void SetupZoomForTab(TabItemData tab)
@@ -642,12 +646,13 @@ namespace MarkdownViewer
                 // Check if tab still exists
                 if (!_tabs.Contains(tab)) return;
 
-                // Bring the updated tab to front
-                FileTabControl.SelectedItem = tab;
-                Activate();
+                // Skip if file timestamp hasn't changed
+                var currentWriteTime = File.GetLastWriteTime(tab.FilePath);
+                if (currentWriteTime == tab.LastFileWriteTime) return;
+                tab.LastFileWriteTime = currentWriteTime;
 
                 RenderMarkdown(tab);
-                StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
+                StatusText.Text = $"✓ {currentWriteTime:HH:mm:ss}";
             };
 
             tab.Watcher.Changed += (s, e) =>
