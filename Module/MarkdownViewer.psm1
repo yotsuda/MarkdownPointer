@@ -135,7 +135,7 @@ function Show-MarkdownViewer {
     process {
         foreach ($p in $Path) {
             # Check if this is a file path or markdown content
-            $resolvedPath = Resolve-Path -Path $p -ErrorAction SilentlyContinue
+            $resolvedPath = Resolve-Path -Path $p -ErrorAction Ignore
             
             if ($resolvedPath) {
                 # It's a file path
