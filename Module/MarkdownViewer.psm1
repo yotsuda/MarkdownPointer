@@ -7,31 +7,39 @@ function Send-MarkdownViewerCommand {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [hashtable]$Message
+        [hashtable]$Message,
+        
+        [int]$Retries = 3
     )
     
     $json = $Message | ConvertTo-Json -Compress
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
     
-    try {
-        $client = [System.IO.Pipes.NamedPipeClientStream]::new(".", $script:PipeName, [System.IO.Pipes.PipeDirection]::InOut)
-        $client.Connect(1000)
-        $client.Write($bytes, 0, $bytes.Length)
-        $client.Flush()
-        
-        # Read response
-        $buffer = [byte[]]::new(4096)
-        $bytesRead = $client.Read($buffer, 0, $buffer.Length)
-        $client.Close()
-        
-        if ($bytesRead -gt 0) {
-            $responseJson = [System.Text.Encoding]::UTF8.GetString($buffer, 0, $bytesRead)
-            return $responseJson | ConvertFrom-Json
+    for ($i = 0; $i -lt $Retries; $i++) {
+        try {
+            $client = [System.IO.Pipes.NamedPipeClientStream]::new(".", $script:PipeName, [System.IO.Pipes.PipeDirection]::InOut)
+            $client.Connect(2000)
+            $client.Write($bytes, 0, $bytes.Length)
+            $client.Flush()
+            
+            # Read response
+            $buffer = [byte[]]::new(4096)
+            $bytesRead = $client.Read($buffer, 0, $buffer.Length)
+            $client.Close()
+            
+            if ($bytesRead -gt 0) {
+                $responseJson = [System.Text.Encoding]::UTF8.GetString($buffer, 0, $bytesRead)
+                return $responseJson | ConvertFrom-Json
+            }
+            return $null
+        }
+        catch {
+            if ($i -lt $Retries - 1) {
+                Start-Sleep -Milliseconds 500
+            }
         }
     }
-    catch {
-        return $null
-    }
+    return $null
 }
 
 function Start-MarkdownViewer {
@@ -43,9 +51,22 @@ function Start-MarkdownViewer {
     }
     
     Start-Process -FilePath $script:ExePath -WindowStyle Normal
-    Start-Sleep -Milliseconds 500
+    
+    # Wait for the pipe to become available
+    $timeout = 5
+    $elapsed = 0
+    while ($elapsed -lt $timeout) {
+        Start-Sleep -Milliseconds 200
+        $elapsed += 0.2
+        $proc = $null
+        $proc = Get-Process -Name MarkdownViewer -ErrorAction Ignore
+        if ($proc) {
+            Start-Sleep -Milliseconds 500  # Extra wait for pipe initialization
+            return
+        }
+    }
+    throw "MarkdownViewer failed to start within $timeout seconds"
 }
-
 function Show-Markdown {
     <#
     .SYNOPSIS
@@ -57,8 +78,14 @@ function Show-Markdown {
     .PARAMETER Path
     The path to the Markdown file to open.
     
+    .PARAMETER Line
+    The line number to scroll to after opening the file.
+    
     .EXAMPLE
     Show-Markdown .\README.md
+    
+    .EXAMPLE
+    Show-Markdown .\README.md -Line 50
     
     .EXAMPLE
     Get-ChildItem *.md | Show-Markdown
@@ -67,12 +94,15 @@ function Show-Markdown {
     param(
         [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName, Position = 0)]
         [Alias("FullName")]
-        [string[]]$Path
+        [string[]]$Path,
+        
+        [Parameter(Position = 1)]
+        [int]$Line
     )
     
     begin {
         # Check if MarkdownViewer is running
-        $process = Get-Process -Name MarkdownViewer -ErrorAction SilentlyContinue
+        $process = Get-Process -Name MarkdownViewer -ErrorAction Ignore
         if (-not $process) {
             Start-MarkdownViewer
         }
@@ -86,10 +116,16 @@ function Show-Markdown {
                 continue
             }
             
-            $result = Send-MarkdownViewerCommand -Message @{
+            $message = @{
                 Command = "open"
                 Path = $fullPath.Path
             }
+            
+            if ($PSBoundParameters.ContainsKey('Line')) {
+                $message.Line = $Line
+            }
+            
+            $result = Send-MarkdownViewerCommand -Message $message
             
             if ($result) {
                 Write-Verbose "Opened: $($fullPath.Path)"
@@ -97,7 +133,6 @@ function Show-Markdown {
         }
     }
 }
-
 function Get-MarkdownTab {
     <#
     .SYNOPSIS

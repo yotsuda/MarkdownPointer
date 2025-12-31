@@ -30,7 +30,7 @@ namespace MarkdownViewer
         public FileSystemWatcher? Watcher { get; set; }
         public DispatcherTimer? DebounceTimer { get; set; }
         public bool IsInitialized { get; set; }
-
+        public int? PendingScrollLine { get; set; }
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) => 
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -149,11 +149,30 @@ namespace MarkdownViewer
             return FileTabControl.SelectedIndex;
         }
         
+        public void ScrollToLine(int tabIndex, int line)
+        {
+            if (tabIndex >= 0 && tabIndex < _tabs.Count)
+            {
+                var tab = _tabs[tabIndex];
+                FileTabControl.SelectedItem = tab;
+                ScrollToLine(tab, line);
+            }
+        }
+        
+        private void ScrollToLine(TabItemData tab, int line)
+        {
+            if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+            {
+                // Use setTimeout to ensure page is fully rendered
+                tab.WebView.CoreWebView2.ExecuteScriptAsync($"setTimeout(function() {{ scrollToLine({line}); }}, 100)");
+            }
+        }
+        
         #endregion
 
         #region Tab Management
 
-        public void LoadMarkdownFile(string filePath)
+        public void LoadMarkdownFile(string filePath, int? line = null)
         {
             if (!File.Exists(filePath))
             {
@@ -168,6 +187,10 @@ namespace MarkdownViewer
                 if (string.Equals(tab.FilePath, filePath, StringComparison.OrdinalIgnoreCase))
                 {
                     FileTabControl.SelectedItem = tab;
+                    if (line.HasValue)
+                    {
+                        ScrollToLine(tab, line.Value);
+                    }
                     return;
                 }
             }
@@ -671,7 +694,14 @@ namespace MarkdownViewer
 
         private string ConvertMarkdownToHtml(string markdown, string baseDir)
         {
-            var htmlContent = Markdown.ToHtml(markdown, _pipeline);
+            // Parse markdown to AST
+            var document = Markdown.Parse(markdown, _pipeline);
+            
+            // Render with line tracking
+            using var writer = new StringWriter();
+            var renderer = new LineTrackingHtmlRenderer(writer);
+            renderer.Render(document);
+            var htmlContent = writer.ToString();
 
             // Convert path for file:// URL
             var baseUrl = new Uri(baseDir + Path.DirectorySeparatorChar).AbsoluteUri;
@@ -819,6 +849,28 @@ namespace MarkdownViewer
                         window.chrome.webview.postMessage('leave:');
                     }
                 });
+            ");
+            html.AppendLine("</script>");
+            html.AppendLine($"<script nonce='{nonce}'>");
+            html.AppendLine(@"
+                // Scroll to line function (called from C#)
+                function scrollToLine(line) {
+                    var elements = document.querySelectorAll('[data-line]');
+                    var closest = null;
+                    var closestLine = -1;
+                    
+                    for (var i = 0; i < elements.length; i++) {
+                        var elemLine = parseInt(elements[i].getAttribute('data-line'));
+                        if (elemLine <= line && elemLine > closestLine) {
+                            closest = elements[i];
+                            closestLine = elemLine;
+                        }
+                    }
+                    
+                    if (closest) {
+                        closest.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
             ");
             html.AppendLine("</script>");
             // Mermaid.js for diagram rendering

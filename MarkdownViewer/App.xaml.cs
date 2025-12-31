@@ -128,7 +128,7 @@ namespace MarkdownViewer
                         var window = Windows.OfType<MainWindow>().FirstOrDefault();
                         if (window != null)
                         {
-                            window.LoadMarkdownFile(message.Path);
+                            window.LoadMarkdownFile(message.Path, message.Line);
                             window.Activate();
                             return new PipeResponse { Success = true };
                         }
@@ -189,6 +189,7 @@ namespace MarkdownViewer
             public string Command { get; set; } = "";
             public string? Path { get; set; }
             public int? Index { get; set; }
+            public int? Line { get; set; }
         }
         
         private class PipeResponse
