@@ -673,7 +673,7 @@ namespace MarkdownViewer
             html.AppendLine("<html><head>");
             html.AppendLine("<meta charset='utf-8'/>");
             // Content Security Policy to prevent XSS attacks
-            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src file: data:; script-src 'nonce-{nonce}'; font-src 'none';\"/>");
+            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src file: data:; script-src 'nonce-{nonce}' https://cdn.jsdelivr.net; font-src 'none';\"/>");
             html.AppendLine($"<base href='{baseUrl}'/>");
             html.AppendLine("<style>");
             html.AppendLine(@"
@@ -802,6 +802,9 @@ namespace MarkdownViewer
                 });
             ");
             html.AppendLine("</script>");
+            // Mermaid.js for diagram rendering
+            html.AppendLine("<script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script>");
+            html.AppendLine($"<script nonce='{nonce}'>mermaid.initialize({{ startOnLoad: true, theme: 'default' }});</script>");
             html.AppendLine("</head><body>");
             html.AppendLine(htmlContent);
             html.AppendLine("</body></html>");
