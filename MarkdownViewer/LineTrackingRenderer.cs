@@ -1,5 +1,6 @@
-﻿using System.IO;
+using System.IO;
 using Markdig;
+using Markdig.Extensions.Tables;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
 using Markdig.Renderers.Html.Inlines;
@@ -15,28 +16,36 @@ namespace MarkdownViewer
     {
         public LineTrackingHtmlRenderer(TextWriter writer) : base(writer)
         {
-            // Replace default object renderers with line-tracking versions
-            ObjectRenderers.Clear();
+            // Replace specific renderers with line-tracking versions
+            // Note: Don't use Clear() or pipeline.Setup() - it breaks DiagramExtension
             
-            // Add our custom block renderers
-            ObjectRenderers.Add(new LineTrackingParagraphRenderer());
-            ObjectRenderers.Add(new LineTrackingHeadingRenderer());
-            ObjectRenderers.Add(new LineTrackingCodeBlockRenderer());
-            ObjectRenderers.Add(new LineTrackingListRenderer());
-            ObjectRenderers.Add(new LineTrackingQuoteBlockRenderer());
-            ObjectRenderers.Add(new LineTrackingThematicBreakRenderer());
-            ObjectRenderers.Add(new LineTrackingHtmlBlockRenderer());
+            ReplaceRenderer<ParagraphBlock, LineTrackingParagraphRenderer>();
+            ReplaceRenderer<HeadingBlock, LineTrackingHeadingRenderer>();
+            ReplaceRenderer<CodeBlock, LineTrackingCodeBlockRenderer>();
+            ReplaceRenderer<ListBlock, LineTrackingListRenderer>();
+            ReplaceRenderer<QuoteBlock, LineTrackingQuoteBlockRenderer>();
+            ReplaceRenderer<ThematicBreakBlock, LineTrackingThematicBreakRenderer>();
+            ReplaceRenderer<HtmlBlock, LineTrackingHtmlBlockRenderer>();
             
-            // Add default inline renderers
-            ObjectRenderers.Add(new CodeInlineRenderer());
-            ObjectRenderers.Add(new EmphasisInlineRenderer());
-            ObjectRenderers.Add(new LineBreakInlineRenderer());
-            ObjectRenderers.Add(new LinkInlineRenderer());
-            ObjectRenderers.Add(new LiteralInlineRenderer());
-            ObjectRenderers.Add(new HtmlEntityInlineRenderer());
-            ObjectRenderers.Add(new HtmlInlineRenderer());
-            ObjectRenderers.Add(new AutolinkInlineRenderer());
-            ObjectRenderers.Add(new DelimiterInlineRenderer());
+            // Add table renderer (not included in base HtmlRenderer)
+            ObjectRenderers.Add(new HtmlTableRenderer());
+        }
+        
+        private void ReplaceRenderer<TBlock, TRenderer>() 
+            where TBlock : MarkdownObject
+            where TRenderer : IMarkdownObjectRenderer, new()
+        {
+            // Find and remove existing renderer for this block type
+            for (int i = ObjectRenderers.Count - 1; i >= 0; i--)
+            {
+                if (ObjectRenderers[i] is HtmlObjectRenderer<TBlock>)
+                {
+                    ObjectRenderers.RemoveAt(i);
+                }
+            }
+            
+            // Add our custom renderer
+            ObjectRenderers.Insert(0, new TRenderer());
         }
     }
     

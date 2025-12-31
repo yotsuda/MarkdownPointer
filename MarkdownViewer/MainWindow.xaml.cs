@@ -841,6 +841,10 @@ namespace MarkdownViewer
                 table tr:nth-child(2n) {
                     background-color: #f6f8fa;
                 }
+                table th p, table td p {
+                    margin: 0;
+                    display: inline;
+                }
                 a {
                     color: #0366d6;
                     text-decoration: none;
