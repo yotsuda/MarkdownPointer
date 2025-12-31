@@ -150,7 +150,7 @@ function Show-MarkdownViewer {
                 $result = Send-MarkdownViewerCommand -Message $message
                 
                 if ($result) {
-                    Write-Verbose "Opened: $($resolvedPath.Path)"
+                    "Opened: $($resolvedPath.Path)"
                 }
             }
             elseif ($MyInvocation.ExpectingInput) {
@@ -192,7 +192,7 @@ function Show-MarkdownViewer {
             $result = Send-MarkdownViewerCommand -Message $message
             
             if ($result) {
-                Write-Verbose "Opened preview: $Title"
+                "Opened preview: $Title"
             }
         }
     }
