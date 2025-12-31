@@ -106,6 +106,10 @@ namespace MarkdownViewer
         private double _targetZoomFactor = 1.0;
         private bool _isDragMoveMode = false;
 
+        // Document scroll state
+        private bool _isDocumentScrolling = false;
+        private Point _scrollStartPoint;
+
         // Tab drag state
         private Point _tabDragStartPoint;
         private Point _dragStartCursorPos;
@@ -975,6 +979,7 @@ namespace MarkdownViewer
         {
             _isDragMoveMode = DragMoveToggle.IsChecked == true;
             DragOverlay.Visibility = _isDragMoveMode ? Visibility.Visible : Visibility.Collapsed;
+            DragOverlay.Cursor = Cursors.SizeAll;
 
             // Enable/disable WebView for all tabs
             foreach (var tab in _tabs)
@@ -985,7 +990,28 @@ namespace MarkdownViewer
 
         private void DragOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            DragMove();
+            _isDocumentScrolling = true;
+            _scrollStartPoint = e.GetPosition(DragOverlay);
+            DragOverlay.CaptureMouse();
+            DragOverlay.Cursor = Cursors.None;  // Hide cursor while dragging
+        }
+
+        private void DragOverlay_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isDocumentScrolling && FileTabControl.SelectedItem is TabItemData tab)
+            {
+                var currentPoint = e.GetPosition(DragOverlay);
+                var deltaY = _scrollStartPoint.Y - currentPoint.Y;
+                _scrollStartPoint = currentPoint;
+                tab.WebView.CoreWebView2?.ExecuteScriptAsync($"window.scrollBy(0, {deltaY})");
+            }
+        }
+
+        private void DragOverlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _isDocumentScrolling = false;
+            DragOverlay.ReleaseMouseCapture();
+            DragOverlay.Cursor = Cursors.SizeAll;  // Restore cursor
         }
 
         private void DragOverlay_PreviewMouseWheel(object sender, MouseWheelEventArgs e)

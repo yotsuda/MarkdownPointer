@@ -1,4 +1,4 @@
-<Window x:Class="MarkdownViewer.MainWindow"
+﻿<Window x:Class="MarkdownViewer.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
@@ -15,7 +15,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- タブコントロール -->
+        <!-- Tab control -->
         <TabControl x:Name="FileTabControl" Grid.Row="0" 
                     SelectionChanged="TabControl_SelectionChanged"
                     Visibility="Collapsed">
@@ -26,7 +26,7 @@
                                 MouseMove="TabHeader_MouseMove"
                                 Tag="{Binding}">
                         <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
-                        <Button Content="?" 
+                        <Button Content="✕" 
                                 Click="CloseTab_Click"
                                 Tag="{Binding}"
                                 Width="16" Height="16" 
@@ -46,14 +46,14 @@
             </TabControl.ContentTemplate>
         </TabControl>
 
-        <!-- ドラッグ移動モード用のオーバーレイ -->
+        <!-- Scroll mode overlay -->
         <Border x:Name="DragOverlay" Grid.Row="0" 
                 Background="#01000000" 
                 Visibility="Collapsed"
                 Margin="0,22,0,0"
-                MouseLeftButtonDown="DragOverlay_MouseLeftButtonDown"
+                MouseLeftButtonDown="DragOverlay_MouseLeftButtonDown" MouseMove="DragOverlay_MouseMove" MouseLeftButtonUp="DragOverlay_MouseLeftButtonUp"
                 PreviewMouseWheel="DragOverlay_PreviewMouseWheel"
-                Cursor="SizeAll"/>
+                />
 
         <!-- Placeholder when no file is loaded -->
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
@@ -98,19 +98,19 @@
                                Foreground="#586069"
                                Margin="0,0,12,0"/>
                     
-                    <!-- トグルボタン -->
-                    <ToggleButton x:Name="TopmostToggle" 
+                    <!-- Toggle buttons -->
+                    <ToggleButton x:Name="TopmostToggle" FontFamily="Segoe UI Emoji" 
                                   Content="📌" 
-                                  ToolTip="常に前面に表示"
+                                  ToolTip="Always on top"
                                   Click="TopmostToggle_Click"
                                   Width="24" Height="20"
                                   FontSize="10"
                                   Margin="0,0,4,0"
                                   Background="Transparent"
                                   BorderThickness="1"/>
-                    <ToggleButton x:Name="DragMoveToggle" 
+                    <ToggleButton x:Name="DragMoveToggle" FontFamily="Segoe UI Emoji" 
                                   Content="✋" 
-                                  ToolTip="ドラッグ移動モード (オフ: テキスト選択)"
+                                  ToolTip="Scroll mode (Off: text selection)"
                                   Click="DragMoveToggle_Click"
                                   Width="24" Height="20"
                                   FontSize="10"
