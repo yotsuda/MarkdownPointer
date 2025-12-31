@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -135,6 +136,20 @@ namespace MarkdownViewer
 
             FileTabControl.ItemsSource = _tabs;
         }
+
+        #region Public API for Pipe Commands
+        
+        public System.Collections.Generic.List<TabItemData> GetTabs()
+        {
+            return _tabs.ToList();
+        }
+        
+        public int GetSelectedTabIndex()
+        {
+            return FileTabControl.SelectedIndex;
+        }
+        
+        #endregion
 
         #region Tab Management
 

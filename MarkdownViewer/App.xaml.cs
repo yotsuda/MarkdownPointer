@@ -98,7 +98,12 @@ namespace MarkdownViewer
                         
                         if (message != null)
                         {
-                            await Dispatcher.InvokeAsync(() => HandlePipeMessage(message));
+                            var response = await Dispatcher.InvokeAsync(() => HandlePipeMessage(message));
+                            
+                            // Send response
+                            var responseJson = JsonSerializer.Serialize(response);
+                            var responseBytes = Encoding.UTF8.GetBytes(responseJson);
+                            await server.WriteAsync(responseBytes, 0, responseBytes.Length, ct);
                         }
                     }
                 }
@@ -113,7 +118,7 @@ namespace MarkdownViewer
             }
         }
 
-        private void HandlePipeMessage(PipeMessage message)
+        private PipeResponse HandlePipeMessage(PipeMessage message)
         {
             switch (message.Command)
             {
@@ -125,21 +130,81 @@ namespace MarkdownViewer
                         {
                             window.LoadMarkdownFile(message.Path);
                             window.Activate();
+                            return new PipeResponse { Success = true };
                         }
                     }
-                    break;
+                    return new PipeResponse { Success = false, Error = "File not found" };
                     
                 case "activate":
                     var mainWindow = Windows.OfType<MainWindow>().FirstOrDefault();
-                    mainWindow?.Activate();
-                    break;
+                    if (mainWindow != null)
+                    {
+                        mainWindow.Activate();
+                        return new PipeResponse { Success = true };
+                    }
+                    return new PipeResponse { Success = false };
+                    
+                case "getTabs":
+                    return GetTabsResponse();
+                    
+                default:
+                    return new PipeResponse { Success = false, Error = "Unknown command" };
             }
+        }
+        
+        private PipeResponse GetTabsResponse()
+        {
+            var tabs = new System.Collections.Generic.List<TabInfo>();
+            var tabIndex = 0;
+            var windowIndex = 0;
+            
+            foreach (var window in Windows.OfType<MainWindow>())
+            {
+                var windowTabs = window.GetTabs();
+                var selectedIndex = window.GetSelectedTabIndex();
+                
+                foreach (var tab in windowTabs)
+                {
+                    tabs.Add(new TabInfo
+                    {
+                        Index = tabIndex++,
+                        WindowIndex = windowIndex,
+                        Title = tab.Title,
+                        Path = tab.FilePath,
+                        IsSelected = (windowTabs.IndexOf(tab) == selectedIndex)
+                    });
+                }
+                windowIndex++;
+            }
+            
+            return new PipeResponse 
+            { 
+                Success = true, 
+                Tabs = tabs.ToArray() 
+            };
         }
 
         private class PipeMessage
         {
             public string Command { get; set; } = "";
             public string? Path { get; set; }
+            public int? Index { get; set; }
+        }
+        
+        private class PipeResponse
+        {
+            public bool Success { get; set; }
+            public string? Error { get; set; }
+            public TabInfo[]? Tabs { get; set; }
+        }
+        
+        private class TabInfo
+        {
+            public int Index { get; set; }
+            public int WindowIndex { get; set; }
+            public string Title { get; set; } = "";
+            public string Path { get; set; } = "";
+            public bool IsSelected { get; set; }
         }
     }
 }
