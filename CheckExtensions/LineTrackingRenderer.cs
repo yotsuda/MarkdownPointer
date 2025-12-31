@@ -1,5 +1,6 @@
 using System.IO;
 using Markdig;
+using Markdig.Extensions.Tables;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
 using Markdig.Renderers.Html.Inlines;
@@ -16,7 +17,8 @@ namespace MarkdownViewer
         public LineTrackingHtmlRenderer(TextWriter writer) : base(writer)
         {
             // Replace specific renderers with line-tracking versions
-            // pipeline.Setup() will be called after to add extension renderers
+            // Note: Don't use Clear() or pipeline.Setup() - it breaks DiagramExtension
+            
             ReplaceRenderer<ParagraphBlock, LineTrackingParagraphRenderer>();
             ReplaceRenderer<HeadingBlock, LineTrackingHeadingRenderer>();
             ReplaceRenderer<CodeBlock, LineTrackingCodeBlockRenderer>();
@@ -25,6 +27,8 @@ namespace MarkdownViewer
             ReplaceRenderer<ThematicBreakBlock, LineTrackingThematicBreakRenderer>();
             ReplaceRenderer<HtmlBlock, LineTrackingHtmlBlockRenderer>();
             
+            // Add table renderer (not included in base HtmlRenderer)
+            ObjectRenderers.Add(new HtmlTableRenderer());
         }
         
         private void ReplaceRenderer<TBlock, TRenderer>() 

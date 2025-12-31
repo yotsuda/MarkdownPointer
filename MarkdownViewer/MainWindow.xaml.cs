@@ -107,6 +107,9 @@ namespace MarkdownViewer
         private double _lastZoomFactor = 1.0;
         private double _targetZoomFactor = 1.0;
         private bool _isDragMoveMode = false;
+        
+        // Context menu position for diagram copy
+        private Point _contextMenuPosition;
 
         // Document scroll state
         private bool _isDocumentScrolling = false;
@@ -131,8 +134,25 @@ namespace MarkdownViewer
             InitializeComponent();
 
             // Configure Markdig pipeline
+            // Note: UseDiagrams() is excluded because it causes NullReferenceException in Setup()
             _pipeline = new MarkdownPipelineBuilder()
-                .UseAdvancedExtensions()
+                .UseAbbreviations()
+                .UseAutoIdentifiers()
+                .UseCitations()
+                .UseCustomContainers()
+                .UseDefinitionLists()
+                .UseEmphasisExtras()
+                .UseFigures()
+                .UseFooters()
+                .UseFootnotes()
+                .UseGridTables()
+                .UseMathematics()
+                .UseMediaLinks()
+                .UsePipeTables()
+                .UseListExtras()
+                .UseTaskLists()
+                .UseAutoLinks()
+                .UseGenericAttributes()
                 .Build();
 
             FileTabControl.ItemsSource = _tabs;
@@ -345,29 +365,61 @@ namespace MarkdownViewer
             tab.WebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
             tab.WebView.CoreWebView2.Settings.AreHostObjectsAllowed = false;
 
-            // Custom context menu for Mermaid diagrams
-            tab.WebView.CoreWebView2.ContextMenuRequested += (s, e) =>
+            // Custom context menu for Mermaid diagrams and math
+            tab.WebView.CoreWebView2.ContextMenuRequested += async (s, e) =>
             {
-                var menuItems = e.MenuItems;
-                menuItems.Clear();
+                // Save context menu position
+                _contextMenuPosition = new Point(e.Location.X, e.Location.Y);
                 
-                var copyItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
-                    "Copy diagram as SVG", null, 
-                    Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
-                copyItem.CustomItemSelected += async (sender, args) =>
+                var deferral = e.GetDeferral();
+                try
                 {
-                    await CopyMermaidDiagramAtCursor(tab);
-                };
-                menuItems.Add(copyItem);
-                
-                var copyPngItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
-                    "Copy diagram as PNG", null,
-                    Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
-                copyPngItem.CustomItemSelected += async (sender, args) =>
+                    // Check what's at the click position using JavaScript
+                    var checkScript = $@"
+                        (function() {{
+                            var x = {e.Location.X};
+                            var y = {e.Location.Y};
+                            var element = document.elementFromPoint(x, y);
+                            if (!element) return 'none';
+                            if (element.closest('.mermaid')) return 'mermaid';
+                            if (element.closest('.katex') || element.closest('.math')) return 'math';
+                            return 'none';
+                        }})()";
+                    
+                    var result = await tab.WebView.CoreWebView2.ExecuteScriptAsync(checkScript);
+                    var elementType = result.Trim('"');
+                    
+                    var menuItems = e.MenuItems;
+                    menuItems.Clear();
+                    
+                    if (elementType == "mermaid" || elementType == "math")
+                    {
+                        var copyPngItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
+                            "Copy as Image", null,
+                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
+                        copyPngItem.CustomItemSelected += async (sender, args) =>
+                        {
+                            await CopyElementAsPng(tab, elementType);
+                        };
+                        menuItems.Add(copyPngItem);
+                        
+                        if (elementType == "mermaid")
+                        {
+                            var copySvgItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
+                                "Copy as SVG", null,
+                                Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
+                            copySvgItem.CustomItemSelected += async (sender, args) =>
+                            {
+                                await CopyMermaidDiagramAtCursor(tab);
+                            };
+                            menuItems.Add(copySvgItem);
+                        }
+                    }
+                }
+                finally
                 {
-                    await CopyMermaidDiagramAsPngAtCursor(tab);
-                };
-                menuItems.Add(copyPngItem);
+                    deferral.Complete();
+                }
             };
             // Prevent dropped files from opening in new window
             tab.WebView.CoreWebView2.NewWindowRequested += (s, e) =>
@@ -758,6 +810,7 @@ namespace MarkdownViewer
             // Render with line tracking
             using var writer = new StringWriter();
             var renderer = new LineTrackingHtmlRenderer(writer);
+            _pipeline.Setup(renderer);
             renderer.Render(document);
             var htmlContent = writer.ToString();
 
@@ -772,7 +825,7 @@ namespace MarkdownViewer
             html.AppendLine("<html><head>");
             html.AppendLine("<meta charset='utf-8'/>");
             // Content Security Policy to prevent XSS attacks
-            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src file: data: blob:; script-src 'nonce-{nonce}' 'unsafe-eval' https://cdn.jsdelivr.net; font-src 'none';\"/>");
+            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src file: data: blob:; script-src 'nonce-{nonce}' 'unsafe-eval' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net;\"/>");
             html.AppendLine($"<base href='{baseUrl}'/>");
             html.AppendLine("<style>");
             html.AppendLine(@"
@@ -868,6 +921,12 @@ namespace MarkdownViewer
                 }
             ");
             html.AppendLine("</style>");
+            // KaTeX for math rendering
+            html.AppendLine("<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css'/>");
+            html.AppendLine("<script defer src='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js'></script>");
+            html.AppendLine("<script defer src='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js'></script>");
+            // html2canvas for copying elements as PNG
+            html.AppendLine("<script src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'></script>");
             html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(@"
                 // Handle link clicks
@@ -877,8 +936,19 @@ namespace MarkdownViewer
                         target = target.parentElement;
                     }
                     if (target && target.href) {
-                        e.preventDefault();
-                        window.chrome.webview.postMessage('click:' + target.href);
+                        var href = target.getAttribute('href');
+                        // Handle anchor links (e.g. #footnote-1) within the page
+                        if (href && href.startsWith('#')) {
+                            e.preventDefault();
+                            var targetId = href.substring(1);
+                            var targetEl = document.getElementById(targetId);
+                            if (targetEl) {
+                                targetEl.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        } else {
+                            e.preventDefault();
+                            window.chrome.webview.postMessage('click:' + target.href);
+                        }
                     }
                 });
 
@@ -940,6 +1010,21 @@ namespace MarkdownViewer
             html.AppendLine($"<script nonce='{nonce}'>mermaid.initialize({{ startOnLoad: true, theme: 'default' }});</script>");
             html.AppendLine("</head><body>");
             html.AppendLine(htmlContent);
+            // KaTeX auto-render initialization
+            html.AppendLine($"<script nonce='{nonce}'>");
+            html.AppendLine(@"
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (typeof renderMathInElement !== 'undefined') {
+                        renderMathInElement(document.body, {
+                            delimiters: [
+                                {left: '\\[', right: '\\]', display: true},
+                                {left: '\\(', right: '\\)', display: false}
+                            ]
+                        });
+                    }
+                });
+            ");
+            html.AppendLine("</script>");
             html.AppendLine("</body></html>");
 
             return html.ToString();
@@ -1426,17 +1511,36 @@ namespace MarkdownViewer
 
         #region Mermaid Diagram Copy
 
+        private async Task CopyElementAsPng(TabItemData tab, string elementType)
+        {
+            if (elementType == "mermaid")
+            {
+                await CopyMermaidDiagramAsPngAtCursor(tab);
+            }
+            else if (elementType == "math")
+            {
+                await CopyMathAsPngAtCursor(tab);
+            }
+        }
+
         private async Task CopyMermaidDiagramAtCursor(TabItemData tab)
         {
-            var script = @"
-                (function() {
-                    var mermaid = document.querySelector('.mermaid svg');
-                    if (mermaid) {
-                        var serializer = new XMLSerializer();
-                        return serializer.serializeToString(mermaid);
-                    }
+            // Find mermaid diagram at the right-click position
+            var script = $@"
+                (function() {{
+                    var x = {_contextMenuPosition.X};
+                    var y = {_contextMenuPosition.Y};
+                    var element = document.elementFromPoint(x, y);
+                    var mermaidDiv = element ? element.closest('.mermaid') : null;
+                    if (mermaidDiv) {{
+                        var svg = mermaidDiv.querySelector('svg');
+                        if (svg) {{
+                            var serializer = new XMLSerializer();
+                            return serializer.serializeToString(svg);
+                        }}
+                    }}
                     return '';
-                })()";
+                }})()";
             
             var result = await tab.WebView.CoreWebView2.ExecuteScriptAsync(script);
             // Remove surrounding quotes and unescape
@@ -1474,13 +1578,17 @@ namespace MarkdownViewer
             tab.WebView.CoreWebView2.WebMessageReceived += handler;
             
             // Use JavaScript to convert SVG to PNG via canvas with data URL
-            var script = @"
-                (async function() {
-                    var mermaidDiv = document.querySelector('.mermaid');
-                    if (!mermaidDiv) { window.chrome.webview.postMessage('PNG:'); return; }
+            // Find mermaid diagram at the right-click position
+            var script = $@"
+                (async function() {{
+                    var x = {_contextMenuPosition.X};
+                    var y = {_contextMenuPosition.Y};
+                    var element = document.elementFromPoint(x, y);
+                    var mermaidDiv = element ? element.closest('.mermaid') : null;
+                    if (!mermaidDiv) {{ window.chrome.webview.postMessage('PNG:'); return; }}
                     
                     var svg = mermaidDiv.querySelector('svg');
-                    if (!svg) { window.chrome.webview.postMessage('PNG:'); return; }
+                    if (!svg) {{ window.chrome.webview.postMessage('PNG:'); return; }}
                     
                     var bbox = svg.getBoundingClientRect();
                     var width = Math.ceil(bbox.width);
@@ -1505,15 +1613,15 @@ namespace MarkdownViewer
                     ctx.fillRect(0, 0, width, height);
                     
                     var img = new Image();
-                    img.onload = function() {
+                    img.onload = function() {{
                         ctx.drawImage(img, 0, 0);
                         window.chrome.webview.postMessage('PNG:' + canvas.toDataURL('image/png'));
-                    };
-                    img.onerror = function() {
+                    }};
+                    img.onerror = function() {{
                         window.chrome.webview.postMessage('PNG:error');
-                    };
+                    }};
                     img.src = dataUrl;
-                })()";
+                }})()";
             
             await tab.WebView.CoreWebView2.ExecuteScriptAsync(script);
             
@@ -1555,6 +1663,137 @@ namespace MarkdownViewer
             else
             {
                 StatusText.Text = "No diagram found";
+            }
+        }
+
+        private async Task CopyMathAsPngAtCursor(TabItemData tab)
+        {
+            var tcs = new TaskCompletionSource<string>();
+            
+            void handler(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+            {
+                var msg = e.TryGetWebMessageAsString();
+                if (msg != null && msg.StartsWith("MATHPNG:"))
+                {
+                    tab.WebView.CoreWebView2.WebMessageReceived -= handler;
+                    tcs.TrySetResult(msg.Substring(8));
+                }
+            }
+            
+            tab.WebView.CoreWebView2.WebMessageReceived += handler;
+            
+            // Use html2canvas to convert KaTeX math to PNG
+            // Find math element (.katex) at the right-click position
+            var script = $@"
+                (async function() {{
+                    var x = {_contextMenuPosition.X};
+                    var y = {_contextMenuPosition.Y};
+                    var element = document.elementFromPoint(x, y);
+                    var mathEl = element ? element.closest('.katex') : null;
+                    if (!mathEl) {{
+                        var mathContainer = element ? element.closest('.math') : null;
+                        if (mathContainer) {{
+                            mathEl = mathContainer.querySelector('.katex');
+                        }}
+                    }}
+                    if (!mathEl) {{ window.chrome.webview.postMessage('MATHPNG:'); return; }}
+                    
+                    try {{
+                        // Capture the element with extra space to prevent clipping
+                        var rect = mathEl.getBoundingClientRect();
+                        var canvas = await html2canvas(mathEl, {{
+                            backgroundColor: '#ffffff',
+                            scale: 3,
+                            logging: false,
+                            y: -10,
+                            height: rect.height + 20,
+                            windowHeight: rect.height + 20
+                        }});
+                        
+                        // Auto-trim white borders
+                        var ctx = canvas.getContext('2d');
+                        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        var data = imageData.data;
+                        var w = canvas.width, h = canvas.height;
+                        
+                        // Find bounds of non-white pixels
+                        var top = h, left = w, right = 0, bottom = 0;
+                        for (var y = 0; y < h; y++) {{
+                            for (var x = 0; x < w; x++) {{
+                                var idx = (y * w + x) * 4;
+                                // Check if pixel is not white (with some tolerance)
+                                if (data[idx] < 250 || data[idx+1] < 250 || data[idx+2] < 250) {{
+                                    if (x < left) left = x;
+                                    if (x > right) right = x;
+                                    if (y < top) top = y;
+                                    if (y > bottom) bottom = y;
+                                }}
+                            }}
+                        }}
+                        
+                        // Add padding
+                        var padding = 15;
+                        left = Math.max(0, left - padding);
+                        top = Math.max(0, top - padding);
+                        right = Math.min(w - 1, right + padding);
+                        bottom = Math.min(h - 1, bottom + padding);
+                        
+                        var trimmedWidth = right - left + 1;
+                        var trimmedHeight = bottom - top + 1;
+                        
+                        // Create trimmed canvas
+                        var trimmedCanvas = document.createElement('canvas');
+                        trimmedCanvas.width = trimmedWidth;
+                        trimmedCanvas.height = trimmedHeight;
+                        var trimmedCtx = trimmedCanvas.getContext('2d');
+                        trimmedCtx.drawImage(canvas, left, top, trimmedWidth, trimmedHeight, 0, 0, trimmedWidth, trimmedHeight);
+                        
+                        window.chrome.webview.postMessage('MATHPNG:' + trimmedCanvas.toDataURL('image/png'));
+                    }} catch(e) {{
+                        window.chrome.webview.postMessage('MATHPNG:error');
+                    }}
+                }})()";
+            await tab.WebView.CoreWebView2.ExecuteScriptAsync(script);
+            
+            // Wait for result with timeout
+            var timeoutTask = Task.Delay(5000);
+            var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+            
+            if (completedTask == timeoutTask)
+            {
+                tab.WebView.CoreWebView2.WebMessageReceived -= handler;
+                StatusText.Text = "✗ PNG copy timeout";
+                return;
+            }
+            
+            var pngData = await tcs.Task;
+            
+            if (!string.IsNullOrEmpty(pngData) && pngData.StartsWith("data:image/png"))
+            {
+                try
+                {
+                    var base64 = pngData.Substring("data:image/png;base64,".Length);
+                    var bytes = Convert.FromBase64String(base64);
+                    
+                    using var stream = new System.IO.MemoryStream(bytes);
+                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bitmap.StreamSource = stream;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+                    
+                    Clipboard.SetImage(bitmap);
+                    StatusText.Text = "✓ Math PNG copied";
+                }
+                catch
+                {
+                    StatusText.Text = "✗ PNG copy failed";
+                }
+            }
+            else
+            {
+                StatusText.Text = "No math found";
             }
         }
 
