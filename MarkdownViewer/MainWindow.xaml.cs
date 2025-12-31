@@ -234,6 +234,7 @@ namespace MarkdownViewer
                         // Update existing temp tab
                         tab.FilePath = filePath;
                         FileTabControl.SelectedItem = tab;
+                        SetupFileWatcher(tab);  // Re-setup watcher for new file
                         RefreshTab(tab);
                         if (line.HasValue)
                         {
@@ -243,7 +244,6 @@ namespace MarkdownViewer
                     }
                 }
             }
-
             // Create new tab
             var newTab = new TabItemData
             {
