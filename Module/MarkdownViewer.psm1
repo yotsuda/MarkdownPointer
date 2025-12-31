@@ -67,7 +67,7 @@ function Start-MarkdownViewer {
     }
     throw "MarkdownViewer failed to start within $timeout seconds"
 }
-function Show-Markdown {
+function Show-MarkdownViewer {
     <#
     .SYNOPSIS
     Opens a Markdown file or content in MarkdownViewer.
@@ -194,7 +194,7 @@ function Show-Markdown {
         }
     }
 }
-function Get-MarkdownTab {
+function Get-MarkdownViewerTab {
     <#
     .SYNOPSIS
     Gets the list of open tabs in MarkdownViewer.
@@ -217,4 +217,4 @@ function Get-MarkdownTab {
     }
 }
 
-Export-ModuleMember -Function Show-Markdown, Get-MarkdownTab
+Export-ModuleMember -Function Show-MarkdownViewer, Get-MarkdownViewerTab
