@@ -315,7 +315,14 @@ namespace MarkdownViewer
                     return;
                 }
 
-                // Handle mouse leave from link
+                // Handle zoom from JavaScript
+                if (message.StartsWith("zoom:", StringComparison.Ordinal))
+                {
+                    var direction = message.Substring(5);
+                    ApplyZoomDelta(direction == "in" ? 120 : -120);
+                    return;
+                }
+
                 if (message == "leave:")
                 {
                     LinkStatusText.Text = "";
@@ -617,15 +624,7 @@ namespace MarkdownViewer
 
         private void AdjustWindowSizeForZoom(double zoomFactor)
         {
-            var targetWidth = (BaseContentWidth * zoomFactor) + ScrollbarWidth;
-            targetWidth = Math.Max(MinWindowWidth, Math.Min(targetWidth, SystemParameters.WorkArea.Width * 0.9));
-
-            Width = targetWidth;
-
-            if (Left + Width > SystemParameters.WorkArea.Width)
-            {
-                Left = Math.Max(0, SystemParameters.WorkArea.Width - Width);
-            }
+            // Window size is now fixed - zoom only affects content
         }
 
         private void ApplyZoomDelta(int delta)
@@ -639,18 +638,11 @@ namespace MarkdownViewer
                 _targetZoomFactor = Math.Max(MinZoom, _targetZoomFactor - ZoomStep);
             }
 
-            // In drag move mode, apply zoom immediately without animation for better performance
-            if (_isDragMoveMode && FileTabControl.SelectedItem is TabItemData tab)
+            // Apply zoom immediately without animation
+            if (FileTabControl.SelectedItem is TabItemData tab)
             {
                 tab.WebView.ZoomFactor = _targetZoomFactor;
                 _lastZoomFactor = _targetZoomFactor;
-                AdjustWindowSizeForZoom(_targetZoomFactor);
-                return;
-            }
-
-            if (!_zoomAnimationTimer!.IsEnabled)
-            {
-                _zoomAnimationTimer.Start();
             }
         }
 
@@ -789,6 +781,14 @@ namespace MarkdownViewer
                         window.chrome.webview.postMessage('hover:' + target.href);
                     }
                 });
+
+                // Handle Ctrl+wheel for zoom
+                document.addEventListener('wheel', function(e) {
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        window.chrome.webview.postMessage('zoom:' + (e.deltaY < 0 ? 'in' : 'out'));
+                    }
+                }, { passive: false });
 
                 // Handle mouse leave from link
                 document.addEventListener('mouseout', function(e) {
@@ -954,6 +954,15 @@ namespace MarkdownViewer
                     FileTabControl.SelectedIndex = (currentIndex + 1) % _tabs.Count;
                 }
                 e.Handled = true;
+            }
+        }
+
+        private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                ApplyZoomDelta(e.Delta);
             }
         }
 

@@ -8,7 +8,7 @@
         AllowDrop="True"
         PreviewDrop="Window_Drop"
         PreviewDragOver="Window_DragOver"
-        KeyDown="Window_KeyDown">
+        KeyDown="Window_KeyDown" PreviewMouseWheel="Window_PreviewMouseWheel">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
