@@ -838,6 +838,7 @@ namespace MarkdownViewer
             using var writer = new StringWriter();
             var renderer = new LineTrackingHtmlRenderer(writer);
             _pipeline.Setup(renderer);
+            renderer.ReplaceExtensionRenderers();
             renderer.Render(document);
             var htmlContent = writer.ToString();
 
@@ -1072,14 +1073,26 @@ namespace MarkdownViewer
                         // Elements with data-line
                         if (element.hasAttribute && element.hasAttribute('data-line')) return element;
                         
-                        // Mermaid/KaTeX containers
-                        if (element.classList && (element.classList.contains('mermaid') || 
-                            element.classList.contains('katex') || element.classList.contains('math'))) {
+                        // Mermaid container
+                        if (element.classList && element.classList.contains('mermaid')) {
                             var parent = element;
                             while (parent && parent !== document.body) {
                                 if (parent.hasAttribute && parent.hasAttribute('data-line')) return parent;
                                 parent = parent.parentElement || parent.parentNode;
                             }
+                            return element;
+                        }
+                        // KaTeX - try to find parent with data-line, otherwise return the katex element
+                        if (element.classList && (element.classList.contains('katex') || element.classList.contains('math'))) {
+                            // First check if this element itself has data-line
+                            if (element.hasAttribute && element.hasAttribute('data-line')) return element;
+                            // Then search parents
+                            var parent = element.parentElement;
+                            while (parent && parent !== document.body) {
+                                if (parent.hasAttribute && parent.hasAttribute('data-line')) return parent;
+                                parent = parent.parentElement;
+                            }
+                            // No parent with data-line found, return the katex element itself
                             return element;
                         }
                         element = element.parentElement || element.parentNode;
@@ -1281,8 +1294,22 @@ namespace MarkdownViewer
                         renderMathInElement(document.body, {
                             delimiters: [
                                 {left: '\\[', right: '\\]', display: true},
-                                {left: '\\(', right: '\\)', display: false}
+                                {left: '\\(', right: '\\)', display: false},
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false}
                             ]
+                        });
+                        
+                        // Copy data-line from parent to KaTeX elements
+                        document.querySelectorAll('.katex').forEach(function(katex) {
+                            var parent = katex.parentElement;
+                            while (parent && parent !== document.body) {
+                                if (parent.hasAttribute('data-line')) {
+                                    katex.setAttribute('data-line', parent.getAttribute('data-line'));
+                                    break;
+                                }
+                                parent = parent.parentElement;
+                            }
                         });
                     }
                     

@@ -6,6 +6,7 @@ using Markdig.Renderers.Html.Inlines;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Markdig.Extensions.Tables;
+using Markdig.Extensions.Mathematics;
 
 namespace MarkdownViewer
 {
@@ -16,8 +17,21 @@ namespace MarkdownViewer
     {
         public LineTrackingHtmlRenderer(TextWriter writer) : base(writer)
         {
+            // Initial replacement (for built-in renderers)
+            ReplaceAllRenderers();
+        }
+        
+        /// <summary>
+        /// Call this AFTER pipeline.Setup() to replace extension renderers
+        /// </summary>
+        public void ReplaceExtensionRenderers()
+        {
+            ReplaceAllRenderers();
+        }
+        
+        private void ReplaceAllRenderers()
+        {
             // Replace specific renderers with line-tracking versions
-            // pipeline.Setup() will be called after to add extension renderers
             ReplaceRenderer<ParagraphBlock, LineTrackingParagraphRenderer>();
             ReplaceRenderer<HeadingBlock, LineTrackingHeadingRenderer>();
             ReplaceRenderer<CodeBlock, LineTrackingCodeBlockRenderer>();
@@ -26,7 +40,7 @@ namespace MarkdownViewer
             ReplaceRenderer<ThematicBreakBlock, LineTrackingThematicBreakRenderer>();
             ReplaceRenderer<HtmlBlock, LineTrackingHtmlBlockRenderer>();
             ReplaceRenderer<Table, LineTrackingTableRenderer>();
-            
+            ReplaceRenderer<MathBlock, LineTrackingMathBlockRenderer>();
         }
         
         private void ReplaceRenderer<TBlock, TRenderer>() 
@@ -184,6 +198,18 @@ namespace MarkdownViewer
             }
             
             renderer.WriteLine("</table>");
+        }
+    }
+
+    public class LineTrackingMathBlockRenderer : HtmlObjectRenderer<MathBlock>
+    {
+        protected override void Write(HtmlRenderer renderer, MathBlock obj)
+        {
+            renderer.Write($"<div class=\"math\" data-line=\"{obj.Line + 1}\">");
+            renderer.WriteLine("\\[");
+            renderer.WriteLeafRawLines(obj, true, true, true);
+            renderer.Write("\\]</div>");
+            renderer.WriteLine();
         }
     }
 }
