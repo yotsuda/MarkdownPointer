@@ -108,6 +108,7 @@ namespace MarkdownViewer
         private double _lastZoomFactor = 1.0;
         private double _targetZoomFactor = 1.0;
         private bool _isDragMoveMode = false;
+        private bool _isPointingMode = false;
         
         // Context menu position for diagram copy
         private Point _contextMenuPosition;
@@ -537,6 +538,22 @@ namespace MarkdownViewer
                         }
                     }
                 }
+
+                // Handle pointing mode click
+                if (message.StartsWith("point:", StringComparison.Ordinal))
+                {
+                    var data = message.Substring(6);
+                    var parts = data.Split('|');
+                    if (parts.Length >= 2)
+                    {
+                        var line = parts[0];
+                        var elementContent = parts.Length > 1 ? parts[1] : "";
+                        var reference = $"[{tab.FilePath}:{line}] {elementContent}";
+                        Clipboard.SetText(reference);
+                        StatusText.Text = "✓ Copied";
+                    }
+                    return;
+                }
             };
 
             // Setup zoom
@@ -924,6 +941,12 @@ namespace MarkdownViewer
                 p {
                     margin-bottom: 16px;
                 }
+                .pointing-highlight {
+                    outline: 2px solid #0078d4 !important;
+                    outline-offset: 2px;
+                    background-color: rgba(0, 120, 212, 0.1) !important;
+                    cursor: pointer !important;
+                }
             ");
             html.AppendLine("</style>");
             // KaTeX for math rendering
@@ -1008,6 +1031,155 @@ namespace MarkdownViewer
                         closest.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                 }
+
+                // Pointing mode
+                var pointingModeEnabled = false;
+                var currentHighlight = null;
+
+                function setPointingMode(enabled) {
+                    pointingModeEnabled = enabled;
+                    if (!enabled && currentHighlight) {
+                        currentHighlight.classList.remove('pointing-highlight');
+                        currentHighlight = null;
+                    }
+                    document.body.style.cursor = enabled ? 'crosshair' : '';
+                }
+
+                function getPointableElement(element) {
+                    while (element && element !== document.body) {
+                        var tagName = element.tagName ? element.tagName.toLowerCase() : '';
+                        if (tagName === 'td' || tagName === 'th') return element;
+                        if (element.hasAttribute && element.hasAttribute('data-line')) return element;
+                        if (element.classList && (element.classList.contains('mermaid') || 
+                            element.classList.contains('katex') || element.classList.contains('math'))) {
+                            var parent = element;
+                            while (parent && parent !== document.body) {
+                                if (parent.hasAttribute && parent.hasAttribute('data-line')) return parent;
+                                parent = parent.parentElement;
+                            }
+                            return element;
+                        }
+                        element = element.parentElement;
+                    }
+                    return null;
+                }
+
+                function getElementLine(element) {
+                    while (element && element !== document.body) {
+                        if (element.hasAttribute && element.hasAttribute('data-line')) {
+                            return element.getAttribute('data-line');
+                        }
+                        element = element.parentElement;
+                    }
+                    return '?';
+                }
+
+                function getTableRowMarkdown(tr) {
+                    var cells = tr.querySelectorAll('td, th');
+                    var parts = [];
+                    cells.forEach(function(cell) { parts.push(cell.textContent.trim()); });
+                    return '| ' + parts.join(' | ') + ' |';
+                }
+
+                function getElementContent(element) {
+                    var tagName = element.tagName.toLowerCase();
+                    
+                    if (tagName === 'td' || tagName === 'th') {
+                        var tr = element.parentElement;
+                        var table = tr ? tr.closest('table') : null;
+                        var cellIndex = Array.from(tr.children).indexOf(element);
+                        var rowIndex = table ? Array.from(table.querySelectorAll('tr')).indexOf(tr) : 0;
+                        var cellContent = element.textContent.trim();
+                        return 'table[row ' + rowIndex + ', col ' + cellIndex + '] cell: ' + cellContent + ' | row: ' + getTableRowMarkdown(tr);
+                    }
+                    if (tagName === 'tr') {
+                        var table = element.closest('table');
+                        var rowIndex = table ? Array.from(table.querySelectorAll('tr')).indexOf(element) : 0;
+                        return 'table[row ' + rowIndex + '] ' + getTableRowMarkdown(element);
+                    }
+                    if (tagName === 'table') {
+                        var headerRow = element.querySelector('tr');
+                        return headerRow ? 'table: ' + getTableRowMarkdown(headerRow) : '(table)';
+                    }
+                    if (element.classList.contains('mermaid') || element.querySelector('.mermaid')) {
+                        return '```mermaid (diagram)```';
+                    }
+                    if (element.classList.contains('katex') || element.classList.contains('math') || element.querySelector('.katex')) {
+                        var mathText = element.textContent.trim();
+                        if (mathText.length > 50) mathText = mathText.substring(0, 50) + '...';
+                        return '$$ ' + mathText + ' $$';
+                    }
+                    if (tagName === 'pre') {
+                        var code = element.querySelector('code');
+                        var lang = '';
+                        if (code && code.className) {
+                            var match = code.className.match(/language-(\w+)/);
+                            if (match) lang = match[1];
+                        }
+                        var codeText = element.textContent.trim();
+                        var lines = codeText.split('\n');
+                        var preview = lines.slice(0, 2).join(' ').substring(0, 50);
+                        if (lines.length > 2 || codeText.length > 50) preview += '...';
+                        return '```' + lang + ' ' + preview + ' ```';
+                    }
+                    if (/^h[1-6]$/.test(tagName)) {
+                        var level = tagName.charAt(1);
+                        return '#'.repeat(parseInt(level)) + ' ' + element.textContent.trim();
+                    }
+                    if (tagName === 'li') {
+                        var text = element.textContent.trim();
+                        if (text.length > 60) text = text.substring(0, 60) + '...';
+                        var parent = element.parentElement;
+                        if (parent && parent.tagName.toLowerCase() === 'ol') {
+                            var index = Array.from(parent.children).indexOf(element) + 1;
+                            return index + '. ' + text;
+                        }
+                        return '- ' + text;
+                    }
+                    if (tagName === 'blockquote') {
+                        var text = element.textContent.trim();
+                        if (text.length > 60) text = text.substring(0, 60) + '...';
+                        return '> ' + text;
+                    }
+                    if (tagName === 'hr') return '---';
+                    var text = element.textContent.trim();
+                    if (text.length > 80) text = text.substring(0, 80) + '...';
+                    return text;
+                }
+
+                document.addEventListener('mouseover', function(e) {
+                    if (!pointingModeEnabled) return;
+                    var pointable = getPointableElement(e.target);
+                    if (pointable && pointable !== currentHighlight) {
+                        if (currentHighlight) currentHighlight.classList.remove('pointing-highlight');
+                        pointable.classList.add('pointing-highlight');
+                        currentHighlight = pointable;
+                    }
+                });
+
+                document.addEventListener('mouseout', function(e) {
+                    if (!pointingModeEnabled) return;
+                    var pointable = getPointableElement(e.target);
+                    if (pointable && pointable === currentHighlight) {
+                        var related = e.relatedTarget;
+                        if (!related || !pointable.contains(related)) {
+                            pointable.classList.remove('pointing-highlight');
+                            currentHighlight = null;
+                        }
+                    }
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (!pointingModeEnabled) return;
+                    var pointable = getPointableElement(e.target);
+                    if (pointable) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var line = getElementLine(pointable);
+                        var content = getElementContent(pointable);
+                        window.chrome.webview.postMessage('point:' + line + '|' + content);
+                    }
+                }, true);
             ");
             html.AppendLine("</script>");
             // Mermaid.js for diagram rendering
@@ -1204,6 +1376,19 @@ namespace MarkdownViewer
             foreach (var tab in _tabs)
             {
                 tab.WebView.IsEnabled = !_isDragMoveMode;
+            }
+        }
+
+        private void PointingModeToggle_Click(object sender, RoutedEventArgs e)
+        {
+            _isPointingMode = PointingModeToggle.IsChecked == true;
+            
+            foreach (var tab in _tabs)
+            {
+                if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+                {
+                    tab.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(" + (_isPointingMode ? "true" : "false") + ")");
+                }
             }
         }
 

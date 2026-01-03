@@ -5,6 +5,7 @@ using Markdig.Renderers.Html;
 using Markdig.Renderers.Html.Inlines;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
+using Markdig.Extensions.Tables;
 
 namespace MarkdownViewer
 {
@@ -24,6 +25,7 @@ namespace MarkdownViewer
             ReplaceRenderer<QuoteBlock, LineTrackingQuoteBlockRenderer>();
             ReplaceRenderer<ThematicBreakBlock, LineTrackingThematicBreakRenderer>();
             ReplaceRenderer<HtmlBlock, LineTrackingHtmlBlockRenderer>();
+            ReplaceRenderer<Table, LineTrackingTableRenderer>();
             
         }
         
@@ -144,6 +146,37 @@ namespace MarkdownViewer
         protected override void Write(HtmlRenderer renderer, HtmlBlock obj)
         {
             renderer.WriteLeafRawLines(obj, true, false, false);
+        }
+    }
+
+    public class LineTrackingTableRenderer : HtmlObjectRenderer<Table>
+    {
+        protected override void Write(HtmlRenderer renderer, Table obj)
+        {
+            renderer.Write($"<table data-line=\"{obj.Line + 1}\">");
+            renderer.WriteLine();
+            
+            foreach (var row in obj)
+            {
+                if (row is TableRow tableRow)
+                {
+                    var isHeader = tableRow.IsHeader;
+                    renderer.Write($"<tr data-line=\"{tableRow.Line + 1}\">");
+                    foreach (var cell in tableRow)
+                    {
+                        if (cell is TableCell tableCell)
+                        {
+                            var tag = isHeader ? "th" : "td";
+                            renderer.Write($"<{tag}>");
+                            renderer.WriteChildren(tableCell);
+                            renderer.Write($"</{tag}>");
+                        }
+                    }
+                    renderer.WriteLine("</tr>");
+                }
+            }
+            
+            renderer.WriteLine("</table>");
         }
     }
 }
