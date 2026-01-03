@@ -79,8 +79,15 @@ namespace MarkdownViewer
             
             if (isMermaid)
             {
-                // Mermaid needs: <pre class="mermaid">content</pre>
-                renderer.Write($"<pre class=\"mermaid\" data-line=\"{obj.Line + 1}\">");
+                // Get mermaid source for data attribute
+                var sourceWriter = new StringWriter();
+                var tempRenderer = new HtmlRenderer(sourceWriter);
+                tempRenderer.WriteLeafRawLines(obj, true, true, true);
+                var mermaidSource = sourceWriter.ToString().Trim();
+                var escapedSource = System.Web.HttpUtility.HtmlAttributeEncode(mermaidSource);
+                
+                // Mermaid needs: <pre class="mermaid" data-mermaid-source="...">content</pre>
+                renderer.Write($"<pre class=\"mermaid\" data-line=\"{obj.Line + 1}\" data-mermaid-source=\"{escapedSource}\">");
                 renderer.WriteLeafRawLines(obj, true, true, true);
                 renderer.WriteLine("</pre>");
             }

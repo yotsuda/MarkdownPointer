@@ -1,4 +1,4 @@
-# Markdown テスト
+﻿# Markdown テスト
 
 これは**太字**で、これは*斜体*です。
 
@@ -34,3 +34,23 @@ public class Hello
 
 > これは引用です。
 > 複数行もOKです。
+
+## Mermaid
+
+```mermaid
+graph LR
+    A[Start] --> B[Process]
+    B --> C{Decision}
+    C -->|Yes| D[End]
+    C -->|No| B
+```
+
+## 数式
+
+インライン数式: $E = mc^2$
+
+ブロック数式:
+
+$$
+\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
+$$

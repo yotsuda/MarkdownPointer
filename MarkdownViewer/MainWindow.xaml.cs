@@ -1060,18 +1060,29 @@ namespace MarkdownViewer
                 function getPointableElement(element) {
                     while (element && element !== document.body) {
                         var tagName = element.tagName ? element.tagName.toLowerCase() : '';
+                        
+                        // Table cells
                         if (tagName === 'td' || tagName === 'th') return element;
+                        
+                        // Mermaid nodes (g.node, g.cluster, g.edgeLabel)
+                        if (element.hasAttribute && element.hasAttribute('data-mermaid-node')) {
+                            return element;
+                        }
+                        
+                        // Elements with data-line
                         if (element.hasAttribute && element.hasAttribute('data-line')) return element;
+                        
+                        // Mermaid/KaTeX containers
                         if (element.classList && (element.classList.contains('mermaid') || 
                             element.classList.contains('katex') || element.classList.contains('math'))) {
                             var parent = element;
                             while (parent && parent !== document.body) {
                                 if (parent.hasAttribute && parent.hasAttribute('data-line')) return parent;
-                                parent = parent.parentElement;
+                                parent = parent.parentElement || parent.parentNode;
                             }
                             return element;
                         }
-                        element = element.parentElement;
+                        element = element.parentElement || element.parentNode;
                     }
                     return null;
                 }
@@ -1081,7 +1092,8 @@ namespace MarkdownViewer
                         if (element.hasAttribute && element.hasAttribute('data-line')) {
                             return element.getAttribute('data-line');
                         }
-                        element = element.parentElement;
+                        // Use parentNode for SVG elements, parentElement for HTML
+                        element = element.parentElement || element.parentNode;
                     }
                     return '?';
                 }
@@ -1132,13 +1144,31 @@ namespace MarkdownViewer
                         });
                         return items.join(', ');
                     }
-                    if (element.classList.contains('mermaid') || element.querySelector('.mermaid')) {
+                    // Mermaid node (inside SVG)
+                    if (element.hasAttribute && element.hasAttribute('data-mermaid-node')) {
+                        var nodeText = element.textContent.trim().replace(/\s+/g, ' ');
+                        if (nodeText.length > 40) nodeText = nodeText.substring(0, 40) + '...';
+                        var nodeType = element.classList.contains('cluster') ? 'subgraph' : 
+                                       element.classList.contains('edgeLabel') ? 'edge' : 'node';
+                        return 'mermaid ' + nodeType + ': ' + nodeText;
+                    }
+                    // Mermaid container
+                    if (element.classList && element.classList.contains('mermaid')) {
+                        var src = element.getAttribute('data-mermaid-source') || '';
+                        if (src) {
+                            var firstLine = src.split('\n')[0].trim();
+                            var nodeCount = (src.match(/\[.*?\]|\(.*?\)|{.*?}/g) || []).length;
+                            var info = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
+                            return '```mermaid ' + info + (nodeCount > 0 ? ' (' + nodeCount + ' nodes)' : '') + '```';
+                        }
                         return '```mermaid (diagram)```';
                     }
                     if (element.classList.contains('katex') || element.classList.contains('math') || element.querySelector('.katex')) {
-                        var mathText = element.textContent.trim();
-                        if (mathText.length > 50) mathText = mathText.substring(0, 50) + '...';
-                        return '$$ ' + mathText + ' $$';
+                        // Try to get original source from data attribute or textContent
+                        var mathSrc = element.getAttribute('data-math') || element.textContent.trim();
+                        mathSrc = mathSrc.replace(/\s+/g, ' ');
+                        if (mathSrc.length > 60) mathSrc = mathSrc.substring(0, 60) + '...';
+                        return '$$ ' + mathSrc + ' $$';
                     }
                     if (tagName === 'pre') {
                         var code = element.querySelector('code');
@@ -1246,6 +1276,7 @@ namespace MarkdownViewer
             html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(@"
                 document.addEventListener('DOMContentLoaded', function() {
+                    // KaTeX rendering
                     if (typeof renderMathInElement !== 'undefined') {
                         renderMathInElement(document.body, {
                             delimiters: [
@@ -1254,6 +1285,16 @@ namespace MarkdownViewer
                             ]
                         });
                     }
+                    
+                    // Make mermaid nodes clickable after rendering (slight delay for mermaid to finish)
+                    setTimeout(function() {
+                        document.querySelectorAll('.mermaid svg').forEach(function(svg) {
+                            svg.querySelectorAll('g.node, g.cluster, g.edgeLabel').forEach(function(node) {
+                                node.style.cursor = 'pointer';
+                                node.setAttribute('data-mermaid-node', 'true');
+                            });
+                        });
+                    }, 500);
                 });
             ");
             html.AppendLine("</script>");
