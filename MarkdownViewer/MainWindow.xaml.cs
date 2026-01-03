@@ -550,7 +550,12 @@ namespace MarkdownViewer
                         var elementContent = parts.Length > 1 ? parts[1] : "";
                         var reference = $"[{tab.FilePath}:{line}] {elementContent}";
                         Clipboard.SetText(reference);
-                        StatusText.Text = "✓ Copied";
+                        StatusText.Text = "✓ Copied. You can paste it to your AI for review.";
+                        
+                        // Clear status after 3 seconds
+                        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+                        timer.Tick += (s, args) => { StatusText.Text = ""; timer.Stop(); };
+                        timer.Start();
                     }
                     return;
                 }
@@ -947,6 +952,13 @@ namespace MarkdownViewer
                     background-color: rgba(0, 120, 212, 0.1) !important;
                     cursor: pointer !important;
                 }
+                .pointing-flash {
+                    animation: flash-effect 0.5s ease-out;
+                }
+                @keyframes flash-effect {
+                    0% { box-shadow: inset 0 0 0 100px rgba(0, 120, 212, 0.4); }
+                    100% { box-shadow: inset 0 0 0 100px transparent; }
+                }
             ");
             html.AppendLine("</style>");
             // KaTeX for math rendering
@@ -1101,6 +1113,25 @@ namespace MarkdownViewer
                         var headerRow = element.querySelector('tr');
                         return headerRow ? 'table: ' + getTableRowMarkdown(headerRow) : '(table)';
                     }
+                    if (tagName === 'ul' || tagName === 'ol') {
+                        var prefix = tagName === 'ol' ? '1.' : '-';
+                        var items = [];
+                        var directLis = element.querySelectorAll(':scope > li');
+                        directLis.forEach(function(li, idx) {
+                            var text = '';
+                            for (var i = 0; i < li.childNodes.length; i++) {
+                                var node = li.childNodes[i];
+                                if (node.nodeType === 3) text += node.textContent;
+                                else if (node.tagName && node.tagName.toLowerCase() === 'p') text += node.textContent;
+                            }
+                            text = text.trim();
+                            if (text.length > 20) text = text.substring(0, 20) + '...';
+                            var hasNested = li.querySelector('ul, ol');
+                            var itemPrefix = tagName === 'ol' ? (idx + 1) + '.' : '-';
+                            items.push(itemPrefix + ' ' + text + (hasNested ? ' [+]' : ''));
+                        });
+                        return items.join(', ');
+                    }
                     if (element.classList.contains('mermaid') || element.querySelector('.mermaid')) {
                         return '```mermaid (diagram)```';
                     }
@@ -1127,14 +1158,29 @@ namespace MarkdownViewer
                         return '#'.repeat(parseInt(level)) + ' ' + element.textContent.trim();
                     }
                     if (tagName === 'li') {
-                        var text = element.textContent.trim();
+                        // Get direct text content, handling both raw text and <p> wrapped text
+                        var text = '';
+                        var hasNested = false;
+                        for (var i = 0; i < element.childNodes.length; i++) {
+                            var node = element.childNodes[i];
+                            if (node.nodeType === 3) { // TEXT_NODE
+                                text += node.textContent;
+                            } else if (node.tagName) {
+                                var childTag = node.tagName.toLowerCase();
+                                if (childTag === 'ul' || childTag === 'ol') {
+                                    hasNested = true;
+                                } else if (childTag === 'p') {
+                                    text += node.textContent;
+                                }
+                            }
+                        }
+                        text = text.trim();
                         if (text.length > 60) text = text.substring(0, 60) + '...';
                         var parent = element.parentElement;
-                        if (parent && parent.tagName.toLowerCase() === 'ol') {
-                            var index = Array.from(parent.children).indexOf(element) + 1;
-                            return index + '. ' + text;
-                        }
-                        return '- ' + text;
+                        var prefix = (parent && parent.tagName.toLowerCase() === 'ol')
+                            ? (Array.from(parent.children).indexOf(element) + 1) + '. '
+                            : '- ';
+                        return prefix + text + (hasNested ? ' (has nested items)' : '');
                     }
                     if (tagName === 'blockquote') {
                         var text = element.textContent.trim();
@@ -1175,6 +1221,15 @@ namespace MarkdownViewer
                     if (pointable) {
                         e.preventDefault();
                         e.stopPropagation();
+                        
+                        // Flash effect
+                        pointable.classList.remove('pointing-flash');
+                        void pointable.offsetWidth; // Force reflow
+                        pointable.classList.add('pointing-flash');
+                        setTimeout(function() {
+                            pointable.classList.remove('pointing-flash');
+                        }, 500);
+                        
                         var line = getElementLine(pointable);
                         var content = getElementContent(pointable);
                         window.chrome.webview.postMessage('point:' + line + '|' + content);
