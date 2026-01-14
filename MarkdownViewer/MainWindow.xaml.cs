@@ -1202,6 +1202,15 @@ namespace MarkdownViewer
                         var className = element.getAttribute('class') || '';
                         if (element.classList && element.classList.contains('cluster')) nodeType = 'subgraph';
                         else if (element.classList && element.classList.contains('edgeLabel')) nodeType = 'edge';
+                        else if (element.hasAttribute && element.hasAttribute('data-class-member')) {
+                            // Check if member or method by parent class
+                            var parent = element.parentElement;
+                            if (parent && parent.classList && parent.classList.contains('methods-group')) {
+                                nodeType = 'method';
+                            } else {
+                                nodeType = 'member';
+                            }
+                        }
                         else if (className.indexOf('messageText') !== -1) nodeType = 'message';
                         else if (element.hasAttribute && element.hasAttribute('data-hit-area-for')) {
                             nodeType = 'arrow';
@@ -1214,6 +1223,11 @@ namespace MarkdownViewer
                         else if (element.hasAttribute && element.hasAttribute('data-seq-arrow-text')) {
                             nodeType = 'arrow';
                             nodeText = element.getAttribute('data-seq-arrow-text');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-state-transition')) {
+                            nodeType = 'transition';
+                            var trans = element.getAttribute('data-state-transition');
+                            nodeText = trans.replace('->', ' -> ');
                         }
                         else if (className.indexOf('flowchart-link') !== -1) {
                             nodeType = 'arrow';
@@ -1230,6 +1244,10 @@ namespace MarkdownViewer
                             if (prev && prev.classList && prev.classList.contains('messageText')) {
                                 nodeText = prev.textContent.trim();
                             }
+                        }
+                        else if (className.indexOf('transition') !== -1) {
+                            nodeType = 'transition';
+                            // Transition text would need to be fetched from mapping
                         }
                         return 'mermaid ' + nodeType + ': ' + nodeText;
                     }
@@ -1341,6 +1359,10 @@ namespace MarkdownViewer
                             if (origElem) flashTarget = origElem;
                         } else if (pointable.hasAttribute && pointable.hasAttribute('data-seq-arrow-text')) {
                             // For sequence arrow hit areas, flash the previous sibling (the line element)
+                            var prevElem = pointable.previousElementSibling;
+                            if (prevElem) flashTarget = prevElem;
+                        } else if (pointable.hasAttribute && pointable.hasAttribute('data-state-transition')) {
+                            // For state transition hit areas, flash the previous sibling (the path element)
                             var prevElem = pointable.previousElementSibling;
                             if (prevElem) flashTarget = prevElem;
                         }
@@ -1488,6 +1510,20 @@ namespace MarkdownViewer
                                 if (seqMatch && !nodeLineMap[seqMatch[1]]) {
                                     nodeLineMap[seqMatch[1]] = lineNum;
                                 }
+                                
+                                // Class diagram member/method: ClassName : +memberName or ClassName: +methodName()
+                                var classMemberMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+                                if (classMemberMatch) {
+                                    var memberText = classMemberMatch[2].trim();
+                                    nodeLineMap[memberText] = lineNum;
+                                }
+                                
+                                // State diagram transition: State1 --> State2 or [*] --> State
+                                var stateTransMatch = line.match(/^\s*(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)/);
+                                if (stateTransMatch) {
+                                    var stateKey = stateTransMatch[1] + '->' + stateTransMatch[2];
+                                    arrowLineMap[stateKey] = lineNum;
+                                }
                             }
                             
                             // Mark parent g of bottom actors
@@ -1601,6 +1637,45 @@ namespace MarkdownViewer
                                 }
                             });
                             
+                            // State diagram transitions - add transparent rect for hit area
+                            var stateTransKeys = Object.keys(arrowLineMap).filter(function(k) { return k.indexOf('->') !== -1; });
+                            var transIdx = 0;
+                            svg.querySelectorAll('path.transition').forEach(function(path) {
+                                var sourceLine = null;
+                                var transKey = stateTransKeys[transIdx] || '';
+                                if (transKey && arrowLineMap[transKey]) {
+                                    sourceLine = String(arrowLineMap[transKey]);
+                                }
+                                
+                                // Create transparent rect covering bounding box
+                                var bbox = path.getBBox();
+                                var minSize = 16;
+                                var rectW = Math.max(bbox.width, minSize);
+                                var rectH = Math.max(bbox.height, minSize);
+                                var rectX = bbox.x - (rectW - bbox.width) / 2;
+                                var rectY = bbox.y - (rectH - bbox.height) / 2;
+                                var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                                hitRect.setAttribute('x', rectX);
+                                hitRect.setAttribute('y', rectY);
+                                hitRect.setAttribute('width', rectW);
+                                hitRect.setAttribute('height', rectH);
+                                hitRect.setAttribute('fill', 'transparent');
+                                hitRect.style.cursor = 'pointer';
+                                hitRect.setAttribute('data-mermaid-node', 'true');
+                                hitRect.setAttribute('data-state-transition', transKey);
+                                if (sourceLine) {
+                                    hitRect.setAttribute('data-source-line', sourceLine);
+                                }
+                                path.parentNode.insertBefore(hitRect, path.nextSibling);
+                                
+                                // Original path also needs attributes
+                                path.setAttribute('data-mermaid-node', 'true');
+                                if (sourceLine) {
+                                    path.setAttribute('data-source-line', sourceLine);
+                                }
+                                transIdx++;
+                            });
+                            
                             // Other nodes
                             svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^=""root-""], text.actor, g.note, g.activation').forEach(function(node) {
                                 node.style.cursor = 'pointer';
@@ -1643,6 +1718,43 @@ namespace MarkdownViewer
                                         node.setAttribute('data-source-line', String(nodeLineMap[nodeText]));
                                     }
                                 }
+                            });
+                            
+                            // Class diagram members and methods
+                            svg.querySelectorAll('g.members-group g.label, g.methods-group g.label').forEach(function(label) {
+                                label.style.cursor = 'pointer';
+                                label.setAttribute('data-mermaid-node', 'true');
+                                label.setAttribute('data-class-member', 'true');
+                                var memberText = label.textContent.trim();
+                                if (nodeLineMap[memberText]) {
+                                    label.setAttribute('data-source-line', String(nodeLineMap[memberText]));
+                                }
+                            });
+                            
+                            // Class diagram relations (inheritance arrows)
+                            svg.querySelectorAll('path.relation').forEach(function(path) {
+                                var pathId = path.id || '';
+                                
+                                // Create transparent rect for hit area
+                                var bbox = path.getBBox();
+                                var minSize = 16;
+                                var rectW = Math.max(bbox.width, minSize);
+                                var rectH = Math.max(bbox.height, minSize);
+                                var rectX = bbox.x - (rectW - bbox.width) / 2;
+                                var rectY = bbox.y - (rectH - bbox.height) / 2;
+                                var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                                hitRect.setAttribute('x', rectX);
+                                hitRect.setAttribute('y', rectY);
+                                hitRect.setAttribute('width', rectW);
+                                hitRect.setAttribute('height', rectH);
+                                hitRect.setAttribute('fill', 'transparent');
+                                hitRect.style.cursor = 'pointer';
+                                hitRect.setAttribute('data-mermaid-node', 'true');
+                                hitRect.setAttribute('data-class-relation', pathId);
+                                path.parentNode.insertBefore(hitRect, path.nextSibling);
+                                
+                                path.style.cursor = 'pointer';
+                                path.setAttribute('data-mermaid-node', 'true');
                             });
                         });
                     }
