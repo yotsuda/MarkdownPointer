@@ -26,7 +26,7 @@
                                 MouseMove="TabHeader_MouseMove"
                                 Tag="{Binding}">
                         <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
-                        <Button Content="✕" 
+                        <Button Content="&#x00D7;" 
                                 Click="CloseTab_Click"
                                 Tag="{Binding}"
                                 Width="16" Height="16" 

@@ -763,8 +763,12 @@ namespace MarkdownViewer
 
             if (_tabs.Count == 0)
             {
-                // No tabs left - close this window
-                Close();
+                // No tabs left - show placeholder instead of closing window
+                FileTabControl.Visibility = Visibility.Collapsed;
+                PlaceholderPanel.Visibility = Visibility.Visible;
+                Title = "Markdown Viewer";
+                LinkStatusText.Text = "";
+                WatchStatusText.Text = "";
             }
             else
             {
@@ -2175,6 +2179,11 @@ namespace MarkdownViewer
             {
                 CloseTab(tab);
             }
+        }
+
+        private void AddTab_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog();
         }
 
         private void Window_Drop(object sender, DragEventArgs e)
