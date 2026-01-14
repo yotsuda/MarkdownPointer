@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
@@ -98,7 +98,7 @@ namespace MarkdownViewer
                         
                         if (message != null)
                         {
-                            var response = await Dispatcher.InvokeAsync(() => HandlePipeMessage(message));
+                            var response = await Dispatcher.InvokeAsync(() => HandlePipeMessageAsync(message)).Task.Unwrap();
                             
                             // Send response
                             var responseJson = JsonSerializer.Serialize(response);
@@ -118,7 +118,7 @@ namespace MarkdownViewer
             }
         }
 
-        private PipeResponse HandlePipeMessage(PipeMessage message)
+        private async Task<PipeResponse> HandlePipeMessageAsync(PipeMessage message)
         {
             switch (message.Command)
             {
@@ -128,9 +128,9 @@ namespace MarkdownViewer
                         var window = Windows.OfType<MainWindow>().FirstOrDefault();
                         if (window != null)
                         {
-                            window.LoadMarkdownFile(message.Path, message.Line, message.Title);
+                            var tab = window.LoadMarkdownFile(message.Path, message.Line, message.Title);
                             window.Activate();
-                            return new PipeResponse { Success = true };
+                            return await WaitForRenderAsync(tab);
                         }
                     }
                     return new PipeResponse { Success = false, Error = "File not found" };
@@ -141,9 +141,9 @@ namespace MarkdownViewer
                         var window = Windows.OfType<MainWindow>().FirstOrDefault();
                         if (window != null)
                         {
-                            window.LoadMarkdownFile(message.Path, message.Line, message.Title, isTemp: true);
+                            var tab = window.LoadMarkdownFile(message.Path, message.Line, message.Title, isTemp: true);
                             window.Activate();
-                            return new PipeResponse { Success = true };
+                            return await WaitForRenderAsync(tab);
                         }
                     }
                     return new PipeResponse { Success = false, Error = "File not found" };
@@ -165,6 +165,31 @@ namespace MarkdownViewer
             }
         }
         
+        private async Task<PipeResponse> WaitForRenderAsync(TabItemData? tab)
+        {
+            if (tab is null)
+            {
+                return new PipeResponse { Success = true };
+            }
+
+            if (tab.RenderCompletion != null)
+            {
+                try
+                {
+                    var errors = await tab.RenderCompletion.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                    return new PipeResponse { Success = true, Errors = errors.Count > 0 ? errors.ToArray() : null };
+                }
+                catch (TimeoutException)
+                {
+                    return new PipeResponse { Success = true, Error = "Render timeout" };
+                }
+            }
+
+            // Existing tab - return cached errors
+            var cachedErrors = tab.LastRenderErrors;
+            return new PipeResponse { Success = true, Errors = cachedErrors.Count > 0 ? cachedErrors.ToArray() : null };
+        }
+
         private PipeResponse GetTabsResponse()
         {
             var tabs = new System.Collections.Generic.List<TabInfo>();
@@ -211,6 +236,7 @@ namespace MarkdownViewer
             public bool Success { get; set; }
             public string? Error { get; set; }
             public TabInfo[]? Tabs { get; set; }
+            public string[]? Errors { get; set; }
         }
         
         private class TabInfo

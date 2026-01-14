@@ -109,7 +109,7 @@ function Show-MarkdownViewer {
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory, ValueFromPipeline, ValueFromPipelineByPropertyName, Position = 0)]
+        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName, Position = 0)]
         [Alias("FullName")]
         [string[]]$Path,
         
@@ -133,6 +133,9 @@ function Show-MarkdownViewer {
     }
     
     process {
+        if (-not $Path -and -not $MyInvocation.ExpectingInput) {
+            throw "Path parameter is required. Usage: Show-MarkdownViewer <path>"
+        }
         foreach ($p in $Path) {
             $resolvedPath = Resolve-Path -Path $p -ErrorAction Ignore
             
@@ -150,6 +153,9 @@ function Show-MarkdownViewer {
                 $result = Send-MarkdownViewerCommand -Message $message
                 
                 if ($result) {
+                    if ($result.Errors) {
+                        $result.Errors | ForEach-Object { Write-Warning $_ }
+                    }
                     "Opened: $($resolvedPath.Path)"
                 }
             }
@@ -191,6 +197,9 @@ function Show-MarkdownViewer {
             $result = Send-MarkdownViewerCommand -Message $message
             
             if ($result) {
+                if ($result.Errors) {
+                    $result.Errors | ForEach-Object { Write-Warning $_ }
+                }
                 "Opened preview: $Title"
             }
         }

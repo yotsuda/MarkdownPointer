@@ -33,6 +33,8 @@ namespace MarkdownViewer
         public int? PendingScrollLine { get; set; }
         public DateTime LastFileWriteTime { get; set; }
         public bool IsTemp { get; set; }
+        public TaskCompletionSource<List<string>>? RenderCompletion { get; set; }
+        public List<string> LastRenderErrors { get; set; } = new();
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) => 
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -204,13 +206,13 @@ namespace MarkdownViewer
 
         #region Tab Management
 
-        public void LoadMarkdownFile(string filePath, int? line = null, string? title = null, bool isTemp = false)
+        public TabItemData? LoadMarkdownFile(string filePath, int? line = null, string? title = null, bool isTemp = false)
         {
             if (!File.Exists(filePath))
             {
                 MessageBox.Show($"File not found: {filePath}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                return null;
             }
 
             // For temp files, always create a new tab (or reuse existing temp tab with same title)
@@ -226,7 +228,9 @@ namespace MarkdownViewer
                         {
                             ScrollToLine(tab, line.Value);
                         }
-                        return;
+                        // Return existing tab (errors are cached from last render)
+                        tab.RenderCompletion = null;
+                        return tab;
                     }
                 }
 
@@ -258,12 +262,14 @@ namespace MarkdownViewer
                         tab.LastFileWriteTime = File.GetLastWriteTime(filePath);
                         FileTabControl.SelectedItem = tab;
                         SetupFileWatcher(tab);  // Re-setup watcher for new file
+                        // Re-render to collect errors
+                        tab.RenderCompletion = new TaskCompletionSource<List<string>>();
                         RefreshTab(tab);
                         if (line.HasValue)
                         {
                             ScrollToLine(tab, line.Value);
                         }
-                        return;
+                        return tab;
                     }
                 }
             }
@@ -273,7 +279,8 @@ namespace MarkdownViewer
                 FilePath = filePath,
                 Title = title ?? Path.GetFileName(filePath),
                 WebView = new WebView2(),
-                IsTemp = isTemp
+                IsTemp = isTemp,
+                RenderCompletion = new TaskCompletionSource<List<string>>()
             };
             // Initialize WebView2 (fire-and-forget, exceptions handled internally)
             _ = InitializeTabWebViewAsync(newTab).ContinueWith(t =>
@@ -297,6 +304,7 @@ namespace MarkdownViewer
             FileTabControl.Visibility = Visibility.Visible;
 
             UpdateWindowTitle();
+            return newTab;
         }
 
         private async Task InitializeTabWebViewAsync(TabItemData tab)
@@ -556,6 +564,25 @@ namespace MarkdownViewer
                         var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
                         timer.Tick += (s, args) => { StatusText.Text = ""; timer.Stop(); };
                         timer.Start();
+                    }
+                }
+
+                // Handle render completion notification
+                if (message.StartsWith("render-complete:", StringComparison.Ordinal))
+                {
+                    const string prefix = "render-complete:";
+                    var json = message.Substring(prefix.Length);
+                    try
+                    {
+                        var errors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+                        tab.LastRenderErrors = errors;
+                        tab.RenderCompletion?.TrySetResult(errors);
+                    }
+                    catch (System.Text.Json.JsonException)
+                    {
+                        // Ignore malformed JSON - use empty error list
+                        tab.LastRenderErrors = new List<string>();
+                        tab.RenderCompletion?.TrySetResult(new List<string>());
                     }
                     return;
                 }
@@ -1282,14 +1309,16 @@ namespace MarkdownViewer
             html.AppendLine("</script>");
             // Mermaid.js for diagram rendering
             html.AppendLine("<script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script>");
-            html.AppendLine($"<script nonce='{nonce}'>mermaid.initialize({{ startOnLoad: true, theme: 'default' }});</script>");
+            html.AppendLine($"<script nonce='{nonce}'>mermaid.initialize({{ startOnLoad: false, theme: 'default' }});</script>");
             html.AppendLine("</head><body>");
             html.AppendLine(htmlContent);
             // KaTeX auto-render initialization
             html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(@"
-                document.addEventListener('DOMContentLoaded', function() {
-                    // KaTeX rendering
+                document.addEventListener('DOMContentLoaded', async function() {
+                    var renderErrors = [];
+                    
+                    // KaTeX rendering with error collection
                     if (typeof renderMathInElement !== 'undefined') {
                         renderMathInElement(document.body, {
                             delimiters: [
@@ -1297,7 +1326,28 @@ namespace MarkdownViewer
                                 {left: '\\(', right: '\\)', display: false},
                                 {left: '$$', right: '$$', display: true},
                                 {left: '$', right: '$', display: false}
-                            ]
+                            ],
+                            throwOnError: false,
+                            errorCallback: function(msg, err) {
+                                renderErrors.push('[KaTeX] ' + msg);
+                            }
+                        });
+                        
+                        // Also check for KaTeX error elements and extract line info
+                        document.querySelectorAll('.katex-error').forEach(function(errElem) {
+                            var line = '?';
+                            var parent = errElem.parentElement;
+                            while (parent && parent !== document.body) {
+                                if (parent.hasAttribute('data-line')) {
+                                    line = parent.getAttribute('data-line');
+                                    break;
+                                }
+                                parent = parent.parentElement;
+                            }
+                            var formula = errElem.getAttribute('title') || errElem.textContent;
+                            if (formula && !renderErrors.some(e => e.includes(formula.substring(0, 20)))) {
+                                renderErrors.push('[KaTeX Line ' + line + '] ' + formula);
+                            }
                         });
                         
                         // Copy data-line from parent to KaTeX elements
@@ -1313,15 +1363,30 @@ namespace MarkdownViewer
                         });
                     }
                     
-                    // Make mermaid nodes clickable after rendering (slight delay for mermaid to finish)
-                    setTimeout(function() {
+                    // Mermaid manual rendering with error collection
+                    if (typeof mermaid !== 'undefined') {
+                        var mermaidElements = document.querySelectorAll('.mermaid');
+                        for (var elem of mermaidElements) {
+                            try {
+                                await mermaid.run({ nodes: [elem] });
+                            } catch (e) {
+                                var line = elem.getAttribute('data-line') || '?';
+                                var msg = e.message || String(e);
+                                renderErrors.push('[Mermaid Line ' + line + '] ' + msg);
+                            }
+                        }
+                        
+                        // Make mermaid nodes clickable
                         document.querySelectorAll('.mermaid svg').forEach(function(svg) {
                             svg.querySelectorAll('g.node, g.cluster, g.edgeLabel').forEach(function(node) {
                                 node.style.cursor = 'pointer';
                                 node.setAttribute('data-mermaid-node', 'true');
                             });
                         });
-                    }, 500);
+                    }
+                    
+                    // Notify render completion
+                    window.chrome.webview.postMessage('render-complete:' + JSON.stringify(renderErrors));
                 });
             ");
             html.AppendLine("</script>");
