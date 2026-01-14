@@ -110,7 +110,7 @@ namespace MarkdownViewer
         private double _lastZoomFactor = 1.0;
         private double _targetZoomFactor = 1.0;
         private bool _isDragMoveMode = false;
-        private bool _isPointingMode = false;
+        private bool _isPointingMode = true;
         private DispatcherTimer? _statusMessageTimer;
         
         // Context menu position for diagram copy
@@ -1082,7 +1082,7 @@ namespace MarkdownViewer
                 }
 
                 // Pointing mode
-                var pointingModeEnabled = false;
+                var pointingModeEnabled = true;
                 var currentHighlight = null;
 
                 function setPointingMode(enabled) {
