@@ -1402,6 +1402,32 @@ namespace MarkdownViewer
                             var svg = container.querySelector('svg');
                             if (!svg) return;
                             
+                            // Helper to find actor line in source
+                            function findActorLine(actorName) {
+                                for (var i = 0; i < sourceLines.length; i++) {
+                                    var line = sourceLines[i];
+                                    if (line.indexOf(actorName + '-') !== -1 || line.indexOf('>>' + actorName + ':') !== -1 || line.indexOf('participant ' + actorName) !== -1 || line.indexOf('actor ' + actorName) !== -1) {
+                                        return baseLine + i + 1;
+                                    }
+                                }
+                                return null;
+                            }
+                            
+                            // Mark parent g of bottom actors as clickable
+                            svg.querySelectorAll('rect.actor-bottom').forEach(function(rect) {
+                                var parent = rect.parentElement;
+                                if (parent && parent.tagName.toLowerCase() === 'g') {
+                                    parent.style.cursor = 'pointer';
+                                    parent.setAttribute('data-mermaid-node', 'true');
+                                    var textEl = parent.querySelector('text.actor');
+                                    if (textEl) {
+                                        var actorName = textEl.textContent.trim();
+                                        var lineNum = findActorLine(actorName);
+                                        if (lineNum) parent.setAttribute('data-source-line', String(lineNum));
+                                    }
+                                }
+                            });
+                            
                             svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^=""root-""], text.actor, g.note, g.activation').forEach(function(node) {
                                 node.style.cursor = 'pointer';
                                 node.setAttribute('data-mermaid-node', 'true');
@@ -1414,6 +1440,12 @@ namespace MarkdownViewer
                                 // Flowchart: flowchart-NodeName-123
                                 var flowMatch = nodeId.match(/^flowchart-([^-]+)-/);
                                 if (flowMatch) nodeName = flowMatch[1];
+                                
+                                // Sequence actor container (g with id starting with root-)
+                                if (!nodeName && nodeId.indexOf('root-') === 0) {
+                                    var actorText = node.querySelector('text.actor');
+                                    if (actorText) nodeName = actorText.textContent.trim();
+                                }
                                 
                                 // Edge label: use text content directly
                                 if (!nodeName && node.classList && node.classList.contains('edgeLabel')) {
@@ -1438,7 +1470,7 @@ namespace MarkdownViewer
                                             node.setAttribute('data-source-line', String(baseLine + i + 1));
                                             break;
                                         }
-                                        // Match node definitions like A[, A(, A{, or sequence arrows with name
+                                        // Match node definitions like A[, A(, A{, or sequence arrows
                                         var pattern = new RegExp('(^|[\\s])' + escaped + '([\\[\\(\\{:\\->])');
                                         if (pattern.test(line) || line.indexOf('participant ' + nodeName) !== -1 || line.indexOf('actor ' + nodeName) !== -1 || line.indexOf(nodeName + '-') !== -1 || line.indexOf('>>' + nodeName + ':') !== -1) {
                                             node.setAttribute('data-source-line', String(baseLine + i + 1));
