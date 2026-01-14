@@ -1292,13 +1292,22 @@ namespace MarkdownViewer
                         e.preventDefault();
                         e.stopPropagation();
                         
-                        // Flash effect
-                        pointable.classList.remove('pointing-flash');
-                        void pointable.offsetWidth; // Force reflow
-                        pointable.classList.add('pointing-flash');
-                        setTimeout(function() {
+                        // Flash effect (SVG uses drop-shadow filter, HTML uses CSS class)
+                        var isSvg = pointable instanceof SVGElement;
+                        if (isSvg) {
+                            pointable.style.transition = 'none';
+                            pointable.style.filter = 'drop-shadow(0 0 8px rgba(0, 120, 212, 1)) drop-shadow(0 0 4px rgba(0, 120, 212, 0.8))';
+                            setTimeout(function() {
+                                pointable.style.transition = 'filter 0.7s ease-out';
+                                pointable.style.filter = '';
+                            }, 10);
+                            setTimeout(function() { pointable.style.transition = ''; }, 720);
+                        } else {
                             pointable.classList.remove('pointing-flash');
-                        }, 500);
+                            void pointable.offsetWidth;
+                            pointable.classList.add('pointing-flash');
+                            setTimeout(function() { pointable.classList.remove('pointing-flash'); }, 500);
+                        }
                         
                         var line = getElementLine(pointable);
                         var content = getElementContent(pointable);
@@ -1378,7 +1387,7 @@ namespace MarkdownViewer
                         
                         // Make mermaid nodes clickable
                         document.querySelectorAll('.mermaid svg').forEach(function(svg) {
-                            svg.querySelectorAll('g.node, g.cluster, g.edgeLabel').forEach(function(node) {
+                            svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^=""root-""], text.actor, g.note, g.activation').forEach(function(node) {
                                 node.style.cursor = 'pointer';
                                 node.setAttribute('data-mermaid-node', 'true');
                             });
