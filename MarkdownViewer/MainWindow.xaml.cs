@@ -1253,6 +1253,18 @@ namespace MarkdownViewer
                             nodeType = 'section';
                             nodeText = element.getAttribute('data-gantt-section');
                         }
+                        else if (element.hasAttribute && element.hasAttribute('data-pie-slice')) {
+                            nodeType = 'slice';
+                            nodeText = element.getAttribute('data-pie-slice');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-pie-legend')) {
+                            nodeType = 'legend';
+                            nodeText = element.getAttribute('data-pie-legend');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-pie-title')) {
+                            nodeType = 'title';
+                            nodeText = element.getAttribute('data-pie-title');
+                        }
                         else if (className.indexOf('flowchart-link') !== -1) {
                             nodeType = 'arrow';
                             var elemId = element.id || '';
@@ -1589,6 +1601,18 @@ namespace MarkdownViewer
                                 var ganttSectionMatch = line.match(/^\s*section\s+(.+)$/);
                                 if (ganttSectionMatch) {
                                     nodeLineMap['gantt-section:' + ganttSectionMatch[1].trim()] = lineNum;
+                                }
+                                
+                                // Pie chart slice: ""Label"" : value
+                                var pieSliceMatch = line.match(/^\s*""([^""]+)""\s*:\s*(\d+)/);
+                                if (pieSliceMatch) {
+                                    nodeLineMap['pie:' + pieSliceMatch[1]] = lineNum;
+                                }
+                                
+                                // Pie chart title: pie title TitleText
+                                var pieTitleMatch = line.match(/^\s*pie\s+title\s+(.+)$/);
+                                if (pieTitleMatch) {
+                                    nodeLineMap['pie-title:' + pieTitleMatch[1].trim()] = lineNum;
                                 }
                             }
                             
@@ -1949,6 +1973,43 @@ namespace MarkdownViewer
                                 text.setAttribute('data-gantt-section', sectionName);
                                 if (nodeLineMap['gantt-section:' + sectionName]) {
                                     text.setAttribute('data-source-line', String(nodeLineMap['gantt-section:' + sectionName]));
+                                }
+                            });
+                            
+                            // Pie chart slices
+                            var pieSliceIdx = 0;
+                            var pieLegends = svg.querySelectorAll('g.legend text');
+                            svg.querySelectorAll('path.pieCircle').forEach(function(slice) {
+                                slice.style.cursor = 'pointer';
+                                slice.setAttribute('data-mermaid-node', 'true');
+                                // Get corresponding legend text
+                                var legendText = pieLegends[pieSliceIdx] ? pieLegends[pieSliceIdx].textContent.trim() : '';
+                                slice.setAttribute('data-pie-slice', legendText);
+                                if (nodeLineMap['pie:' + legendText]) {
+                                    slice.setAttribute('data-source-line', String(nodeLineMap['pie:' + legendText]));
+                                }
+                                pieSliceIdx++;
+                            });
+                            
+                            // Pie chart legend
+                            svg.querySelectorAll('g.legend').forEach(function(legend) {
+                                var legendText = legend.textContent.trim();
+                                legend.style.cursor = 'pointer';
+                                legend.setAttribute('data-mermaid-node', 'true');
+                                legend.setAttribute('data-pie-legend', legendText);
+                                if (nodeLineMap['pie:' + legendText]) {
+                                    legend.setAttribute('data-source-line', String(nodeLineMap['pie:' + legendText]));
+                                }
+                            });
+                            
+                            // Pie chart title
+                            svg.querySelectorAll('text.pieTitleText').forEach(function(title) {
+                                var titleText = title.textContent.trim();
+                                title.style.cursor = 'pointer';
+                                title.setAttribute('data-mermaid-node', 'true');
+                                title.setAttribute('data-pie-title', titleText);
+                                if (nodeLineMap['pie-title:' + titleText]) {
+                                    title.setAttribute('data-source-line', String(nodeLineMap['pie-title:' + titleText]));
                                 }
                             });
                         });
