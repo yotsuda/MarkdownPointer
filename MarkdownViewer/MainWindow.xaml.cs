@@ -111,6 +111,7 @@ namespace MarkdownViewer
         private double _targetZoomFactor = 1.0;
         private bool _isDragMoveMode = false;
         private bool _isPointingMode = false;
+        private DispatcherTimer? _statusMessageTimer;
         
         // Context menu position for diagram copy
         private Point _contextMenuPosition;
@@ -558,12 +559,7 @@ namespace MarkdownViewer
                         var elementContent = parts.Length > 1 ? parts[1] : "";
                         var reference = $"[{tab.FilePath}:{line}] {elementContent}";
                         Clipboard.SetText(reference);
-                        StatusText.Text = "✓ Copied. You can paste it to your AI for review.";
-                        
-                        // Clear status after 3 seconds
-                        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-                        timer.Tick += (s, args) => { StatusText.Text = ""; timer.Stop(); };
-                        timer.Start();
+                        ShowStatusMessage("✓ Copied. Paste into prompt to point AI here.", 3.0);
                     }
                 }
 
@@ -784,6 +780,15 @@ namespace MarkdownViewer
                 LinkStatusText.Text = "";
                 WatchStatusText.Text = "👁 Watching";
             }
+        }
+
+        private void ShowStatusMessage(string message, double seconds = 3.0)
+        {
+            StatusText.Text = message;
+            _statusMessageTimer?.Stop();
+            _statusMessageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
+            _statusMessageTimer.Tick += (s, args) => { StatusText.Text = ""; _statusMessageTimer.Stop(); };
+            _statusMessageTimer.Start();
         }
 
         private async void RenderMarkdown(TabItemData tab)
