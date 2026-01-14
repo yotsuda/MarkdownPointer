@@ -128,6 +128,21 @@ namespace MarkdownViewer
         private TabItemData? _draggedTab = null;
         private Window? _dragPreviewWindow = null;
 
+        public void BringToFront()
+        {
+            if (WindowState == WindowState.Minimized)
+            {
+                WindowState = WindowState.Normal;
+            }
+            
+            // Temporarily set Topmost to force window to front
+            Topmost = true;
+            Topmost = false;
+            
+            Activate();
+            Focus();
+        }
+
         private static bool IsSupportedFile(string filePath)
         {
             var ext = Path.GetExtension(filePath).ToLowerInvariant();
@@ -185,7 +200,7 @@ namespace MarkdownViewer
             }
         }
         
-        private void ScrollToLine(TabItemData tab, int line)
+        public void ScrollToLine(TabItemData tab, int line)
         {
             if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
             {
@@ -193,6 +208,22 @@ namespace MarkdownViewer
                 tab.WebView.CoreWebView2.ExecuteScriptAsync($"setTimeout(function() {{ scrollToLine({line}); }}, 100)");
             }
         }
+
+        public TabItemData? FindTabByFilePath(string filePath)
+        {
+            var normalizedPath = Path.GetFullPath(filePath);
+            return _tabs.FirstOrDefault(t => 
+                !string.IsNullOrEmpty(t.FilePath) && 
+                string.Equals(Path.GetFullPath(t.FilePath), normalizedPath, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public void SelectTab(TabItemData tab)
+        {
+            FileTabControl.SelectedItem = tab;
+            FileTabControl.UpdateLayout();
+            UpdateWindowTitle();
+        }
+
         
         public void RefreshTab(TabItemData tab)
         {

@@ -125,11 +125,29 @@ namespace MarkdownViewer
                 case "open":
                     if (!string.IsNullOrEmpty(message.Path) && File.Exists(message.Path))
                     {
+                        // First, check if file is already open in any window
+                        foreach (var win in Windows.OfType<MainWindow>())
+                        {
+                            var existingTab = win.FindTabByFilePath(message.Path);
+                            if (existingTab != null)
+                            {
+                                // Bring window to front first, then select tab
+                                win.BringToFront();
+                                win.SelectTab(existingTab);
+                                if (message.Line.HasValue)
+                                {
+                                    win.ScrollToLine(existingTab, message.Line.Value);
+                                }
+                                return new PipeResponse { Success = true };
+                            }
+                        }
+                        
+                        // File not open - open in first window
                         var window = Windows.OfType<MainWindow>().FirstOrDefault();
                         if (window != null)
                         {
                             var tab = window.LoadMarkdownFile(message.Path, message.Line, message.Title);
-                            window.Activate();
+                            window.BringToFront();
                             return await WaitForRenderAsync(tab);
                         }
                     }
@@ -142,7 +160,7 @@ namespace MarkdownViewer
                         if (window != null)
                         {
                             var tab = window.LoadMarkdownFile(message.Path, message.Line, message.Title, isTemp: true);
-                            window.Activate();
+                            window.BringToFront();
                             return await WaitForRenderAsync(tab);
                         }
                     }
@@ -152,7 +170,7 @@ namespace MarkdownViewer
                     var mainWindow = Windows.OfType<MainWindow>().FirstOrDefault();
                     if (mainWindow != null)
                     {
-                        mainWindow.Activate();
+                        mainWindow.BringToFront();
                         return new PipeResponse { Success = true };
                     }
                     return new PipeResponse { Success = false };
