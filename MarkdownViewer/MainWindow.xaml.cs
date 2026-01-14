@@ -1277,6 +1277,10 @@ namespace MarkdownViewer
                             nodeType = 'branch';
                             nodeText = element.getAttribute('data-git-branch');
                         }
+                        else if (element.hasAttribute && element.hasAttribute('data-mindmap-node')) {
+                            nodeType = 'node';
+                            nodeText = element.getAttribute('data-mindmap-node');
+                        }
                         else if (className.indexOf('flowchart-link') !== -1) {
                             nodeType = 'arrow';
                             var elemId = element.id || '';
@@ -1649,6 +1653,21 @@ namespace MarkdownViewer
                                     if (!nodeLineMap['git-commit-count']) nodeLineMap['git-commit-count'] = 0;
                                     nodeLineMap['git-commit:' + nodeLineMap['git-commit-count']] = lineNum;
                                     nodeLineMap['git-commit-count']++;
+                                }
+                                
+                                // Mindmap node: root((text)) or indented text
+                                var mindmapRootMatch = line.match(/^\s*root\s*\(\((.+)\)\)/);
+                                if (mindmapRootMatch) {
+                                    nodeLineMap['mindmap:' + mindmapRootMatch[1].trim()] = lineNum;
+                                }
+                                // Mindmap leaf node: indented text (words only)
+                                var mindmapNodeMatch = line.match(/^\s{2,}(\S+)\s*$/);
+                                if (mindmapNodeMatch && !line.includes('root')) {
+                                    var text = mindmapNodeMatch[1].trim();
+                                    // Store as array to handle duplicates
+                                    if (!nodeLineMap['mindmap:' + text]) {
+                                        nodeLineMap['mindmap:' + text] = lineNum;
+                                    }
                                 }
                             }
                             
@@ -2091,6 +2110,20 @@ namespace MarkdownViewer
                                 branch.setAttribute('data-git-branch', branchName);
                                 if (nodeLineMap['git-branch:' + branchName]) {
                                     branch.setAttribute('data-source-line', String(nodeLineMap['git-branch:' + branchName]));
+                                }
+                            });
+                            
+                            // Mindmap nodes
+                            svg.querySelectorAll('g.mindmap-node').forEach(function(node) {
+                                var labelEl = node.querySelector('.nodeLabel');
+                                if (labelEl) {
+                                    var nodeText = labelEl.textContent.trim();
+                                    node.style.cursor = 'pointer';
+                                    node.setAttribute('data-mermaid-node', 'true');
+                                    node.setAttribute('data-mindmap-node', nodeText);
+                                    if (nodeLineMap['mindmap:' + nodeText]) {
+                                        node.setAttribute('data-source-line', String(nodeLineMap['mindmap:' + nodeText]));
+                                    }
                                 }
                             });
                         });
