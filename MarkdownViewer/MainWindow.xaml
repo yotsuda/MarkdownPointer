@@ -127,10 +127,10 @@
                                   Background="Transparent"
                                   BorderThickness="1"/>
                     <Button x:Name="OpenInCodeButton" 
-                                  Content="Code" 
+                                  Content="VS Code" 
                                   ToolTip="Open in VS Code"
                                   Click="OpenInCodeButton_Click"
-                                  Width="36" Height="20"
+                                  Width="50" Height="20"
                                   FontSize="9"
                                   Margin="4,0,0,0"
                                   Background="Transparent"
