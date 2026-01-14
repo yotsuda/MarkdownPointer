@@ -1197,8 +1197,19 @@ namespace MarkdownViewer
                     if (element.hasAttribute && element.hasAttribute('data-mermaid-node')) {
                         var nodeText = element.textContent.trim().replace(/\s+/g, ' ');
                         if (nodeText.length > 40) nodeText = nodeText.substring(0, 40) + '...';
-                        var nodeType = element.classList.contains('cluster') ? 'subgraph' : 
-                                       element.classList.contains('edgeLabel') ? 'edge' : 'node';
+                        var nodeType = 'node';
+                        var className = element.getAttribute('class') || '';
+                        if (element.classList && element.classList.contains('cluster')) nodeType = 'subgraph';
+                        else if (element.classList && element.classList.contains('edgeLabel')) nodeType = 'edge';
+                        else if (className.indexOf('messageText') !== -1) nodeType = 'message';
+                        else if (className.indexOf('messageLine') !== -1) {
+                            nodeType = 'arrow';
+                            // Get message text from previous sibling
+                            var prev = element.previousElementSibling;
+                            if (prev && prev.classList && prev.classList.contains('messageText')) {
+                                nodeText = prev.textContent.trim();
+                            }
+                        }
                         return 'mermaid ' + nodeType + ': ' + nodeText;
                     }
                     // Mermaid container
@@ -1425,6 +1436,32 @@ namespace MarkdownViewer
                                         var lineNum = findActorLine(actorName);
                                         if (lineNum) parent.setAttribute('data-source-line', String(lineNum));
                                     }
+                                }
+                            });
+                            
+                            // Handle sequence diagram messages by order
+                            var messageLineNums = [];
+                            for (var i = 0; i < sourceLines.length; i++) {
+                                var line = sourceLines[i];
+                                // Match message arrows: ->>, -->, ->, etc.
+                                if (/->>|-->|->/.test(line)) {
+                                    messageLineNums.push(baseLine + i + 1);
+                                }
+                            }
+                            var messageTexts = svg.querySelectorAll('text.messageText');
+                            var messageLines = svg.querySelectorAll('line.messageLine0, line.messageLine1');
+                            messageTexts.forEach(function(msg, idx) {
+                                msg.style.cursor = 'pointer';
+                                msg.setAttribute('data-mermaid-node', 'true');
+                                if (idx < messageLineNums.length) {
+                                    msg.setAttribute('data-source-line', String(messageLineNums[idx]));
+                                }
+                            });
+                            messageLines.forEach(function(line, idx) {
+                                line.style.cursor = 'pointer';
+                                line.setAttribute('data-mermaid-node', 'true');
+                                if (idx < messageLineNums.length) {
+                                    line.setAttribute('data-source-line', String(messageLineNums[idx]));
                                 }
                             });
                             
