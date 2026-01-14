@@ -1265,6 +1265,18 @@ namespace MarkdownViewer
                             nodeType = 'title';
                             nodeText = element.getAttribute('data-pie-title');
                         }
+                        else if (element.hasAttribute && element.hasAttribute('data-git-commit')) {
+                            nodeType = 'commit';
+                            nodeText = 'commit ' + element.getAttribute('data-git-commit');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-git-label')) {
+                            nodeType = 'commit';
+                            nodeText = element.getAttribute('data-git-label');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-git-branch')) {
+                            nodeType = 'branch';
+                            nodeText = element.getAttribute('data-git-branch');
+                        }
                         else if (className.indexOf('flowchart-link') !== -1) {
                             nodeType = 'arrow';
                             var elemId = element.id || '';
@@ -1613,6 +1625,30 @@ namespace MarkdownViewer
                                 var pieTitleMatch = line.match(/^\s*pie\s+title\s+(.+)$/);
                                 if (pieTitleMatch) {
                                     nodeLineMap['pie-title:' + pieTitleMatch[1].trim()] = lineNum;
+                                }
+                                
+                                // Git graph commit: commit or commit id: ""label""
+                                var gitCommitMatch = line.match(/^\s*commit(\s+id:\s*""([^""]+)"")?/);
+                                if (gitCommitMatch) {
+                                    var commitLabel = gitCommitMatch[2] || '';
+                                    if (!nodeLineMap['git-commit-count']) nodeLineMap['git-commit-count'] = 0;
+                                    nodeLineMap['git-commit:' + nodeLineMap['git-commit-count']] = lineNum;
+                                    if (commitLabel) nodeLineMap['git-label:' + commitLabel] = lineNum;
+                                    nodeLineMap['git-commit-count']++;
+                                }
+                                
+                                // Git graph branch: branch BranchName
+                                var gitBranchMatch = line.match(/^\s*branch\s+(\S+)/);
+                                if (gitBranchMatch) {
+                                    nodeLineMap['git-branch:' + gitBranchMatch[1]] = lineNum;
+                                }
+                                
+                                // Git graph merge: merge BranchName (also creates a commit circle)
+                                var gitMergeMatch = line.match(/^\s*merge\s+(\S+)/);
+                                if (gitMergeMatch) {
+                                    if (!nodeLineMap['git-commit-count']) nodeLineMap['git-commit-count'] = 0;
+                                    nodeLineMap['git-commit:' + nodeLineMap['git-commit-count']] = lineNum;
+                                    nodeLineMap['git-commit-count']++;
                                 }
                             }
                             
@@ -2010,6 +2046,51 @@ namespace MarkdownViewer
                                 title.setAttribute('data-pie-title', titleText);
                                 if (nodeLineMap['pie-title:' + titleText]) {
                                     title.setAttribute('data-source-line', String(nodeLineMap['pie-title:' + titleText]));
+                                }
+                            });
+                            
+                            // Git graph commits
+                            var gitCommitIdx = 0;
+                            svg.querySelectorAll('circle.commit:not(.commit-merge)').forEach(function(commit) {
+                                commit.style.cursor = 'pointer';
+                                commit.setAttribute('data-mermaid-node', 'true');
+                                commit.setAttribute('data-git-commit', String(gitCommitIdx));
+                                if (nodeLineMap['git-commit:' + gitCommitIdx]) {
+                                    commit.setAttribute('data-source-line', String(nodeLineMap['git-commit:' + gitCommitIdx]));
+                                }
+                                gitCommitIdx++;
+                            });
+                            
+                            // Git graph merge decoration (same line as previous commit)
+                            svg.querySelectorAll('circle.commit-merge').forEach(function(merge) {
+                                merge.style.cursor = 'pointer';
+                                merge.setAttribute('data-mermaid-node', 'true');
+                                var prevSibling = merge.previousElementSibling;
+                                if (prevSibling && prevSibling.hasAttribute('data-source-line')) {
+                                    merge.setAttribute('data-source-line', prevSibling.getAttribute('data-source-line'));
+                                    merge.setAttribute('data-git-commit', prevSibling.getAttribute('data-git-commit'));
+                                }
+                            });
+                            
+                            // Git graph commit labels
+                            svg.querySelectorAll('text.commit-label').forEach(function(label) {
+                                var labelText = label.textContent.trim();
+                                label.style.cursor = 'pointer';
+                                label.setAttribute('data-mermaid-node', 'true');
+                                label.setAttribute('data-git-label', labelText);
+                                if (nodeLineMap['git-label:' + labelText]) {
+                                    label.setAttribute('data-source-line', String(nodeLineMap['git-label:' + labelText]));
+                                }
+                            });
+                            
+                            // Git graph branch labels
+                            svg.querySelectorAll('g.branchLabel').forEach(function(branch) {
+                                var branchName = branch.textContent.trim();
+                                branch.style.cursor = 'pointer';
+                                branch.setAttribute('data-mermaid-node', 'true');
+                                branch.setAttribute('data-git-branch', branchName);
+                                if (nodeLineMap['git-branch:' + branchName]) {
+                                    branch.setAttribute('data-source-line', String(nodeLineMap['git-branch:' + branchName]));
                                 }
                             });
                         });
