@@ -1241,6 +1241,18 @@ namespace MarkdownViewer
                             nodeType = 'relationship';
                             nodeText = element.getAttribute('data-er-relation');
                         }
+                        else if (element.hasAttribute && element.hasAttribute('data-gantt-task')) {
+                            nodeType = 'task';
+                            nodeText = element.getAttribute('data-gantt-task');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-gantt-task-name')) {
+                            nodeType = 'task';
+                            nodeText = element.getAttribute('data-gantt-task-name');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-gantt-section')) {
+                            nodeType = 'section';
+                            nodeText = element.getAttribute('data-gantt-section');
+                        }
                         else if (className.indexOf('flowchart-link') !== -1) {
                             nodeType = 'arrow';
                             var elemId = element.id || '';
@@ -1565,6 +1577,19 @@ namespace MarkdownViewer
                                     nodeLineMap[erAttrMatch[2]] = lineNum;  // Map by attribute name
                                     nodeLineMap[erAttrMatch[1] + ' ' + erAttrMatch[2]] = lineNum;  // Map by 'type name'
                                 }
+                                
+                                // Gantt task: TaskName :taskId, ...
+                                var ganttTaskMatch = line.match(/^\s*(.+?)\s*:([a-zA-Z0-9]+),/);
+                                if (ganttTaskMatch) {
+                                    nodeLineMap['gantt:' + ganttTaskMatch[2]] = lineNum;
+                                    nodeLineMap['gantt-name:' + ganttTaskMatch[1].trim()] = lineNum;
+                                }
+                                
+                                // Gantt section: section SectionName
+                                var ganttSectionMatch = line.match(/^\s*section\s+(.+)$/);
+                                if (ganttSectionMatch) {
+                                    nodeLineMap['gantt-section:' + ganttSectionMatch[1].trim()] = lineNum;
+                                }
                             }
                             
                             // Mark parent g of bottom actors
@@ -1887,6 +1912,43 @@ namespace MarkdownViewer
                                 path.setAttribute('data-mermaid-node', 'true');
                                 if (sourceLine) {
                                     path.setAttribute('data-source-line', sourceLine);
+                                }
+                            });
+                            
+                            // Gantt chart tasks
+                            svg.querySelectorAll('rect.task').forEach(function(task) {
+                                var taskId = task.id || '';
+                                task.style.cursor = 'pointer';
+                                task.setAttribute('data-mermaid-node', 'true');
+                                task.setAttribute('data-gantt-task', taskId);
+                                if (nodeLineMap['gantt:' + taskId]) {
+                                    task.setAttribute('data-source-line', String(nodeLineMap['gantt:' + taskId]));
+                                }
+                            });
+                            
+                            // Gantt chart task text
+                            svg.querySelectorAll('text.taskText').forEach(function(text) {
+                                var textId = text.id || '';
+                                var taskId = textId.replace('-text', '');
+                                var taskName = text.textContent.trim();
+                                text.style.cursor = 'pointer';
+                                text.setAttribute('data-mermaid-node', 'true');
+                                text.setAttribute('data-gantt-task-name', taskName);
+                                if (nodeLineMap['gantt:' + taskId]) {
+                                    text.setAttribute('data-source-line', String(nodeLineMap['gantt:' + taskId]));
+                                } else if (nodeLineMap['gantt-name:' + taskName]) {
+                                    text.setAttribute('data-source-line', String(nodeLineMap['gantt-name:' + taskName]));
+                                }
+                            });
+                            
+                            // Gantt chart section titles
+                            svg.querySelectorAll('text.sectionTitle').forEach(function(text) {
+                                var sectionName = text.textContent.trim();
+                                text.style.cursor = 'pointer';
+                                text.setAttribute('data-mermaid-node', 'true');
+                                text.setAttribute('data-gantt-section', sectionName);
+                                if (nodeLineMap['gantt-section:' + sectionName]) {
+                                    text.setAttribute('data-source-line', String(nodeLineMap['gantt-section:' + sectionName]));
                                 }
                             });
                         });
