@@ -1249,6 +1249,10 @@ namespace MarkdownViewer
                         var className = element.getAttribute('class') || '';
                         if (element.classList && element.classList.contains('cluster')) nodeType = 'subgraph';
                         else if (element.classList && element.classList.contains('edgeLabel')) nodeType = 'edge';
+                        else if (element.hasAttribute && element.hasAttribute('data-class-name')) {
+                            nodeType = 'class';
+                            nodeText = element.getAttribute('data-class-name');
+                        }
                         else if (element.hasAttribute && element.hasAttribute('data-class-member')) {
                             // Check if member or method by parent class
                             var parent = element.parentElement;
@@ -1612,6 +1616,19 @@ namespace MarkdownViewer
                                     nodeLineMap[seqMatch[1]] = lineNum;
                                 }
                                 
+                                // Class diagram class name from relationship: ClassName1 <|-- ClassName2
+                                var classRelMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*(<\|--|&lt;\|--)\s*([A-Za-z0-9_]+)/);
+                                if (classRelMatch) {
+                                    if (!nodeLineMap['class:' + classRelMatch[1]]) nodeLineMap['class:' + classRelMatch[1]] = lineNum;
+                                    if (!nodeLineMap['class:' + classRelMatch[3]]) nodeLineMap['class:' + classRelMatch[3]] = lineNum;
+                                }
+                                
+                                // Class diagram class name from member definition: ClassName : member
+                                var classNameMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*:\s*.+$/);
+                                if (classNameMatch) {
+                                    if (!nodeLineMap['class:' + classNameMatch[1]]) nodeLineMap['class:' + classNameMatch[1]] = lineNum;
+                                }
+                                
                                 // Class diagram member/method: ClassName : +memberName or ClassName: +methodName()
                                 var classMemberMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*:\s*(.+)$/);
                                 if (classMemberMatch) {
@@ -1923,6 +1940,17 @@ namespace MarkdownViewer
                                     if (className.indexOf('actor') !== -1 && nodeLineMap[nodeText]) {
                                         node.setAttribute('data-source-line', String(nodeLineMap[nodeText]));
                                     }
+                                }
+                            });
+                            
+                            // Class diagram class names
+                            svg.querySelectorAll('g.label-group g.label').forEach(function(label) {
+                                var className = label.textContent.trim();
+                                if (nodeLineMap['class:' + className]) {
+                                    label.style.cursor = 'pointer';
+                                    label.setAttribute('data-mermaid-node', 'true');
+                                    label.setAttribute('data-class-name', className);
+                                    label.setAttribute('data-source-line', String(nodeLineMap['class:' + className]));
                                 }
                             });
                             
