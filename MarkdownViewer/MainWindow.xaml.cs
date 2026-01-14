@@ -1088,6 +1088,7 @@ namespace MarkdownViewer
                         currentHighlight = null;
                     }
                     document.body.style.cursor = enabled ? 'crosshair' : '';
+                    document.body.style.userSelect = enabled ? 'none' : '';
                 }
 
                 function getPointableElement(element) {
@@ -1311,13 +1312,12 @@ namespace MarkdownViewer
 
                 document.addEventListener('mouseout', function(e) {
                     if (!pointingModeEnabled) return;
-                    var pointable = getPointableElement(e.target);
-                    if (pointable && pointable === currentHighlight) {
-                        var related = e.relatedTarget;
-                        if (!related || !pointable.contains(related)) {
-                            pointable.classList.remove('pointing-highlight');
-                            currentHighlight = null;
-                        }
+                    if (!currentHighlight) return;
+                    var related = e.relatedTarget;
+                    var relatedPointable = related ? getPointableElement(related) : null;
+                    if (relatedPointable !== currentHighlight) {
+                        currentHighlight.classList.remove('pointing-highlight');
+                        currentHighlight = null;
                     }
                 });
 
