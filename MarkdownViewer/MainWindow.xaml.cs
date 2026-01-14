@@ -1211,6 +1211,10 @@ namespace MarkdownViewer
                                 nodeText = linkMatch[1] + ' -> ' + linkMatch[2];
                             }
                         }
+                        else if (element.hasAttribute && element.hasAttribute('data-seq-arrow-text')) {
+                            nodeType = 'arrow';
+                            nodeText = element.getAttribute('data-seq-arrow-text');
+                        }
                         else if (className.indexOf('flowchart-link') !== -1) {
                             nodeType = 'arrow';
                             var elemId = element.id || '';
@@ -1335,6 +1339,10 @@ namespace MarkdownViewer
                             var origId = pointable.getAttribute('data-hit-area-for');
                             var origElem = pointable.ownerSVGElement.getElementById(origId);
                             if (origElem) flashTarget = origElem;
+                        } else if (pointable.hasAttribute && pointable.hasAttribute('data-seq-arrow-text')) {
+                            // For sequence arrow hit areas, flash the previous sibling (the line element)
+                            var prevElem = pointable.previousElementSibling;
+                            if (prevElem) flashTarget = prevElem;
                         }
                         var isSvg = flashTarget instanceof SVGElement;
                         if (isSvg) {
@@ -1510,10 +1518,44 @@ namespace MarkdownViewer
                             });
                             var lineIdx = 0;
                             svg.querySelectorAll('line.messageLine0, line.messageLine1').forEach(function(ln) {
+                                var sourceLine = null;
+                                if (lineIdx < messageLineNums.length) {
+                                    sourceLine = String(messageLineNums[lineIdx]);
+                                }
+                                
+                                // Get message text from previous sibling for hit area
+                                var msgText = '';
+                                var prev = ln.previousElementSibling;
+                                if (prev && prev.classList && prev.classList.contains('messageText')) {
+                                    msgText = prev.textContent.trim();
+                                }
+                                
+                                // Create transparent rect for hit area
+                                var bbox = ln.getBBox();
+                                var minSize = 16;
+                                var rectW = Math.max(bbox.width, minSize);
+                                var rectH = Math.max(bbox.height, minSize);
+                                var rectX = bbox.x - (rectW - bbox.width) / 2;
+                                var rectY = bbox.y - (rectH - bbox.height) / 2;
+                                var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                                hitRect.setAttribute('x', rectX);
+                                hitRect.setAttribute('y', rectY);
+                                hitRect.setAttribute('width', rectW);
+                                hitRect.setAttribute('height', rectH);
+                                hitRect.setAttribute('fill', 'transparent');
+                                hitRect.style.cursor = 'pointer';
+                                hitRect.setAttribute('data-mermaid-node', 'true');
+                                hitRect.setAttribute('data-seq-arrow-text', msgText);
+                                if (sourceLine) {
+                                    hitRect.setAttribute('data-source-line', sourceLine);
+                                }
+                                ln.parentNode.insertBefore(hitRect, ln.nextSibling);
+                                
+                                // Original line also needs attributes
                                 ln.style.cursor = 'pointer';
                                 ln.setAttribute('data-mermaid-node', 'true');
-                                if (lineIdx < messageLineNums.length) {
-                                    ln.setAttribute('data-source-line', String(messageLineNums[lineIdx]));
+                                if (sourceLine) {
+                                    ln.setAttribute('data-source-line', sourceLine);
                                 }
                                 lineIdx++;
                             });
