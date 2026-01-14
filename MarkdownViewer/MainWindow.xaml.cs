@@ -763,12 +763,26 @@ namespace MarkdownViewer
 
             if (_tabs.Count == 0)
             {
-                // No tabs left - show placeholder instead of closing window
-                FileTabControl.Visibility = Visibility.Collapsed;
-                PlaceholderPanel.Visibility = Visibility.Visible;
-                Title = "Markdown Viewer";
-                LinkStatusText.Text = "";
-                WatchStatusText.Text = "";
+                // Check if there are other MarkdownViewer windows
+                var otherWindows = Application.Current.Windows
+                    .OfType<MainWindow>()
+                    .Where(w => w != this)
+                    .ToList();
+                
+                if (otherWindows.Count > 0)
+                {
+                    // Other windows exist - close this window
+                    Close();
+                }
+                else
+                {
+                    // This is the last window - show placeholder instead of closing
+                    FileTabControl.Visibility = Visibility.Collapsed;
+                    PlaceholderPanel.Visibility = Visibility.Visible;
+                    Title = "Markdown Viewer";
+                    LinkStatusText.Text = "";
+                    WatchStatusText.Text = "";
+                }
             }
             else
             {
