@@ -1780,6 +1780,20 @@ namespace MarkdownViewer
             DragOverlay.Visibility = _isDragMoveMode ? Visibility.Visible : Visibility.Collapsed;
             DragOverlay.Cursor = Cursors.SizeAll;
 
+            // Disable pointing mode if enabling drag mode
+            if (_isDragMoveMode && _isPointingMode)
+            {
+                PointingModeToggle.IsChecked = false;
+                _isPointingMode = false;
+                foreach (var tab in _tabs)
+                {
+                    if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+                    {
+                        tab.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(false)");
+                    }
+                }
+            }
+
             // Enable/disable WebView for all tabs
             foreach (var tab in _tabs)
             {
@@ -1790,6 +1804,18 @@ namespace MarkdownViewer
         private void PointingModeToggle_Click(object sender, RoutedEventArgs e)
         {
             _isPointingMode = PointingModeToggle.IsChecked == true;
+
+            // Disable drag mode if enabling pointing mode
+            if (_isPointingMode && _isDragMoveMode)
+            {
+                DragMoveToggle.IsChecked = false;
+                _isDragMoveMode = false;
+                DragOverlay.Visibility = Visibility.Collapsed;
+                foreach (var tab in _tabs)
+                {
+                    tab.WebView.IsEnabled = true;
+                }
+            }
             
             foreach (var tab in _tabs)
             {
