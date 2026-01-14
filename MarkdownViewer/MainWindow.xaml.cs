@@ -1229,6 +1229,18 @@ namespace MarkdownViewer
                             var trans = element.getAttribute('data-state-transition');
                             nodeText = trans.replace('->', ' -> ');
                         }
+                        else if (element.hasAttribute && element.hasAttribute('data-er-attr')) {
+                            nodeType = 'attribute';
+                            nodeText = element.getAttribute('data-er-attr');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-er-entity')) {
+                            nodeType = 'entity';
+                            nodeText = element.getAttribute('data-er-entity');
+                        }
+                        else if (element.hasAttribute && element.hasAttribute('data-er-relation')) {
+                            nodeType = 'relationship';
+                            nodeText = element.getAttribute('data-er-relation');
+                        }
                         else if (className.indexOf('flowchart-link') !== -1) {
                             nodeType = 'arrow';
                             var elemId = element.id || '';
@@ -1363,6 +1375,10 @@ namespace MarkdownViewer
                             if (prevElem) flashTarget = prevElem;
                         } else if (pointable.hasAttribute && pointable.hasAttribute('data-state-transition')) {
                             // For state transition hit areas, flash the previous sibling (the path element)
+                            var prevElem = pointable.previousElementSibling;
+                            if (prevElem) flashTarget = prevElem;
+                        } else if (pointable.hasAttribute && pointable.hasAttribute('data-er-relation')) {
+                            // For ER relation hit areas, flash the previous sibling (the path element)
                             var prevElem = pointable.previousElementSibling;
                             if (prevElem) flashTarget = prevElem;
                         }
@@ -1523,6 +1539,31 @@ namespace MarkdownViewer
                                 if (stateTransMatch) {
                                     var stateKey = stateTransMatch[1] + '->' + stateTransMatch[2];
                                     arrowLineMap[stateKey] = lineNum;
+                                }
+                                
+                                // ER diagram relationship: ENTITY1 ||--o{ ENTITY2 : label
+                                var erRelMatch = line.match(/^\s*([A-Za-z0-9_-]+)\s*(\||\}|o).*(\||\{|o)\s*([A-Za-z0-9_-]+)\s*:\s*(\w+)/);
+                                if (erRelMatch) {
+                                    var erKey = erRelMatch[1] + '-' + erRelMatch[4];
+                                    arrowLineMap[erKey] = lineNum;
+                                    // Map the label
+                                    nodeLineMap[erRelMatch[5]] = lineNum;
+                                    // Map entity names from relationship (for entities without explicit definition)
+                                    if (!nodeLineMap['errel:' + erRelMatch[1]]) nodeLineMap['errel:' + erRelMatch[1]] = lineNum;
+                                    if (!nodeLineMap['errel:' + erRelMatch[4]]) nodeLineMap['errel:' + erRelMatch[4]] = lineNum;
+                                }
+                                
+                                // ER diagram entity definition: ENTITY {
+                                var erEntityMatch = line.match(/^\s*([A-Za-z0-9_-]+)\s*\{/);
+                                if (erEntityMatch && !nodeLineMap['entity:' + erEntityMatch[1]]) {
+                                    nodeLineMap['entity:' + erEntityMatch[1]] = lineNum;
+                                }
+                                
+                                // ER diagram attribute: type attributeName
+                                var erAttrMatch = line.match(/^\s+(\w+)\s+(\w+)\s*$/);
+                                if (erAttrMatch) {
+                                    nodeLineMap[erAttrMatch[2]] = lineNum;  // Map by attribute name
+                                    nodeLineMap[erAttrMatch[1] + ' ' + erAttrMatch[2]] = lineNum;  // Map by 'type name'
                                 }
                             }
                             
@@ -1703,10 +1744,26 @@ namespace MarkdownViewer
                                     return;
                                 }
                                 
+                                // ER diagram entity
+                                var erEntityMatch = nodeId.match(/^entity-([A-Za-z0-9_-]+)-/);
+                                if (erEntityMatch) {
+                                    var entityName = erEntityMatch[1];
+                                    if (nodeLineMap['entity:' + entityName]) {
+                                        node.setAttribute('data-source-line', String(nodeLineMap['entity:' + entityName]));
+                                    } else if (nodeLineMap['errel:' + entityName]) {
+                                        // Use relationship line for entities without explicit definition
+                                        node.setAttribute('data-source-line', String(nodeLineMap['errel:' + entityName]));
+                                    }
+                                    return;
+                                }
+                                
                                 // Edge label
                                 if (node.classList && node.classList.contains('edgeLabel')) {
                                     if (edgeLabelLineMap[nodeText]) {
                                         node.setAttribute('data-source-line', String(edgeLabelLineMap[nodeText]));
+                                    } else if (nodeLineMap[nodeText]) {
+                                        // Also check nodeLineMap for ER diagram labels
+                                        node.setAttribute('data-source-line', String(nodeLineMap[nodeText]));
                                     }
                                     return;
                                 }
@@ -1755,6 +1812,82 @@ namespace MarkdownViewer
                                 
                                 path.style.cursor = 'pointer';
                                 path.setAttribute('data-mermaid-node', 'true');
+                            });
+                            
+                            // ER diagram attributes
+                            svg.querySelectorAll('g.label.attribute-name, g.label.attribute-type').forEach(function(label) {
+                                var attrText = label.textContent.trim();
+                                var isType = label.classList.contains('attribute-type');
+                                label.style.cursor = 'pointer';
+                                label.setAttribute('data-mermaid-node', 'true');
+                                label.setAttribute('data-er-attr', attrText);
+                                
+                                // For attribute-type, get line from next sibling (attribute-name)
+                                if (isType) {
+                                    var nextSib = label.nextElementSibling;
+                                    if (nextSib && nextSib.classList.contains('attribute-name')) {
+                                        var nameText = nextSib.textContent.trim();
+                                        if (nodeLineMap[nameText]) {
+                                            label.setAttribute('data-source-line', String(nodeLineMap[nameText]));
+                                        }
+                                    }
+                                } else if (nodeLineMap[attrText]) {
+                                    label.setAttribute('data-source-line', String(nodeLineMap[attrText]));
+                                }
+                            });
+                            
+                            // ER diagram entity names
+                            svg.querySelectorAll('g.label.name').forEach(function(label) {
+                                var entityName = label.textContent.trim();
+                                label.style.cursor = 'pointer';
+                                label.setAttribute('data-mermaid-node', 'true');
+                                label.setAttribute('data-er-entity', entityName);
+                                if (nodeLineMap['entity:' + entityName]) {
+                                    label.setAttribute('data-source-line', String(nodeLineMap['entity:' + entityName]));
+                                }
+                            });
+                            
+                            // ER diagram relationship lines
+                            svg.querySelectorAll('path.relationshipLine').forEach(function(path) {
+                                var pathId = path.id || '';
+                                // Extract entity names from id like 'id_entity-CUSTOMER-0_entity-ORDER-1_0'
+                                var relMatch = pathId.match(/entity-([A-Za-z0-9_-]+)-\d+_entity-([A-Za-z0-9_-]+)-/);
+                                var sourceLine = null;
+                                var relText = '';
+                                if (relMatch) {
+                                    var key = relMatch[1] + '-' + relMatch[2];
+                                    relText = relMatch[1] + ' - ' + relMatch[2];
+                                    if (arrowLineMap[key]) {
+                                        sourceLine = String(arrowLineMap[key]);
+                                    }
+                                }
+                                
+                                // Create transparent rect for hit area
+                                var bbox = path.getBBox();
+                                var minSize = 16;
+                                var rectW = Math.max(bbox.width, minSize);
+                                var rectH = Math.max(bbox.height, minSize);
+                                var rectX = bbox.x - (rectW - bbox.width) / 2;
+                                var rectY = bbox.y - (rectH - bbox.height) / 2;
+                                var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                                hitRect.setAttribute('x', rectX);
+                                hitRect.setAttribute('y', rectY);
+                                hitRect.setAttribute('width', rectW);
+                                hitRect.setAttribute('height', rectH);
+                                hitRect.setAttribute('fill', 'transparent');
+                                hitRect.style.cursor = 'pointer';
+                                hitRect.setAttribute('data-mermaid-node', 'true');
+                                hitRect.setAttribute('data-er-relation', relText);
+                                if (sourceLine) {
+                                    hitRect.setAttribute('data-source-line', sourceLine);
+                                }
+                                path.parentNode.insertBefore(hitRect, path.nextSibling);
+                                
+                                path.style.cursor = 'pointer';
+                                path.setAttribute('data-mermaid-node', 'true');
+                                if (sourceLine) {
+                                    path.setAttribute('data-source-line', sourceLine);
+                                }
                             });
                         });
                     }
