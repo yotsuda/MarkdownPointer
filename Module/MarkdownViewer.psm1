@@ -9,16 +9,19 @@ function Send-MarkdownViewerCommand {
         [Parameter(Mandatory)]
         [hashtable]$Message,
         
-        [int]$Retries = 3
+        [int]$Retries = 3,
+        
+        [int]$TimeoutMs = 5000
     )
     
     $json = $Message | ConvertTo-Json -Compress
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
     
     for ($i = 0; $i -lt $Retries; $i++) {
+        $client = $null
         try {
             $client = [System.IO.Pipes.NamedPipeClientStream]::new(".", $script:PipeName, [System.IO.Pipes.PipeDirection]::InOut)
-            $client.Connect(2000)
+            $client.Connect($TimeoutMs)
             $client.Write($bytes, 0, $bytes.Length)
             $client.Flush()
             
@@ -34,6 +37,10 @@ function Send-MarkdownViewerCommand {
             return $null
         }
         catch {
+            # Silently retry on timeout
+            if ($client) {
+                try { $client.Close() } catch { }
+            }
             if ($i -lt $Retries - 1) {
                 Start-Sleep -Milliseconds 500
             }
