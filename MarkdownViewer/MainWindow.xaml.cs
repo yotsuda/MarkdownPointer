@@ -1308,11 +1308,9 @@ namespace MarkdownViewer
                         var src = element.getAttribute('data-mermaid-source') || '';
                         if (src) {
                             var firstLine = src.split('\n')[0].trim();
-                            var nodeCount = (src.match(/\[.*?\]|\(.*?\)|{.*?}/g) || []).length;
-                            var info = firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
-                            return '```mermaid ' + info + (nodeCount > 0 ? ' (' + nodeCount + ' nodes)' : '') + '```';
+                            return '```mermaid ' + firstLine + '```';
                         }
-                        return '```mermaid (diagram)```';
+                        return '```mermaid```';
                     }
                     if (element.classList.contains('katex') || element.classList.contains('math') || element.querySelector('.katex')) {
                         // Try to get original source from data attribute or textContent
