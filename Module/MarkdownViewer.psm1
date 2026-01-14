@@ -11,11 +11,13 @@ function Send-MarkdownViewerCommand {
         
         [int]$Retries = 3,
         
-        [int]$TimeoutMs = 5000
+        [int]$TimeoutMs = 10000
     )
     
     $json = $Message | ConvertTo-Json -Compress
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    
+    $ErrorActionPreference = 'SilentlyContinue'
     
     for ($i = 0; $i -lt $Retries; $i++) {
         $client = $null
@@ -46,6 +48,7 @@ function Send-MarkdownViewerCommand {
             }
         }
     }
+    # Return null silently instead of throwing error
     return $null
 }
 
