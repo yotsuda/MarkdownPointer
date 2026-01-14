@@ -1133,6 +1133,10 @@ namespace MarkdownViewer
                 }
 
                 function getElementLine(element) {
+                    // First check for exact source line (set on Mermaid nodes)
+                    if (element && element.hasAttribute && element.hasAttribute('data-source-line')) {
+                        return element.getAttribute('data-source-line');
+                    }
                     while (element && element !== document.body) {
                         if (element.hasAttribute && element.hasAttribute('data-line')) {
                             return element.getAttribute('data-line');
@@ -1390,11 +1394,58 @@ namespace MarkdownViewer
                             }
                         }
                         
-                        // Make mermaid nodes clickable
-                        document.querySelectorAll('.mermaid svg').forEach(function(svg) {
+                        // Make mermaid nodes clickable and set source line numbers
+                        document.querySelectorAll('.mermaid').forEach(function(container) {
+                            var source = container.getAttribute('data-mermaid-source') || '';
+                            var baseLine = parseInt(container.getAttribute('data-line') || '0', 10);
+                            var sourceLines = source.split('\n');
+                            var svg = container.querySelector('svg');
+                            if (!svg) return;
+                            
                             svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^=""root-""], text.actor, g.note, g.activation').forEach(function(node) {
                                 node.style.cursor = 'pointer';
                                 node.setAttribute('data-mermaid-node', 'true');
+                                
+                                // Extract node name from ID or content and find source line
+                                var nodeId = node.id || '';
+                                var nodeName = '';
+                                var nodeText = node.textContent.trim().replace(/\s+/g, ' ');
+                                
+                                // Flowchart: flowchart-NodeName-123
+                                var flowMatch = nodeId.match(/^flowchart-([^-]+)-/);
+                                if (flowMatch) nodeName = flowMatch[1];
+                                
+                                // Edge label: use text content directly
+                                if (!nodeName && node.classList && node.classList.contains('edgeLabel')) {
+                                    nodeName = nodeText;
+                                }
+                                
+                                // Sequence actor: text element with actor class
+                                if (!nodeName && node.tagName && node.tagName.toLowerCase() === 'text') {
+                                    var className = node.getAttribute('class') || '';
+                                    if (className.indexOf('actor') !== -1) {
+                                        nodeName = nodeText;
+                                    }
+                                }
+                                
+                                // Find line in source
+                                if (nodeName && sourceLines.length > 0) {
+                                    var escaped = nodeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                    for (var i = 0; i < sourceLines.length; i++) {
+                                        var line = sourceLines[i];
+                                        // Match edge labels like |Yes|, |No|
+                                        if (line.indexOf('|' + nodeName + '|') !== -1) {
+                                            node.setAttribute('data-source-line', String(baseLine + i + 1));
+                                            break;
+                                        }
+                                        // Match node definitions like A[, A(, A{, or sequence arrows with name
+                                        var pattern = new RegExp('(^|[\\s])' + escaped + '([\\[\\(\\{:\\->])');
+                                        if (pattern.test(line) || line.indexOf('participant ' + nodeName) !== -1 || line.indexOf('actor ' + nodeName) !== -1 || line.indexOf(nodeName + '-') !== -1 || line.indexOf('>>' + nodeName + ':') !== -1) {
+                                            node.setAttribute('data-source-line', String(baseLine + i + 1));
+                                            break;
+                                        }
+                                    }
+                                }
                             });
                         });
                     }
