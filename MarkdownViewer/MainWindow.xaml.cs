@@ -1202,6 +1202,14 @@ namespace MarkdownViewer
                         if (element.classList && element.classList.contains('cluster')) nodeType = 'subgraph';
                         else if (element.classList && element.classList.contains('edgeLabel')) nodeType = 'edge';
                         else if (className.indexOf('messageText') !== -1) nodeType = 'message';
+                        else if (className.indexOf('flowchart-link') !== -1) {
+                            nodeType = 'arrow';
+                            var elemId = element.id || '';
+                            var linkMatch = elemId.match(/^L[-_]([^-_]+)[-_]([^-_]+)[-_]/);
+                            if (linkMatch) {
+                                nodeText = linkMatch[1] + ' -> ' + linkMatch[2];
+                            }
+                        }
                         else if (className.indexOf('messageLine') !== -1) {
                             nodeType = 'arrow';
                             // Get message text from previous sibling
@@ -1405,6 +1413,7 @@ namespace MarkdownViewer
                             }
                         }
                         
+                        
                         // Make mermaid nodes clickable and set source line numbers
                         document.querySelectorAll('.mermaid').forEach(function(container) {
                             var source = container.getAttribute('data-mermaid-source') || '';
@@ -1413,18 +1422,52 @@ namespace MarkdownViewer
                             var svg = container.querySelector('svg');
                             if (!svg) return;
                             
-                            // Helper to find actor line in source
-                            function findActorLine(actorName) {
-                                for (var i = 0; i < sourceLines.length; i++) {
-                                    var line = sourceLines[i];
-                                    if (line.indexOf(actorName + '-') !== -1 || line.indexOf('>>' + actorName + ':') !== -1 || line.indexOf('participant ' + actorName) !== -1 || line.indexOf('actor ' + actorName) !== -1) {
-                                        return baseLine + i + 1;
+                            // Parse source to build line number mappings
+                            var nodeLineMap = {};
+                            var arrowLineMap = {};
+                            var messageLineNums = [];
+                            var edgeLabelLineMap = {};
+                            
+                            for (var i = 0; i < sourceLines.length; i++) {
+                                var line = sourceLines[i];
+                                var lineNum = baseLine + i + 1;
+                                
+                                // Flowchart node: A[text] or A{text} or A(text)
+                                var nodeMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*[\[\{\(]/);
+                                if (nodeMatch && !nodeLineMap[nodeMatch[1]]) {
+                                    nodeLineMap[nodeMatch[1]] = lineNum;
+                                }
+                                
+                                // Flowchart arrow: A --> B or A -->|label| B
+                                var arrowMatch = line.match(/^\s*([A-Za-z0-9_]+)[^\-]*--[->](\|[^|]*\|)?\s*([A-Za-z0-9_]+)/);
+                                if (arrowMatch) {
+                                    var key = arrowMatch[1] + '-' + arrowMatch[3];
+                                    arrowLineMap[key] = lineNum;
+                                    if (arrowMatch[2]) {
+                                        var label = arrowMatch[2].replace(/\|/g, '');
+                                        edgeLabelLineMap[label] = lineNum;
                                     }
                                 }
-                                return null;
+                                
+                                // Sequence diagram message
+                                if (/->>|-->|->/.test(line) && line.indexOf(':') !== -1) {
+                                    messageLineNums.push(lineNum);
+                                }
+                                
+                                // Sequence participant/actor
+                                var actorMatch = line.match(/^\s*(participant|actor)\s+([A-Za-z0-9_]+)/);
+                                if (actorMatch && !nodeLineMap[actorMatch[2]]) {
+                                    nodeLineMap[actorMatch[2]] = lineNum;
+                                }
+                                
+                                // Sequence implicit actor
+                                var seqMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*-/);
+                                if (seqMatch && !nodeLineMap[seqMatch[1]]) {
+                                    nodeLineMap[seqMatch[1]] = lineNum;
+                                }
                             }
                             
-                            // Mark parent g of bottom actors as clickable
+                            // Mark parent g of bottom actors
                             svg.querySelectorAll('rect.actor-bottom').forEach(function(rect) {
                                 var parent = rect.parentElement;
                                 if (parent && parent.tagName.toLowerCase() === 'g') {
@@ -1433,86 +1476,88 @@ namespace MarkdownViewer
                                     var textEl = parent.querySelector('text.actor');
                                     if (textEl) {
                                         var actorName = textEl.textContent.trim();
-                                        var lineNum = findActorLine(actorName);
-                                        if (lineNum) parent.setAttribute('data-source-line', String(lineNum));
+                                        if (nodeLineMap[actorName]) {
+                                            parent.setAttribute('data-source-line', String(nodeLineMap[actorName]));
+                                        }
                                     }
                                 }
                             });
                             
-                            // Handle sequence diagram messages by order
-                            var messageLineNums = [];
-                            for (var i = 0; i < sourceLines.length; i++) {
-                                var line = sourceLines[i];
-                                // Match message arrows: ->>, -->, ->, etc.
-                                if (/->>|-->|->/.test(line)) {
-                                    messageLineNums.push(baseLine + i + 1);
-                                }
-                            }
-                            var messageTexts = svg.querySelectorAll('text.messageText');
-                            var messageLines = svg.querySelectorAll('line.messageLine0, line.messageLine1');
-                            messageTexts.forEach(function(msg, idx) {
+                            // Sequence messages
+                            var msgIdx = 0;
+                            svg.querySelectorAll('text.messageText').forEach(function(msg) {
                                 msg.style.cursor = 'pointer';
                                 msg.setAttribute('data-mermaid-node', 'true');
-                                if (idx < messageLineNums.length) {
-                                    msg.setAttribute('data-source-line', String(messageLineNums[idx]));
+                                if (msgIdx < messageLineNums.length) {
+                                    msg.setAttribute('data-source-line', String(messageLineNums[msgIdx]));
                                 }
+                                msgIdx++;
                             });
-                            messageLines.forEach(function(line, idx) {
-                                line.style.cursor = 'pointer';
-                                line.setAttribute('data-mermaid-node', 'true');
-                                if (idx < messageLineNums.length) {
-                                    line.setAttribute('data-source-line', String(messageLineNums[idx]));
+                            var lineIdx = 0;
+                            svg.querySelectorAll('line.messageLine0, line.messageLine1').forEach(function(ln) {
+                                ln.style.cursor = 'pointer';
+                                ln.setAttribute('data-mermaid-node', 'true');
+                                if (lineIdx < messageLineNums.length) {
+                                    ln.setAttribute('data-source-line', String(messageLineNums[lineIdx]));
+                                }
+                                lineIdx++;
+                            });
+                            
+                            
+                            // Flowchart arrows
+                            svg.querySelectorAll('path.flowchart-link').forEach(function(path) {
+                                path.style.cursor = 'pointer';
+                                path.setAttribute('data-mermaid-node', 'true');
+                                var pathId = path.id || '';
+                                var linkMatch = pathId.match(/^L[-_]([^-_]+)[-_]([^-_]+)[-_]/);
+                                if (linkMatch) {
+                                    var key = linkMatch[1] + '-' + linkMatch[2];
+                                    if (arrowLineMap[key]) {
+                                        path.setAttribute('data-source-line', String(arrowLineMap[key]));
+                                    }
                                 }
                             });
                             
+                            // Other nodes
                             svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^=""root-""], text.actor, g.note, g.activation').forEach(function(node) {
                                 node.style.cursor = 'pointer';
                                 node.setAttribute('data-mermaid-node', 'true');
                                 
-                                // Extract node name from ID or content and find source line
                                 var nodeId = node.id || '';
-                                var nodeName = '';
                                 var nodeText = node.textContent.trim().replace(/\s+/g, ' ');
                                 
-                                // Flowchart: flowchart-NodeName-123
+                                // Flowchart node
                                 var flowMatch = nodeId.match(/^flowchart-([^-]+)-/);
-                                if (flowMatch) nodeName = flowMatch[1];
+                                if (flowMatch && nodeLineMap[flowMatch[1]]) {
+                                    node.setAttribute('data-source-line', String(nodeLineMap[flowMatch[1]]));
+                                    return;
+                                }
                                 
-                                // Sequence actor container (g with id starting with root-)
-                                if (!nodeName && nodeId.indexOf('root-') === 0) {
+                                // Sequence actor container
+                                if (nodeId.indexOf('root-') === 0) {
                                     var actorText = node.querySelector('text.actor');
-                                    if (actorText) nodeName = actorText.textContent.trim();
-                                }
-                                
-                                // Edge label: use text content directly
-                                if (!nodeName && node.classList && node.classList.contains('edgeLabel')) {
-                                    nodeName = nodeText;
-                                }
-                                
-                                // Sequence actor: text element with actor class
-                                if (!nodeName && node.tagName && node.tagName.toLowerCase() === 'text') {
-                                    var className = node.getAttribute('class') || '';
-                                    if (className.indexOf('actor') !== -1) {
-                                        nodeName = nodeText;
+                                    if (actorText) {
+                                        var actorName = actorText.textContent.trim();
+                                        if (nodeLineMap[actorName]) {
+                                            node.setAttribute('data-source-line', String(nodeLineMap[actorName]));
+                                        }
                                     }
+                                    return;
                                 }
                                 
-                                // Find line in source
-                                if (nodeName && sourceLines.length > 0) {
-                                    var escaped = nodeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                    for (var i = 0; i < sourceLines.length; i++) {
-                                        var line = sourceLines[i];
-                                        // Match edge labels like |Yes|, |No|
-                                        if (line.indexOf('|' + nodeName + '|') !== -1) {
-                                            node.setAttribute('data-source-line', String(baseLine + i + 1));
-                                            break;
-                                        }
-                                        // Match node definitions like A[, A(, A{, or sequence arrows
-                                        var pattern = new RegExp('(^|[\\s])' + escaped + '([\\[\\(\\{:\\->])');
-                                        if (pattern.test(line) || line.indexOf('participant ' + nodeName) !== -1 || line.indexOf('actor ' + nodeName) !== -1 || line.indexOf(nodeName + '-') !== -1 || line.indexOf('>>' + nodeName + ':') !== -1) {
-                                            node.setAttribute('data-source-line', String(baseLine + i + 1));
-                                            break;
-                                        }
+                                // Edge label
+                                if (node.classList && node.classList.contains('edgeLabel')) {
+                                    if (edgeLabelLineMap[nodeText]) {
+                                        node.setAttribute('data-source-line', String(edgeLabelLineMap[nodeText]));
+                                    }
+                                    return;
+                                }
+                                
+                                // Sequence actor text
+                                if (node.tagName && node.tagName.toLowerCase() === 'text') {
+                                    var className = node.getAttribute('class') || '';
+                                    if (className.indexOf('actor') !== -1 && nodeLineMap[nodeText]) {
+                                        node.setAttribute('data-source-line', String(nodeLineMap[nodeText]));
                                     }
                                 }
                             });
