@@ -1253,6 +1253,10 @@ namespace MarkdownViewer
                             nodeType = 'class';
                             nodeText = element.getAttribute('data-class-name');
                         }
+                        else if (element.hasAttribute && element.hasAttribute('data-class-relation')) {
+                            nodeType = 'inheritance';
+                            nodeText = element.getAttribute('data-class-relation');
+                        }
                         else if (element.hasAttribute && element.hasAttribute('data-class-member')) {
                             // Check if member or method by parent class
                             var parent = element.parentElement;
@@ -1621,6 +1625,8 @@ namespace MarkdownViewer
                                 if (classRelMatch) {
                                     if (!nodeLineMap['class:' + classRelMatch[1]]) nodeLineMap['class:' + classRelMatch[1]] = lineNum;
                                     if (!nodeLineMap['class:' + classRelMatch[3]]) nodeLineMap['class:' + classRelMatch[3]] = lineNum;
+                                    // Store relation for arrow mapping
+                                    arrowLineMap['class-rel:' + classRelMatch[1] + '_' + classRelMatch[3]] = lineNum;
                                 }
                                 
                                 // Class diagram class name from member definition: ClassName : member
@@ -1969,6 +1975,12 @@ namespace MarkdownViewer
                             svg.querySelectorAll('path.relation').forEach(function(path) {
                                 var pathId = path.id || '';
                                 
+                                // Extract class names from id like 'id_Animal_Duck_1'
+                                var relMatch = pathId.match(/^id_([^_]+)_([^_]+)_\d+$/);
+                                var relKey = relMatch ? 'class-rel:' + relMatch[1] + '_' + relMatch[2] : '';
+                                var sourceLine = arrowLineMap[relKey];
+                                var relText = relMatch ? relMatch[2] + ' extends ' + relMatch[1] : '';
+                                
                                 // Create transparent rect for hit area
                                 var bbox = path.getBBox();
                                 var minSize = 16;
@@ -1984,11 +1996,18 @@ namespace MarkdownViewer
                                 hitRect.setAttribute('fill', 'transparent');
                                 hitRect.style.cursor = 'pointer';
                                 hitRect.setAttribute('data-mermaid-node', 'true');
-                                hitRect.setAttribute('data-class-relation', pathId);
+                                hitRect.setAttribute('data-class-relation', relText);
+                                if (sourceLine) {
+                                    hitRect.setAttribute('data-source-line', String(sourceLine));
+                                }
                                 path.parentNode.insertBefore(hitRect, path.nextSibling);
                                 
                                 path.style.cursor = 'pointer';
                                 path.setAttribute('data-mermaid-node', 'true');
+                                path.setAttribute('data-class-relation', relText);
+                                if (sourceLine) {
+                                    path.setAttribute('data-source-line', String(sourceLine));
+                                }
                             });
                             
                             // ER diagram attributes
