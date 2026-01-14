@@ -1202,6 +1202,14 @@ namespace MarkdownViewer
                         if (element.classList && element.classList.contains('cluster')) nodeType = 'subgraph';
                         else if (element.classList && element.classList.contains('edgeLabel')) nodeType = 'edge';
                         else if (className.indexOf('messageText') !== -1) nodeType = 'message';
+                        else if (element.hasAttribute && element.hasAttribute('data-hit-area-for')) {
+                            nodeType = 'arrow';
+                            var hitFor = element.getAttribute('data-hit-area-for');
+                            var linkMatch = hitFor.match(/^L[-_]([^-_]+)[-_]([^-_]+)[-_]/);
+                            if (linkMatch) {
+                                nodeText = linkMatch[1] + ' -> ' + linkMatch[2];
+                            }
+                        }
                         else if (className.indexOf('flowchart-link') !== -1) {
                             nodeType = 'arrow';
                             var elemId = element.id || '';
@@ -1321,20 +1329,27 @@ namespace MarkdownViewer
                         e.stopPropagation();
                         
                         // Flash effect (SVG uses drop-shadow filter, HTML uses CSS class)
-                        var isSvg = pointable instanceof SVGElement;
+                        // For hit areas, flash the original element instead
+                        var flashTarget = pointable;
+                        if (pointable.hasAttribute && pointable.hasAttribute('data-hit-area-for')) {
+                            var origId = pointable.getAttribute('data-hit-area-for');
+                            var origElem = pointable.ownerSVGElement.getElementById(origId);
+                            if (origElem) flashTarget = origElem;
+                        }
+                        var isSvg = flashTarget instanceof SVGElement;
                         if (isSvg) {
-                            pointable.style.transition = 'none';
-                            pointable.style.filter = 'drop-shadow(0 0 8px rgba(0, 120, 212, 1)) drop-shadow(0 0 4px rgba(0, 120, 212, 0.8))';
+                            flashTarget.style.transition = 'none';
+                            flashTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 120, 212, 1)) drop-shadow(0 0 4px rgba(0, 120, 212, 0.8))';
                             setTimeout(function() {
-                                pointable.style.transition = 'filter 0.7s ease-out';
-                                pointable.style.filter = '';
+                                flashTarget.style.transition = 'filter 0.7s ease-out';
+                                flashTarget.style.filter = '';
                             }, 10);
-                            setTimeout(function() { pointable.style.transition = ''; }, 720);
+                            setTimeout(function() { flashTarget.style.transition = ''; }, 720);
                         } else {
-                            pointable.classList.remove('pointing-flash');
-                            void pointable.offsetWidth;
-                            pointable.classList.add('pointing-flash');
-                            setTimeout(function() { pointable.classList.remove('pointing-flash'); }, 500);
+                            flashTarget.classList.remove('pointing-flash');
+                            void flashTarget.offsetWidth;
+                            flashTarget.classList.add('pointing-flash');
+                            setTimeout(function() { flashTarget.classList.remove('pointing-flash'); }, 500);
                         }
                         
                         var line = getElementLine(pointable);
@@ -1504,17 +1519,43 @@ namespace MarkdownViewer
                             });
                             
                             
-                            // Flowchart arrows
+                            // Flowchart arrows - add transparent rect for full bounding box hit area
                             svg.querySelectorAll('path.flowchart-link').forEach(function(path) {
-                                path.style.cursor = 'pointer';
-                                path.setAttribute('data-mermaid-node', 'true');
                                 var pathId = path.id || '';
                                 var linkMatch = pathId.match(/^L[-_]([^-_]+)[-_]([^-_]+)[-_]/);
+                                var sourceLine = null;
                                 if (linkMatch) {
                                     var key = linkMatch[1] + '-' + linkMatch[2];
                                     if (arrowLineMap[key]) {
-                                        path.setAttribute('data-source-line', String(arrowLineMap[key]));
+                                        sourceLine = String(arrowLineMap[key]);
                                     }
+                                }
+                                
+                                // Create transparent rect covering bounding box with minimum size
+                                var bbox = path.getBBox();
+                                var minSize = 16;
+                                var rectW = Math.max(bbox.width, minSize);
+                                var rectH = Math.max(bbox.height, minSize);
+                                var rectX = bbox.x - (rectW - bbox.width) / 2;
+                                var rectY = bbox.y - (rectH - bbox.height) / 2;
+                                var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                                hitRect.setAttribute('x', rectX);
+                                hitRect.setAttribute('y', rectY);
+                                hitRect.setAttribute('width', rectW);
+                                hitRect.setAttribute('height', rectH);
+                                hitRect.setAttribute('fill', 'transparent');
+                                hitRect.style.cursor = 'pointer';
+                                hitRect.setAttribute('data-mermaid-node', 'true');
+                                hitRect.setAttribute('data-hit-area-for', pathId);
+                                if (sourceLine) {
+                                    hitRect.setAttribute('data-source-line', sourceLine);
+                                }
+                                path.parentNode.insertBefore(hitRect, path.nextSibling);
+                                
+                                // Original path also needs attributes for flash effect
+                                path.setAttribute('data-mermaid-node', 'true');
+                                if (sourceLine) {
+                                    path.setAttribute('data-source-line', sourceLine);
                                 }
                             });
                             
