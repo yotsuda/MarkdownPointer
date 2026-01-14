@@ -220,8 +220,6 @@ namespace MarkdownViewer
         public void SelectTab(TabItemData tab)
         {
             FileTabControl.SelectedItem = tab;
-            FileTabControl.UpdateLayout();
-            UpdateWindowTitle();
         }
 
         
