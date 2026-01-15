@@ -1254,7 +1254,7 @@ namespace MarkdownViewer
                             nodeText = element.getAttribute('data-class-name');
                         }
                         else if (element.hasAttribute && element.hasAttribute('data-class-relation')) {
-                            nodeType = 'inheritance';
+                            nodeType = 'relation';
                             nodeText = element.getAttribute('data-class-relation');
                         }
                         else if (element.hasAttribute && element.hasAttribute('data-class-member')) {
@@ -1628,26 +1628,39 @@ namespace MarkdownViewer
                                     nodeLineMap[seqMatch[1]] = lineNum;
                                 }
                                 
-                                // Class diagram class name from relationship: Parent <|-- Child or Child --|> Parent
-                                var classRelMatch1 = line.match(/^\s*([A-Za-z0-9_]+)\s*(<\|--|&lt;\|--)\s*([A-Za-z0-9_]+)/);
-                                var classRelMatch2 = line.match(/^\s*([A-Za-z0-9_]+)\s*(--\|>|--\|&gt;)\s*([A-Za-z0-9_]+)/);
-                                if (classRelMatch1) {
-                                    // Parent <|-- Child: match[1]=Parent, match[3]=Child
-                                    var parent = classRelMatch1[1];
-                                    var child = classRelMatch1[3];
-                                    if (!nodeLineMap['class:' + parent]) nodeLineMap['class:' + parent] = lineNum;
-                                    if (!nodeLineMap['class:' + child]) nodeLineMap['class:' + child] = lineNum;
-                                    // Store with child:parent info for correct display
-                                    arrowLineMap['class-rel:' + parent + '_' + child] = lineNum + ':' + child + ':' + parent;
-                                }
-                                if (classRelMatch2) {
-                                    // Child --|> Parent: match[1]=Child, match[3]=Parent
-                                    var child = classRelMatch2[1];
-                                    var parent = classRelMatch2[3];
-                                    if (!nodeLineMap['class:' + child]) nodeLineMap['class:' + child] = lineNum;
-                                    if (!nodeLineMap['class:' + parent]) nodeLineMap['class:' + parent] = lineNum;
-                                    // Store with child:parent info for correct display
-                                    arrowLineMap['class-rel:' + child + '_' + parent] = lineNum + ':' + child + ':' + parent;
+                                // Class diagram relationships (various types)
+                                // Pattern: Class1 ARROW Class2 or Class1 ARROW Class2 : label
+                                // Key is always source order (class1_class2), value has relationship details
+                                var classRelPatterns = [
+                                    // Format: { regex, type, swap } - swap=true if child is on left
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*(<\|--|&lt;\|--)\s*([A-Za-z0-9_]+)/, type: 'extends', swap: true, g1: 1, g2: 3 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*(--\|>|--\|&gt;)\s*([A-Za-z0-9_]+)/, type: 'extends', swap: false, g1: 1, g2: 3 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*\*--\s*([A-Za-z0-9_]+)/, type: 'composition', swap: false, g1: 1, g2: 2 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*--\*\s*([A-Za-z0-9_]+)/, type: 'composition', swap: true, g1: 1, g2: 2 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*o--\s*([A-Za-z0-9_]+)/, type: 'aggregation', swap: false, g1: 1, g2: 2 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*--o\s*([A-Za-z0-9_]+)/, type: 'aggregation', swap: true, g1: 1, g2: 2 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*-->\s*([A-Za-z0-9_]+)/, type: 'association', swap: false, g1: 1, g2: 2 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*<--\s*([A-Za-z0-9_]+)/, type: 'association', swap: true, g1: 1, g2: 2 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*(\.\.>|\.\.&gt;)\s*([A-Za-z0-9_]+)/, type: 'dependency', swap: false, g1: 1, g2: 3 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*(<\.\.|&lt;\.\.)>\s*([A-Za-z0-9_]+)/, type: 'dependency', swap: true, g1: 1, g2: 3 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*(\.\.\|>|\.\.\|&gt;)\s*([A-Za-z0-9_]+)/, type: 'realization', swap: false, g1: 1, g2: 3 },
+                                    { regex: /^\s*([A-Za-z0-9_]+)\s*(<\|\.\.|&lt;\|\.\.)>\s*([A-Za-z0-9_]+)/, type: 'realization', swap: true, g1: 1, g2: 3 }
+                                ];
+                                
+                                for (var pi = 0; pi < classRelPatterns.length; pi++) {
+                                    var p = classRelPatterns[pi];
+                                    var m = line.match(p.regex);
+                                    if (m) {
+                                        var class1 = m[p.g1];  // Left class in source
+                                        var class2 = m[p.g2];  // Right class in source
+                                        if (!nodeLineMap['class:' + class1]) nodeLineMap['class:' + class1] = lineNum;
+                                        if (!nodeLineMap['class:' + class2]) nodeLineMap['class:' + class2] = lineNum;
+                                        // Key is source order, value: lineNum:type:from:to (from->to direction)
+                                        var from = p.swap ? class2 : class1;
+                                        var to = p.swap ? class1 : class2;
+                                        arrowLineMap['class-rel:' + class1 + '_' + class2] = lineNum + ':' + p.type + ':' + from + ':' + to;
+                                        break;
+                                    }
                                 }
                                 
                                 // Class diagram class name from member definition: ClassName : member
@@ -1998,7 +2011,7 @@ namespace MarkdownViewer
                                 }
                             });
                             
-                            // Class diagram relations (inheritance arrows)
+                            // Class diagram relations (all types)
                             svg.querySelectorAll('path.relation').forEach(function(path) {
                                 var pathId = path.id || '';
                                 
@@ -2008,10 +2021,23 @@ namespace MarkdownViewer
                                 var relInfo = arrowLineMap[relKey];
                                 var sourceLine = null;
                                 var relText = '';
+                                var relType = '';
                                 if (relInfo) {
                                     var parts = relInfo.split(':');
                                     sourceLine = parts[0];
-                                    relText = parts[1] + ' extends ' + parts[2];  // child extends parent
+                                    relType = parts[1];
+                                    var fromClass = parts[2];
+                                    var toClass = parts[3];
+                                    // Format based on relationship type
+                                    var typeLabels = {
+                                        'extends': ' extends ',
+                                        'composition': ' *-- ',
+                                        'aggregation': ' o-- ',
+                                        'association': ' --> ',
+                                        'dependency': ' ..> ',
+                                        'realization': ' implements '
+                                    };
+                                    relText = fromClass + (typeLabels[relType] || ' -- ') + toClass;
                                 }
                                 
                                 // Create transparent rect for hit area (include marker)
