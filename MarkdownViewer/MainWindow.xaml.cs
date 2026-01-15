@@ -2783,10 +2783,8 @@ namespace MarkdownViewer
 
                     if (targetWindow != null)
                     {
-                        // Drop on another MarkdownViewer window - transfer the tab
-                        var filePath = tab.FilePath;
-                        CloseTab(tab);
-                        targetWindow.LoadMarkdownFile(filePath);
+                        // Drop on another MarkdownViewer window - transfer the tab instance
+                        TransferTabToWindow(tab, targetWindow);
                         targetWindow.Activate();
                     }
                     else if (_tabs.Count > 1)
@@ -2917,6 +2915,55 @@ namespace MarkdownViewer
         {
             base.OnPreviewMouseLeftButtonUp(e);
             _isTabDragging = false;
+        }
+
+        private void TransferTabToWindow(TabItemData tab, MainWindow targetWindow)
+        {
+            // Move the tab instance to another window (no re-initialization)
+            
+            // Remove tab from this window's collection (don't dispose WebView2)
+            tab.Watcher?.Dispose();
+            tab.Watcher = null;
+            tab.DebounceTimer?.Stop();
+            tab.DebounceTimer = null;
+            _tabs.Remove(tab);
+            
+            // Update this window's state
+            if (_tabs.Count == 0)
+            {
+                // Check if there are other MarkdownViewer windows
+                var otherWindows = Application.Current.Windows
+                    .OfType<MainWindow>()
+                    .Where(w => w != this)
+                    .ToList();
+                
+                if (otherWindows.Count > 0)
+                {
+                    // Other windows exist - close this window
+                    Close();
+                }
+                else
+                {
+                    // This is the last window - show placeholder
+                    FileTabControl.Visibility = Visibility.Collapsed;
+                    PlaceholderPanel.Visibility = Visibility.Visible;
+                    Title = "Markdown Viewer";
+                }
+            }
+            else
+            {
+                UpdateWindowTitle();
+            }
+
+            // Add tab to target window
+            targetWindow._tabs.Add(tab);
+            targetWindow.FileTabControl.SelectedItem = tab;
+            targetWindow.PlaceholderPanel.Visibility = Visibility.Collapsed;
+            targetWindow.FileTabControl.Visibility = Visibility.Visible;
+            targetWindow.UpdateWindowTitle();
+            
+            // Re-setup file watcher in target window context
+            targetWindow.SetupFileWatcher(tab);
         }
 
         private void DetachTabToNewWindow(TabItemData tab, Point tabDropPos)
