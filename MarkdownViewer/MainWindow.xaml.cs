@@ -35,6 +35,7 @@ namespace MarkdownViewer
         public bool IsTemp { get; set; }
         public TaskCompletionSource<List<string>>? RenderCompletion { get; set; }
         public List<string> LastRenderErrors { get; set; } = new();
+        public string? RenderedHtml { get; set; }  // Cache for fast window detach
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) => 
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -238,7 +239,7 @@ namespace MarkdownViewer
 
         #region Tab Management
 
-        public TabItemData? LoadMarkdownFile(string filePath, int? line = null, string? title = null, bool isTemp = false)
+        public TabItemData? LoadMarkdownFile(string filePath, int? line = null, string? title = null, bool isTemp = false, string? renderedHtml = null)
         {
             if (!File.Exists(filePath))
             {
@@ -312,7 +313,8 @@ namespace MarkdownViewer
                 Title = title ?? Path.GetFileName(filePath),
                 WebView = new WebView2(),
                 IsTemp = isTemp,
-                RenderCompletion = new TaskCompletionSource<List<string>>()
+                RenderCompletion = new TaskCompletionSource<List<string>>(),
+                RenderedHtml = renderedHtml  // Use cached HTML if available
             };
             // Initialize WebView2 (fire-and-forget, exceptions handled internally)
             _ = InitializeTabWebViewAsync(newTab).ContinueWith(t =>
@@ -623,9 +625,17 @@ namespace MarkdownViewer
             // Setup file watcher
             SetupFileWatcher(tab);
 
-            // Render Markdown
+            // Render Markdown (or use cached HTML if available)
             tab.LastFileWriteTime = File.GetLastWriteTime(tab.FilePath);
-            RenderMarkdown(tab);
+            if (tab.RenderedHtml != null)
+            {
+                // Use cached HTML for fast display (e.g., when detaching tab to new window)
+                tab.WebView.NavigateToString(tab.RenderedHtml);
+            }
+            else
+            {
+                RenderMarkdown(tab);
+            }
             StatusText.Text = $"✓ {tab.LastFileWriteTime:HH:mm:ss}";
         }
 
@@ -869,6 +879,7 @@ namespace MarkdownViewer
 
                 var baseDir = Path.GetDirectoryName(tab.FilePath);
                 var html = ConvertMarkdownToHtml(markdown, baseDir!);
+                tab.RenderedHtml = html;  // Cache for fast window detach
                 tab.WebView.NavigateToString(html);
             }
             catch (Exception ex)
@@ -2910,22 +2921,34 @@ namespace MarkdownViewer
 
         private void DetachTabToNewWindow(TabItemData tab, Point tabDropPos)
         {
-            // Save file path and current window size before closing tab
-            var filePath = tab.FilePath;
+            // Move the tab instance directly to the new window (no re-initialization)
             var windowWidth = Width;
             var windowHeight = Height;
 
-            // Close tab in current window
-            CloseTab(tab);
+            // Remove tab from this window's collection (don't dispose WebView2)
+            tab.Watcher?.Dispose();
+            tab.Watcher = null;
+            tab.DebounceTimer?.Stop();
+            tab.DebounceTimer = null;
+            _tabs.Remove(tab);
+            
+            // Update this window's state
+            if (_tabs.Count == 0)
+            {
+                FileTabControl.Visibility = Visibility.Collapsed;
+                PlaceholderPanel.Visibility = Visibility.Visible;
+                Title = "Markdown Viewer";
+            }
+            else
+            {
+                UpdateWindowTitle();
+            }
 
-            // Create new window with same size as original
+            // Create new window at drop position
             var newWindow = new MainWindow();
-            newWindow.WindowStartupLocation = WindowStartupLocation.Manual;  // Prevent WPF from overriding position
+            newWindow.WindowStartupLocation = WindowStartupLocation.Manual;
             newWindow.Width = windowWidth;
             newWindow.Height = windowHeight;
-
-            // tabDropPos is where the dragged tab should be in the new window
-            // Since the dragged tab becomes the first tab, use _firstTabOffsetInWindow
             newWindow.Left = tabDropPos.X - _firstTabOffsetInWindow.X;
             newWindow.Top = tabDropPos.Y - _firstTabOffsetInWindow.Y;
             newWindow.Show();
@@ -2934,8 +2957,15 @@ namespace MarkdownViewer
             newWindow.Left = tabDropPos.X - _firstTabOffsetInWindow.X;
             newWindow.Top = tabDropPos.Y - _firstTabOffsetInWindow.Y;
 
-            // Load file in new window
-            newWindow.LoadMarkdownFile(filePath);
+            // Add tab to new window (reuse the same WebView2 instance)
+            newWindow._tabs.Add(tab);
+            newWindow.FileTabControl.SelectedItem = tab;
+            newWindow.PlaceholderPanel.Visibility = Visibility.Collapsed;
+            newWindow.FileTabControl.Visibility = Visibility.Visible;
+            newWindow.UpdateWindowTitle();
+            
+            // Re-setup file watcher in new window context
+            newWindow.SetupFileWatcher(tab);
         }
 
         #region Mermaid Diagram Copy
