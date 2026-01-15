@@ -1308,6 +1308,10 @@ namespace MarkdownViewer
                             nodeType = 'section';
                             nodeText = element.getAttribute('data-gantt-section');
                         }
+                        else if (element.hasAttribute && element.hasAttribute('data-gantt-title')) {
+                            nodeType = 'title';
+                            nodeText = element.getAttribute('data-gantt-title');
+                        }
                         else if (element.hasAttribute && element.hasAttribute('data-pie-slice')) {
                             nodeType = 'slice';
                             nodeText = element.getAttribute('data-pie-slice');
@@ -1702,6 +1706,12 @@ namespace MarkdownViewer
                                 var ganttSectionMatch = line.match(/^\s*section\s+(.+)$/);
                                 if (ganttSectionMatch) {
                                     nodeLineMap['gantt-section:' + ganttSectionMatch[1].trim()] = lineNum;
+                                }
+                                
+                                // Gantt title: title TitleText
+                                var ganttTitleMatch = line.match(/^\s*title\s+(.+)$/);
+                                if (ganttTitleMatch) {
+                                    nodeLineMap['gantt-title:' + ganttTitleMatch[1].trim()] = lineNum;
                                 }
                                 
                                 // Pie chart slice: ""Label"" : value
@@ -2185,6 +2195,17 @@ namespace MarkdownViewer
                                 text.setAttribute('data-gantt-section', sectionName);
                                 if (nodeLineMap['gantt-section:' + sectionName]) {
                                     text.setAttribute('data-source-line', String(nodeLineMap['gantt-section:' + sectionName]));
+                                }
+                            });
+                            
+                            // Gantt chart title
+                            svg.querySelectorAll('text.titleText').forEach(function(text) {
+                                var titleText = text.textContent.trim();
+                                text.style.cursor = 'pointer';
+                                text.setAttribute('data-mermaid-node', 'true');
+                                text.setAttribute('data-gantt-title', titleText);
+                                if (nodeLineMap['gantt-title:' + titleText]) {
+                                    text.setAttribute('data-source-line', String(nodeLineMap['gantt-title:' + titleText]));
                                 }
                             });
                             
