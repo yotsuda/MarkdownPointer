@@ -1474,6 +1474,10 @@ namespace MarkdownViewer
                             // For ER relation hit areas, flash the previous sibling (the path element)
                             var prevElem = pointable.previousElementSibling;
                             if (prevElem) flashTarget = prevElem;
+                        } else if (pointable.hasAttribute && pointable.hasAttribute('data-class-relation')) {
+                            // For class relation hit areas, flash the previous sibling (the path element)
+                            var prevElem = pointable.previousElementSibling;
+                            if (prevElem) flashTarget = prevElem;
                         }
                         var isSvg = flashTarget instanceof SVGElement;
                         if (isSvg) {
@@ -1620,13 +1624,26 @@ namespace MarkdownViewer
                                     nodeLineMap[seqMatch[1]] = lineNum;
                                 }
                                 
-                                // Class diagram class name from relationship: ClassName1 <|-- ClassName2
-                                var classRelMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*(<\|--|&lt;\|--)\s*([A-Za-z0-9_]+)/);
-                                if (classRelMatch) {
-                                    if (!nodeLineMap['class:' + classRelMatch[1]]) nodeLineMap['class:' + classRelMatch[1]] = lineNum;
-                                    if (!nodeLineMap['class:' + classRelMatch[3]]) nodeLineMap['class:' + classRelMatch[3]] = lineNum;
-                                    // Store relation for arrow mapping
-                                    arrowLineMap['class-rel:' + classRelMatch[1] + '_' + classRelMatch[3]] = lineNum;
+                                // Class diagram class name from relationship: Parent <|-- Child or Child --|> Parent
+                                var classRelMatch1 = line.match(/^\s*([A-Za-z0-9_]+)\s*(<\|--|&lt;\|--)\s*([A-Za-z0-9_]+)/);
+                                var classRelMatch2 = line.match(/^\s*([A-Za-z0-9_]+)\s*(--\|>|--\|&gt;)\s*([A-Za-z0-9_]+)/);
+                                if (classRelMatch1) {
+                                    // Parent <|-- Child: match[1]=Parent, match[3]=Child
+                                    var parent = classRelMatch1[1];
+                                    var child = classRelMatch1[3];
+                                    if (!nodeLineMap['class:' + parent]) nodeLineMap['class:' + parent] = lineNum;
+                                    if (!nodeLineMap['class:' + child]) nodeLineMap['class:' + child] = lineNum;
+                                    // Store with child:parent info for correct display
+                                    arrowLineMap['class-rel:' + parent + '_' + child] = lineNum + ':' + child + ':' + parent;
+                                }
+                                if (classRelMatch2) {
+                                    // Child --|> Parent: match[1]=Child, match[3]=Parent
+                                    var child = classRelMatch2[1];
+                                    var parent = classRelMatch2[3];
+                                    if (!nodeLineMap['class:' + child]) nodeLineMap['class:' + child] = lineNum;
+                                    if (!nodeLineMap['class:' + parent]) nodeLineMap['class:' + parent] = lineNum;
+                                    // Store with child:parent info for correct display
+                                    arrowLineMap['class-rel:' + child + '_' + parent] = lineNum + ':' + child + ':' + parent;
                                 }
                                 
                                 // Class diagram class name from member definition: ClassName : member
@@ -1978,21 +1995,69 @@ namespace MarkdownViewer
                                 // Extract class names from id like 'id_Animal_Duck_1'
                                 var relMatch = pathId.match(/^id_([^_]+)_([^_]+)_\d+$/);
                                 var relKey = relMatch ? 'class-rel:' + relMatch[1] + '_' + relMatch[2] : '';
-                                var sourceLine = arrowLineMap[relKey];
-                                var relText = relMatch ? relMatch[2] + ' extends ' + relMatch[1] : '';
+                                var relInfo = arrowLineMap[relKey];
+                                var sourceLine = null;
+                                var relText = '';
+                                if (relInfo) {
+                                    var parts = relInfo.split(':');
+                                    sourceLine = parts[0];
+                                    relText = parts[1] + ' extends ' + parts[2];  // child extends parent
+                                }
                                 
-                                // Create transparent rect for hit area
+                                // Create transparent rect for hit area (include marker)
                                 var bbox = path.getBBox();
-                                var minSize = 16;
-                                var rectW = Math.max(bbox.width, minSize);
-                                var rectH = Math.max(bbox.height, minSize);
-                                var rectX = bbox.x - (rectW - bbox.width) / 2;
-                                var rectY = bbox.y - (rectH - bbox.height) / 2;
+                                var totalLen = path.getTotalLength();
+                                var startPoint = path.getPointAtLength(0);
+                                var endPoint = path.getPointAtLength(totalLen);
+                                
+                                // Check which end has the marker
+                                var markerStart = path.getAttribute('marker-start') || '';
+                                var markerEnd = path.getAttribute('marker-end') || '';
+                                var markerLen = 18;
+                                var tipX, tipY;
+                                
+                                if (markerStart && markerStart !== 'none') {
+                                    // Marker at start - calculate direction from start
+                                    var nearStart = path.getPointAtLength(Math.min(1, totalLen));
+                                    var dx = startPoint.x - nearStart.x;
+                                    var dy = startPoint.y - nearStart.y;
+                                    var len = Math.sqrt(dx * dx + dy * dy);
+                                    if (len > 0) { dx /= len; dy /= len; }
+                                    tipX = startPoint.x + dx * markerLen;
+                                    tipY = startPoint.y + dy * markerLen;
+                                } else if (markerEnd && markerEnd !== 'none') {
+                                    // Marker at end - calculate direction from end
+                                    var nearEnd = path.getPointAtLength(Math.max(0, totalLen - 1));
+                                    var dx = endPoint.x - nearEnd.x;
+                                    var dy = endPoint.y - nearEnd.y;
+                                    var len = Math.sqrt(dx * dx + dy * dy);
+                                    if (len > 0) { dx /= len; dy /= len; }
+                                    tipX = endPoint.x + dx * markerLen;
+                                    tipY = endPoint.y + dy * markerLen;
+                                } else {
+                                    tipX = startPoint.x;
+                                    tipY = startPoint.y;
+                                }
+                                
+                                // Calculate bounding rect including all 3 points
+                                var minX = Math.min(startPoint.x, endPoint.x, tipX);
+                                var maxX = Math.max(startPoint.x, endPoint.x, tipX);
+                                var minY = Math.min(startPoint.y, endPoint.y, tipY);
+                                var maxY = Math.max(startPoint.y, endPoint.y, tipY);
+                                
+                                // Ensure minimum width, centered
+                                var rectWidth = maxX - minX;
+                                var rectX = minX;
+                                if (rectWidth < 16) {
+                                    rectX = minX - (16 - rectWidth) / 2;
+                                    rectWidth = 16;
+                                }
+                                
                                 var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                                 hitRect.setAttribute('x', rectX);
-                                hitRect.setAttribute('y', rectY);
-                                hitRect.setAttribute('width', rectW);
-                                hitRect.setAttribute('height', rectH);
+                                hitRect.setAttribute('y', minY);
+                                hitRect.setAttribute('width', rectWidth);
+                                hitRect.setAttribute('height', maxY - minY);
                                 hitRect.setAttribute('fill', 'transparent');
                                 hitRect.style.cursor = 'pointer';
                                 hitRect.setAttribute('data-mermaid-node', 'true');
