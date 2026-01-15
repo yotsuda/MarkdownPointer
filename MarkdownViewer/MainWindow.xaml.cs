@@ -2555,10 +2555,16 @@ namespace MarkdownViewer
                 }
             }
 
-            // Enable/disable WebView for all tabs
+            // Enable/disable WebView and text selection for all tabs
             foreach (var tab in _tabs)
             {
                 tab.WebView.IsEnabled = !_isDragMoveMode;
+                if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+                {
+                    // Disable text selection in pan mode (like pointing mode)
+                    var userSelect = _isDragMoveMode ? "none" : (_isPointingMode ? "none" : "");
+                    tab.WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
+                }
             }
         }
 
