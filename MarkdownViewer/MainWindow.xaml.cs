@@ -1659,6 +1659,11 @@ namespace MarkdownViewer
                                         var from = p.swap ? class2 : class1;
                                         var to = p.swap ? class1 : class2;
                                         arrowLineMap['class-rel:' + class1 + '_' + class2] = lineNum + ':' + p.type + ':' + from + ':' + to;
+                                        // Also extract label text if present: Class1 ARROW Class2 : labelText
+                                        var labelMatch = line.match(/:\s*([^:]+?)\s*$/);
+                                        if (labelMatch && labelMatch[1]) {
+                                            edgeLabelLineMap[labelMatch[1].trim()] = lineNum;
+                                        }
                                         break;
                                     }
                                 }
