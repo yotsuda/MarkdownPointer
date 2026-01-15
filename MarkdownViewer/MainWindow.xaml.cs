@@ -124,6 +124,8 @@ namespace MarkdownViewer
         private Point _tabDragStartPoint;
         private Point _dragStartCursorPos;
         private Point _dragStartWindowPos;
+        private Point _tabOffsetInWindow;
+        private Point _firstTabOffsetInWindow;
         private bool _isTabDragging = false;
         private TabItemData? _draggedTab = null;
         private Window? _dragPreviewWindow = null;
@@ -2711,10 +2713,35 @@ namespace MarkdownViewer
                 var tabScreenPosPhysical = panel.PointToScreen(new Point(0, 0));
                 var tabScreenPos = PhysicalToDip(tabScreenPosPhysical);
 
+                // Record tab offset from window origin (including title bar)
+                _tabOffsetInWindow = new Point(tabScreenPos.X - Left, tabScreenPos.Y - Top);
+
+                // Record first tab's offset (for new window positioning when detaching)
+                // Y is same for all tabs, only X differs based on tab position
+                var tabIndex = _tabs.IndexOf(tab);
+                if (tabIndex == 0)
+                {
+                    _firstTabOffsetInWindow = _tabOffsetInWindow;
+                }
+                else
+                {
+                    // Calculate X difference between dragged tab and first tab
+                    // by summing widths of all tabs before the dragged one
+                    double xOffset = 0;
+                    for (int i = 0; i < tabIndex; i++)
+                    {
+                        var container = FileTabControl.ItemContainerGenerator.ContainerFromIndex(i) as TabItem;
+                        if (container != null)
+                        {
+                            xOffset += container.ActualWidth;
+                        }
+                    }
+                    _firstTabOffsetInWindow = new Point(_tabOffsetInWindow.X - xOffset, _tabOffsetInWindow.Y);
+                }
+
                 // Record initial cursor position (DIP) and window position (DIP)
                 _dragStartCursorPos = GetCursorPosDip();
                 _dragStartWindowPos = tabScreenPos;
-
                 // Create preview window at tab's actual position
                 CreateDragPreviewWindow(tab, tabScreenPos, panel.ActualWidth, panel.ActualHeight);
 
@@ -2723,24 +2750,25 @@ namespace MarkdownViewer
                 data.SetData(DataFormats.Text, "MDVIEWER:" + tab.FilePath);
                 var result = DragDrop.DoDragDrop(panel, data, DragDropEffects.Move);
 
-                // Get preview window position before closing it
-                Point previewPos = new Point(0, 0);
-                if (_dragPreviewWindow != null)
-                {
-                    previewPos = new Point(_dragPreviewWindow.Left, _dragPreviewWindow.Top);
-                }
-
                 // Cleanup preview window
                 CloseDragPreviewWindow();
 
-                // Check drop result
-                var screenPoint = GetCursorPosDip();
+                // Check drop result using cursor position
+                var dropCursorPos = GetCursorPosDip();
                 var windowRect = new Rect(Left, Top, Width, Height);
 
-                if (!windowRect.Contains(screenPoint))
+                // Calculate where the tab should be based on cursor movement
+                var cursorDelta = new Point(
+                    dropCursorPos.X - _dragStartCursorPos.X,
+                    dropCursorPos.Y - _dragStartCursorPos.Y);
+                var tabDropPos = new Point(
+                    _dragStartWindowPos.X + cursorDelta.X,
+                    _dragStartWindowPos.Y + cursorDelta.Y);
+
+                if (!windowRect.Contains(dropCursorPos))
                 {
                     // Dropped outside this window - check if over another MarkdownViewer window
-                    var targetWindow = FindWindowAtPosition(screenPoint);
+                    var targetWindow = FindWindowAtPosition(dropCursorPos);
 
                     if (targetWindow != null)
                     {
@@ -2752,11 +2780,16 @@ namespace MarkdownViewer
                     }
                     else if (_tabs.Count > 1)
                     {
-                        // Dropped on empty space - create new window
-                        DetachTabToNewWindow(tab, previewPos);
+                        // Dropped on empty space with multiple tabs - create new window
+                        DetachTabToNewWindow(tab, tabDropPos);
+                    }
+                    else
+                    {
+                        // Only one tab - move window so tab aligns with drop position
+                        Left = tabDropPos.X - _tabOffsetInWindow.X;
+                        Top = tabDropPos.Y - _tabOffsetInWindow.Y;
                     }
                 }
-                // If dropped on same window, do nothing (tab is already here)
 
                 _isTabDragging = false;
                 _draggedTab = null;
@@ -2875,26 +2908,31 @@ namespace MarkdownViewer
             _isTabDragging = false;
         }
 
-        private void DetachTabToNewWindow(TabItemData tab, Point previewPosition)
+        private void DetachTabToNewWindow(TabItemData tab, Point tabDropPos)
         {
-            // Save file path before closing tab
+            // Save file path and current window size before closing tab
             var filePath = tab.FilePath;
+            var windowWidth = Width;
+            var windowHeight = Height;
 
             // Close tab in current window
             CloseTab(tab);
 
-            // Create new window
-            // Position so that the tab in new window aligns with where preview was
-            // Preview was at (tabScreenPos.X - 8, tabScreenPos.Y - 4)
-            // So tab position = preview + (8, 4)
-            // New window needs to account for title bar height
-            var titleBarHeight = SystemParameters.WindowCaptionHeight + 
-                                 SystemParameters.ResizeFrameHorizontalBorderHeight;
-
+            // Create new window with same size as original
             var newWindow = new MainWindow();
-            newWindow.Left = previewPosition.X + 8;  // Adjust for preview border padding
-            newWindow.Top = previewPosition.Y + 4 - titleBarHeight;  // Adjust for title bar
+            newWindow.WindowStartupLocation = WindowStartupLocation.Manual;  // Prevent WPF from overriding position
+            newWindow.Width = windowWidth;
+            newWindow.Height = windowHeight;
+
+            // tabDropPos is where the dragged tab should be in the new window
+            // Since the dragged tab becomes the first tab, use _firstTabOffsetInWindow
+            newWindow.Left = tabDropPos.X - _firstTabOffsetInWindow.X;
+            newWindow.Top = tabDropPos.Y - _firstTabOffsetInWindow.Y;
             newWindow.Show();
+
+            // Set position again after Show() in case it was overridden
+            newWindow.Left = tabDropPos.X - _firstTabOffsetInWindow.X;
+            newWindow.Top = tabDropPos.Y - _firstTabOffsetInWindow.Y;
 
             // Load file in new window
             newWindow.LoadMarkdownFile(filePath);
