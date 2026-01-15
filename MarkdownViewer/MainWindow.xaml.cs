@@ -1032,6 +1032,13 @@ namespace MarkdownViewer
                     background-color: rgba(0, 120, 212, 0.1) !important;
                     cursor: pointer !important;
                 }
+                .code-line {
+                    display: block;
+                }
+                .code-line.pointing-highlight {
+                    outline: none !important;
+                    background-color: rgba(0, 120, 212, 0.25) !important;
+                }
                 .pointing-flash {
                     animation: flash-effect 0.5s ease-out;
                 }
@@ -1145,6 +1152,9 @@ namespace MarkdownViewer
                         // Table cells
                         if (tagName === 'td' || tagName === 'th') return element;
                         
+                        // Code block lines
+                        if (element.classList && element.classList.contains('code-line')) return element;
+                        
                         // Mermaid nodes (g.node, g.cluster, g.edgeLabel)
                         if (element.hasAttribute && element.hasAttribute('data-mermaid-node')) {
                             return element;
@@ -1221,6 +1231,19 @@ namespace MarkdownViewer
                     if (tagName === 'table') {
                         var headerRow = element.querySelector('tr');
                         return headerRow ? 'table: ' + getTableRowMarkdown(headerRow) : '(table)';
+                    }
+                    // Code block line
+                    if (element.classList && element.classList.contains('code-line')) {
+                        var lineNum = element.getAttribute('data-line');
+                        var pre = element.closest('pre');
+                        var code = pre ? pre.querySelector('code') : null;
+                        var lang = '';
+                        if (code && code.className) {
+                            var match = code.className.match(/language-(\w+)/);
+                            if (match) lang = match[1];
+                        }
+                        var lineText = element.textContent;
+                        return 'code[' + (lang || 'text') + ' L' + lineNum + ']: ' + lineText;
                     }
                     if (tagName === 'ul' || tagName === 'ol') {
                         var prefix = tagName === 'ol' ? '1.' : '-';
