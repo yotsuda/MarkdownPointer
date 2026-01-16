@@ -408,6 +408,15 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             return;
         }
 
+        // Flowchart edge label
+        if (node.classList.contains('edgeLabel')) {
+            var labelText = node.textContent.trim();
+            if (edgeLabelLineMap[labelText]) {
+                node.setAttribute('data-source-line', String(edgeLabelLineMap[labelText]));
+            }
+            return;
+        }
+
         // Sequence actor container: root-ActorName
         if (nodeId.indexOf('root-') === 0) {
             var actorText = node.querySelector('text.actor');
