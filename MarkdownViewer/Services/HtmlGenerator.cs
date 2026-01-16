@@ -289,19 +289,54 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         nodeLineMap['gantt-name:' + ganttTaskMatch[1].trim()] = lineNum;
     }
 
-    // Pie chart
+    // Pie chart slice: "Label" : value
     var pieSliceMatch = line.match(/^\s*"([^"]+)"\s*:\s*(\d+)/);
     if (pieSliceMatch) {
         nodeLineMap['pie:' + pieSliceMatch[1]] = lineNum;
     }
 
-    // Git graph
+    // Pie chart title: pie title TitleText
+    var pieTitleMatch = line.match(/^\s*pie\s+title\s+(.+)$/);
+    if (pieTitleMatch) {
+        nodeLineMap['pie-title:' + pieTitleMatch[1].trim()] = lineNum;
+    }
+
+    // Git graph commit: commit or commit id: "label"
     var gitCommitMatch = line.match(/^\s*commit(\s+id:\s*"([^"]+)")?/);
     if (gitCommitMatch) {
         if (!nodeLineMap['git-commit-count']) nodeLineMap['git-commit-count'] = 0;
         nodeLineMap['git-commit:' + nodeLineMap['git-commit-count']] = lineNum;
         if (gitCommitMatch[2]) nodeLineMap['git-label:' + gitCommitMatch[2]] = lineNum;
         nodeLineMap['git-commit-count']++;
+    }
+
+    // Git graph branch: branch BranchName
+    var gitBranchMatch = line.match(/^\s*branch\s+(\S+)/);
+    if (gitBranchMatch) {
+        nodeLineMap['git-branch:' + gitBranchMatch[1]] = lineNum;
+    }
+
+    // Git graph merge: merge BranchName (also creates a commit circle)
+    var gitMergeMatch = line.match(/^\s*merge\s+(\S+)/);
+    if (gitMergeMatch) {
+        if (!nodeLineMap['git-commit-count']) nodeLineMap['git-commit-count'] = 0;
+        nodeLineMap['git-commit:' + nodeLineMap['git-commit-count']] = lineNum;
+        nodeLineMap['git-commit-count']++;
+    }
+
+    // Mindmap root: root((text))
+    var mindmapRootMatch = line.match(/^\s*root\s*\(\((.+)\)\)/);
+    if (mindmapRootMatch) {
+        nodeLineMap['mindmap:' + mindmapRootMatch[1].trim()] = lineNum;
+    }
+
+    // Mindmap leaf node: indented text
+    var mindmapNodeMatch = line.match(/^\s{2,}(\S+)\s*$/);
+    if (mindmapNodeMatch && !line.includes('root')) {
+        var text = mindmapNodeMatch[1].trim();
+        if (!nodeLineMap['mindmap:' + text]) {
+            nodeLineMap['mindmap:' + text] = lineNum;
+        }
     }
 }
 
@@ -567,7 +602,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
     // Pie chart: slices
     var pieSliceIdx = 0;
     var pieLegends = svg.querySelectorAll('g.legend text');
-    svg.querySelectorAll('.pieCircle').forEach(function(slice) {
+    svg.querySelectorAll('path.pieCircle, .pieCircle').forEach(function(slice) {
         slice.style.cursor = 'pointer';
         slice.setAttribute('data-mermaid-node', 'true');
         var legendText = pieLegends[pieSliceIdx] ? pieLegends[pieSliceIdx].textContent.trim() : '';
@@ -600,9 +635,9 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
-    // Git graph: commits
+    // Git graph: commits (excluding merge decorations)
     var gitCommitIdx = 0;
-    svg.querySelectorAll('circle.commit').forEach(function(commit) {
+    svg.querySelectorAll('circle.commit:not(.commit-merge)').forEach(function(commit) {
         commit.style.cursor = 'pointer';
         commit.setAttribute('data-mermaid-node', 'true');
         commit.setAttribute('data-git-commit', String(gitCommitIdx));
@@ -610,6 +645,17 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             commit.setAttribute('data-source-line', String(nodeLineMap['git-commit:' + gitCommitIdx]));
         }
         gitCommitIdx++;
+    });
+
+    // Git graph: merge decorations (same line as previous commit)
+    svg.querySelectorAll('circle.commit-merge').forEach(function(merge) {
+        merge.style.cursor = 'pointer';
+        merge.setAttribute('data-mermaid-node', 'true');
+        var prevSibling = merge.previousElementSibling;
+        if (prevSibling && prevSibling.hasAttribute('data-source-line')) {
+            merge.setAttribute('data-source-line', prevSibling.getAttribute('data-source-line'));
+            merge.setAttribute('data-git-commit', prevSibling.getAttribute('data-git-commit'));
+        }
     });
 
     // Git graph: commit labels
@@ -635,7 +681,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
     });
 
     // Mindmap: nodes
-    svg.querySelectorAll('g.node.mindmap-node').forEach(function(node) {
+    svg.querySelectorAll('g.mindmap-node, g.node.mindmap-node').forEach(function(node) {
         var labelEl = node.querySelector('.nodeLabel');
         if (labelEl) {
             var nodeText = labelEl.textContent.trim();
