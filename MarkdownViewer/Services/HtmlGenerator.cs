@@ -240,7 +240,7 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
         }
 
         // Sequence implicit actor (from message lines like Alice->>Bob: Hello)
-        var seqMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*-/);
+        var seqMatch = line.match(/^\s*([^\s-]+)\s*-/);
         if (seqMatch && !nodeLineMap[seqMatch[1]]) {
             nodeLineMap[seqMatch[1]] = lineNum;
         }
