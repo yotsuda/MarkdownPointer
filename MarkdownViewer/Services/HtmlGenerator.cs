@@ -296,8 +296,14 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
     var stateTransMatch = line.match(/^\s*(\[\*\]|[^\s-]+)\s*-->\s*(\[\*\]|[^\s-]+)/);
     if (stateTransMatch) {
         arrowLineMap[stateTransMatch[1] + '->' + stateTransMatch[2]] = lineNum;
+        // Also register state names
+        if (stateTransMatch[1] !== '[*]' && !nodeLineMap['state:' + stateTransMatch[1]]) {
+            nodeLineMap['state:' + stateTransMatch[1]] = lineNum;
+        }
+        if (stateTransMatch[2] !== '[*]' && !nodeLineMap['state:' + stateTransMatch[2]]) {
+            nodeLineMap['state:' + stateTransMatch[2]] = lineNum;
+        }
     }
-
     // ER diagram relationship: ENTITY1 ||--o{ ENTITY2 : label
     var erRelMatch = line.match(/^\s*([^\s\|\}o]+)\s*(\||\}|o).*(\||\{|o)\s*([^\s\|\{o:]+)\s*:\s*(\S+)/);
     if (erRelMatch) {
