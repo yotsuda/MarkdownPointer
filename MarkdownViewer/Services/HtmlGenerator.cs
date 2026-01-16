@@ -293,11 +293,23 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         nodeLineMap['entity:' + erEntityMatch[1]] = lineNum;
     }
 
-    // Gantt
+    // Gantt task: TaskName :taskId, ...
     var ganttTaskMatch = line.match(/^\s*(.+?)\s*:([a-zA-Z0-9]+),/);
     if (ganttTaskMatch) {
         nodeLineMap['gantt:' + ganttTaskMatch[2]] = lineNum;
         nodeLineMap['gantt-name:' + ganttTaskMatch[1].trim()] = lineNum;
+    }
+
+    // Gantt section: section SectionName
+    var ganttSectionMatch = line.match(/^\s*section\s+(.+)$/);
+    if (ganttSectionMatch) {
+        nodeLineMap['gantt-section:' + ganttSectionMatch[1].trim()] = lineNum;
+    }
+
+    // Gantt title: title TitleText
+    var ganttTitleMatch = line.match(/^\s*title\s+(.+)$/);
+    if (ganttTitleMatch) {
+        nodeLineMap['gantt-title:' + ganttTitleMatch[1].trim()] = lineNum;
     }
 
     // Pie chart slice: "Label" : value
@@ -353,7 +365,7 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
 
 function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap) {
     // Mark flowchart nodes, sequence actors, class diagram nodes, etc.
-    svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^="state-"], g.note, g.activation').forEach(function(node) {
+    svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^="state-"], g[id^="root-"], text.actor, g.note, g.activation').forEach(function(node) {
         node.style.cursor = 'pointer';
         node.setAttribute('data-mermaid-node', 'true');
 
@@ -390,6 +402,34 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
                 }
             }
             return;
+        }
+
+        // Sequence actor container: root-ActorName
+        if (nodeId.indexOf('root-') === 0) {
+            var actorText = node.querySelector('text.actor');
+            if (actorText) {
+                var actorName = actorText.textContent.trim();
+                if (nodeLineMap[actorName]) {
+                    node.setAttribute('data-source-line', String(nodeLineMap[actorName]));
+                }
+            }
+            return;
+        }
+    });
+
+    // Sequence diagram: mark bottom actors
+    svg.querySelectorAll('rect.actor-bottom').forEach(function(rect) {
+        var parent = rect.parentElement;
+        if (parent && parent.tagName.toLowerCase() === 'g') {
+            parent.style.cursor = 'pointer';
+            parent.setAttribute('data-mermaid-node', 'true');
+            var textEl = parent.querySelector('text.actor');
+            if (textEl) {
+                var actorName = textEl.textContent.trim();
+                if (nodeLineMap[actorName]) {
+                    parent.setAttribute('data-source-line', String(nodeLineMap[actorName]));
+                }
+            }
         }
     });
 
@@ -619,6 +659,31 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         path.setAttribute('data-mermaid-node', 'true');
         if (sourceLine) {
             path.setAttribute('data-source-line', sourceLine);
+        }
+    });
+
+    // ER diagram: attributes
+    svg.querySelectorAll('g.label.attribute-name, g.label.attribute-type').forEach(function(label) {
+        var attrText = label.textContent.trim();
+        var isType = label.classList.contains('attribute-type');
+        label.style.cursor = 'pointer';
+        label.setAttribute('data-mermaid-node', 'true');
+        label.setAttribute('data-er-attr', attrText);
+
+        // For attribute-type, get line from next sibling (attribute-name)
+        if (isType) {
+            var nextSib = label.nextElementSibling;
+            if (nextSib && nextSib.classList.contains('attribute-name')) {
+                var nameText = nextSib.textContent.trim();
+                if (nodeLineMap[nameText]) {
+                    label.setAttribute('data-source-line', String(nodeLineMap[nameText]));
+                }
+            }
+        } else {
+            // attribute-name
+            if (nodeLineMap[attrText]) {
+                label.setAttribute('data-source-line', String(nodeLineMap[attrText]));
+            }
         }
     });
 
