@@ -279,6 +279,19 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         }
     }
 
+    // Class diagram class name from member definition: ClassName : member
+    var classNameMatch = line.match(/^\s*(\S+)\s*:\s*.+$/);
+    if (classNameMatch) {
+        if (!nodeLineMap['class:' + classNameMatch[1]]) nodeLineMap['class:' + classNameMatch[1]] = lineNum;
+    }
+
+    // Class diagram member/method: ClassName : +memberName or ClassName: +methodName()
+    var classMemberMatch = line.match(/^\s*(\S+)\s*:\s*(.+)$/);
+    if (classMemberMatch) {
+        var memberText = classMemberMatch[2].trim();
+        nodeLineMap[memberText] = lineNum;
+    }
+
     // State diagram transition
     var stateTransMatch = line.match(/^\s*(\[\*\]|[^\s-]+)\s*-->\s*(\[\*\]|[^\s-]+)/);
     if (stateTransMatch) {
