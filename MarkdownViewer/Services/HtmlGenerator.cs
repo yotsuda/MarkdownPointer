@@ -293,15 +293,28 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
 }
 
 function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap) {
-    // Mark flowchart nodes, sequence actors, etc.
+    // Mark flowchart nodes, sequence actors, class diagram nodes, etc.
     svg.querySelectorAll('g.node, g.cluster, g.edgeLabel').forEach(function(node) {
         node.style.cursor = 'pointer';
         node.setAttribute('data-mermaid-node', 'true');
         
         var nodeId = node.id || '';
+        
+        // Flowchart node: flowchart-NodeName-0
         var flowMatch = nodeId.match(/^flowchart-([^-]+)-/);
         if (flowMatch && nodeLineMap[flowMatch[1]]) {
             node.setAttribute('data-source-line', String(nodeLineMap[flowMatch[1]]));
+            return;
+        }
+        
+        // Class diagram node: classId-ClassName-0
+        var classMatch = nodeId.match(/^classId-([^-]+)-/);
+        if (classMatch) {
+            var className = classMatch[1];
+            if (nodeLineMap['class:' + className]) {
+                node.setAttribute('data-source-line', String(nodeLineMap['class:' + className]));
+            }
+            return;
         }
     });
     
@@ -328,6 +341,113 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         createHitArea(path, sourceLine, 'data-hit-area-for', pathId);
         path.setAttribute('data-mermaid-node', 'true');
         if (sourceLine) path.setAttribute('data-source-line', sourceLine);
+    });
+    
+    // Class diagram class names
+    svg.querySelectorAll('g.label-group g.label').forEach(function(label) {
+        var className = label.textContent.trim();
+        if (nodeLineMap['class:' + className]) {
+            label.style.cursor = 'pointer';
+            label.setAttribute('data-mermaid-node', 'true');
+            label.setAttribute('data-class-name', className);
+            label.setAttribute('data-source-line', String(nodeLineMap['class:' + className]));
+        }
+    });
+    
+    // Class diagram members and methods
+    svg.querySelectorAll('g.members-group g.label, g.methods-group g.label').forEach(function(label) {
+        label.style.cursor = 'pointer';
+        label.setAttribute('data-mermaid-node', 'true');
+        label.setAttribute('data-class-member', 'true');
+        var memberText = label.textContent.trim();
+        if (nodeLineMap[memberText]) {
+            label.setAttribute('data-source-line', String(nodeLineMap[memberText]));
+        }
+    });
+    
+    // Class diagram relations (inheritance, composition, etc.)
+    svg.querySelectorAll('path.relation').forEach(function(path) {
+        var pathId = path.id || '';
+        var relMatch = pathId.match(/^id_([^_]+)_([^_]+)_\d+$/);
+        var relKey = relMatch ? 'class-rel:' + relMatch[1] + '_' + relMatch[2] : '';
+        var relInfo = arrowLineMap[relKey];
+        var sourceLine = null;
+        var relText = '';
+        
+        if (relInfo) {
+            var parts = relInfo.split(':');
+            sourceLine = parts[0];
+            var relType = parts[1];
+            var fromClass = parts[2];
+            var toClass = parts[3];
+            var typeLabels = {
+                'extends': ' extends ',
+                'composition': ' *-- ',
+                'aggregation': ' o-- ',
+                'association': ' --> ',
+                'dependency': ' ..> ',
+                'realization': ' implements '
+            };
+            relText = fromClass + (typeLabels[relType] || ' -- ') + toClass;
+        }
+        
+        // Create hit area including marker
+        var totalLen = path.getTotalLength();
+        var startPoint = path.getPointAtLength(0);
+        var endPoint = path.getPointAtLength(totalLen);
+        var markerStart = path.getAttribute('marker-start') || '';
+        var markerEnd = path.getAttribute('marker-end') || '';
+        var markerLen = 18;
+        var tipX, tipY;
+        
+        if (markerStart && markerStart !== 'none') {
+            var nearStart = path.getPointAtLength(Math.min(1, totalLen));
+            var dx = startPoint.x - nearStart.x;
+            var dy = startPoint.y - nearStart.y;
+            var len = Math.sqrt(dx * dx + dy * dy);
+            if (len > 0) { dx /= len; dy /= len; }
+            tipX = startPoint.x + dx * markerLen;
+            tipY = startPoint.y + dy * markerLen;
+        } else if (markerEnd && markerEnd !== 'none') {
+            var nearEnd = path.getPointAtLength(Math.max(0, totalLen - 1));
+            var dx = endPoint.x - nearEnd.x;
+            var dy = endPoint.y - nearEnd.y;
+            var len = Math.sqrt(dx * dx + dy * dy);
+            if (len > 0) { dx /= len; dy /= len; }
+            tipX = endPoint.x + dx * markerLen;
+            tipY = endPoint.y + dy * markerLen;
+        } else {
+            tipX = startPoint.x;
+            tipY = startPoint.y;
+        }
+        
+        var minX = Math.min(startPoint.x, endPoint.x, tipX);
+        var maxX = Math.max(startPoint.x, endPoint.x, tipX);
+        var minY = Math.min(startPoint.y, endPoint.y, tipY);
+        var maxY = Math.max(startPoint.y, endPoint.y, tipY);
+        var rectWidth = maxX - minX;
+        var rectX = minX;
+        if (rectWidth < 16) {
+            rectX = minX - (16 - rectWidth) / 2;
+            rectWidth = 16;
+        }
+        
+        var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        hitRect.setAttribute('x', rectX);
+        hitRect.setAttribute('y', minY);
+        hitRect.setAttribute('width', rectWidth);
+        hitRect.setAttribute('height', maxY - minY);
+        hitRect.setAttribute('fill', 'transparent');
+        hitRect.style.cursor = 'pointer';
+        hitRect.setAttribute('data-mermaid-node', 'true');
+        hitRect.setAttribute('data-class-relation', relText);
+        if (sourceLine) hitRect.setAttribute('data-source-line', String(sourceLine));
+        path.parentNode.insertBefore(hitRect, path.nextSibling);
+        
+        path.style.cursor = 'pointer';
+        path.setAttribute('data-mermaid-node', 'true');
+        path.setAttribute('data-class-relation', relText);
+        if (sourceLine) path.setAttribute('data-source-line', String(sourceLine));
     });
 }
 
