@@ -275,11 +275,22 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         arrowLineMap[stateTransMatch[1] + '->' + stateTransMatch[2]] = lineNum;
     }
 
-    // ER diagram
+    // ER diagram relationship: ENTITY1 ||--o{ ENTITY2 : label
     var erRelMatch = line.match(/^\s*([A-Za-z0-9_-]+)\s*(\||\}|o).*(\||\{|o)\s*([A-Za-z0-9_-]+)\s*:\s*(\w+)/);
     if (erRelMatch) {
-        arrowLineMap[erRelMatch[1] + '-' + erRelMatch[4]] = lineNum;
+        var erKey = erRelMatch[1] + '-' + erRelMatch[4];
+        arrowLineMap[erKey] = lineNum;
+        // Map the label
         nodeLineMap[erRelMatch[5]] = lineNum;
+        // Map entity names from relationship (for entities without explicit definition)
+        if (!nodeLineMap['errel:' + erRelMatch[1]]) nodeLineMap['errel:' + erRelMatch[1]] = lineNum;
+        if (!nodeLineMap['errel:' + erRelMatch[4]]) nodeLineMap['errel:' + erRelMatch[4]] = lineNum;
+    }
+
+    // ER diagram entity definition: ENTITY {
+    var erEntityMatch = line.match(/^\s*([A-Za-z0-9_-]+)\s*\{/);
+    if (erEntityMatch && !nodeLineMap['entity:' + erEntityMatch[1]]) {
+        nodeLineMap['entity:' + erEntityMatch[1]] = lineNum;
     }
 
     // Gantt
@@ -552,6 +563,62 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         label.setAttribute('data-er-entity', entityName);
         if (nodeLineMap['entity:' + entityName]) {
             label.setAttribute('data-source-line', String(nodeLineMap['entity:' + entityName]));
+        } else if (nodeLineMap['errel:' + entityName]) {
+            // Use relationship line for entities without explicit definition
+            label.setAttribute('data-source-line', String(nodeLineMap['errel:' + entityName]));
+        }
+    });
+
+    // ER diagram: relationship lines
+    svg.querySelectorAll('path.relationshipLine').forEach(function(path) {
+        var pathId = path.id || '';
+        // Extract entity names from id like 'id_entity-CUSTOMER-0_entity-ORDER-1_0'
+        var relMatch = pathId.match(/entity-([A-Za-z0-9_-]+)-\d+_entity-([A-Za-z0-9_-]+)-/);
+        var sourceLine = null;
+        var relText = '';
+
+        if (relMatch) {
+            var entity1 = relMatch[1];
+            var entity2 = relMatch[2];
+            relText = entity1 + ' -- ' + entity2;
+            var key = entity1 + '-' + entity2;
+            if (arrowLineMap[key]) {
+                sourceLine = String(arrowLineMap[key]);
+            } else {
+                // Try reverse order
+                key = entity2 + '-' + entity1;
+                if (arrowLineMap[key]) {
+                    sourceLine = String(arrowLineMap[key]);
+                }
+            }
+        }
+
+        // Create hit area
+        var bbox = path.getBBox();
+        var minSize = 16;
+        var rectW = Math.max(bbox.width, minSize);
+        var rectH = Math.max(bbox.height, minSize);
+        var rectX = bbox.x - (rectW - bbox.width) / 2;
+        var rectY = bbox.y - (rectH - bbox.height) / 2;
+
+        var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        hitRect.setAttribute('x', rectX);
+        hitRect.setAttribute('y', rectY);
+        hitRect.setAttribute('width', rectW);
+        hitRect.setAttribute('height', rectH);
+        hitRect.setAttribute('fill', 'transparent');
+        hitRect.style.cursor = 'pointer';
+        hitRect.setAttribute('data-mermaid-node', 'true');
+        hitRect.setAttribute('data-er-relation', relText);
+        if (sourceLine) {
+            hitRect.setAttribute('data-source-line', sourceLine);
+        }
+        path.parentNode.insertBefore(hitRect, path.nextSibling);
+
+        path.style.cursor = 'pointer';
+        path.setAttribute('data-mermaid-node', 'true');
+        if (sourceLine) {
+            path.setAttribute('data-source-line', sourceLine);
         }
     });
 
