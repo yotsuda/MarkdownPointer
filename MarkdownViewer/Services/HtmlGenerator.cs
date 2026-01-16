@@ -222,6 +222,10 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
                 var label = arrowMatch[2].replace(/\|/g, '');
                 edgeLabelLineMap[label] = lineNum;
             }
+            // Also register the target node
+            if (!nodeLineMap[arrowMatch[3]]) {
+                nodeLineMap[arrowMatch[3]] = lineNum;
+            }
         }
 
         // Sequence diagram message
