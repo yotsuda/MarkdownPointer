@@ -208,13 +208,13 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
         var lineNum = baseLine + i + 1;
 
         // Flowchart node
-        var nodeMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*[\[\{\(]/);
+        var nodeMatch = line.match(/^\s*([^\s\[\{\(]+)\s*[\[\{\(]/);
         if (nodeMatch && !nodeLineMap[nodeMatch[1]]) {
             nodeLineMap[nodeMatch[1]] = lineNum;
         }
 
         // Flowchart arrow
-        var arrowMatch = line.match(/^\s*([A-Za-z0-9_]+)[^\-]*--[->](\|[^|]*\|)?\s*([A-Za-z0-9_]+)/);
+        var arrowMatch = line.match(/^\s*([^\s\[\{\(-]+)[^\-]*--[->](\|[^|]*\|)?\s*([^\s\[\{\(]+)/);
         if (arrowMatch) {
             var key = arrowMatch[1] + '-' + arrowMatch[3];
             arrowLineMap[key] = lineNum;
@@ -234,7 +234,7 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
         }
 
         // Sequence participant/actor
-        var actorMatch = line.match(/^\s*(participant|actor)\s+([A-Za-z0-9_]+)/);
+        var actorMatch = line.match(/^\s*(participant|actor)\s+(\S+)/);
         if (actorMatch && !nodeLineMap[actorMatch[2]]) {
             nodeLineMap[actorMatch[2]] = lineNum;
         }
@@ -254,14 +254,14 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
 function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeLabelLineMap, diagramType) {
     // Class diagram relationships
     var classRelPatterns = [
-        { regex: /^\s*([A-Za-z0-9_]+)\s*(<\|--|&lt;\|--)\s*([A-Za-z0-9_]+)/, type: 'extends', swap: true, g1: 1, g2: 3 },
-        { regex: /^\s*([A-Za-z0-9_]+)\s*(--\|>|--\|&gt;)\s*([A-Za-z0-9_]+)/, type: 'extends', swap: false, g1: 1, g2: 3 },
-        { regex: /^\s*([A-Za-z0-9_]+)\s*\*--\s*([A-Za-z0-9_]+)/, type: 'composition', swap: false, g1: 1, g2: 2 },
-        { regex: /^\s*([A-Za-z0-9_]+)\s*--\*\s*([A-Za-z0-9_]+)/, type: 'composition', swap: true, g1: 1, g2: 2 },
-        { regex: /^\s*([A-Za-z0-9_]+)\s*o--\s*([A-Za-z0-9_]+)/, type: 'aggregation', swap: false, g1: 1, g2: 2 },
-        { regex: /^\s*([A-Za-z0-9_]+)\s*--o\s*([A-Za-z0-9_]+)/, type: 'aggregation', swap: true, g1: 1, g2: 2 },
-        { regex: /^\s*([A-Za-z0-9_]+)\s*-->\s*([A-Za-z0-9_]+)/, type: 'association', swap: false, g1: 1, g2: 2 },
-        { regex: /^\s*([A-Za-z0-9_]+)\s*<--\s*([A-Za-z0-9_]+)/, type: 'association', swap: true, g1: 1, g2: 2 }
+        { regex: /^\s*(\S+)\s*(<\|--|&lt;\|--)\s*(\S+)/, type: 'extends', swap: true, g1: 1, g2: 3 },
+        { regex: /^\s*(\S+)\s*(--\|>|--\|&gt;)\s*(\S+)/, type: 'extends', swap: false, g1: 1, g2: 3 },
+        { regex: /^\s*(\S+)\s*\*--\s*(\S+)/, type: 'composition', swap: false, g1: 1, g2: 2 },
+        { regex: /^\s*(\S+)\s*--\*\s*(\S+)/, type: 'composition', swap: true, g1: 1, g2: 2 },
+        { regex: /^\s*(\S+)\s*o--\s*(\S+)/, type: 'aggregation', swap: false, g1: 1, g2: 2 },
+        { regex: /^\s*(\S+)\s*--o\s*(\S+)/, type: 'aggregation', swap: true, g1: 1, g2: 2 },
+        { regex: /^\s*(\S+)\s*-->\s*(\S+)/, type: 'association', swap: false, g1: 1, g2: 2 },
+        { regex: /^\s*(\S+)\s*<--\s*(\S+)/, type: 'association', swap: true, g1: 1, g2: 2 }
     ];
 
     for (var pi = 0; pi < classRelPatterns.length; pi++) {
@@ -280,13 +280,13 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
     }
 
     // State diagram transition
-    var stateTransMatch = line.match(/^\s*(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)/);
+    var stateTransMatch = line.match(/^\s*(\[\*\]|[^\s-]+)\s*-->\s*(\[\*\]|[^\s-]+)/);
     if (stateTransMatch) {
         arrowLineMap[stateTransMatch[1] + '->' + stateTransMatch[2]] = lineNum;
     }
 
     // ER diagram relationship: ENTITY1 ||--o{ ENTITY2 : label
-    var erRelMatch = line.match(/^\s*([A-Za-z0-9_-]+)\s*(\||\}|o).*(\||\{|o)\s*([A-Za-z0-9_-]+)\s*:\s*(\w+)/);
+    var erRelMatch = line.match(/^\s*([^\s\|\}o]+)\s*(\||\}|o).*(\||\{|o)\s*([^\s\|\{o:]+)\s*:\s*(\S+)/);
     if (erRelMatch) {
         var erKey = erRelMatch[1] + '-' + erRelMatch[4];
         arrowLineMap[erKey] = lineNum;
@@ -298,7 +298,7 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
     }
 
     // ER diagram entity definition: ENTITY {
-    var erEntityMatch = line.match(/^\s*([A-Za-z0-9_-]+)\s*\{/);
+    var erEntityMatch = line.match(/^\s*([^\s\{]+)\s*\{/);
     if (erEntityMatch && !nodeLineMap['entity:' + erEntityMatch[1]]) {
         nodeLineMap['entity:' + erEntityMatch[1]] = lineNum;
     }
