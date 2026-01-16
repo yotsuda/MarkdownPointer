@@ -596,7 +596,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
     });
 
     // ER diagram: entity names
-    svg.querySelectorAll('g.entityLabel').forEach(function(label) {
+    svg.querySelectorAll('g.entityLabel, g.label.name').forEach(function(label) {
         var entityName = label.textContent.trim();
         label.style.cursor = 'pointer';
         label.setAttribute('data-mermaid-node', 'true');
