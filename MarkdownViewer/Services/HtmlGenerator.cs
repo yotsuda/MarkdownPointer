@@ -27,7 +27,7 @@ namespace MarkdownViewer.Services
         {
             // Parse markdown to AST
             var document = Markdown.Parse(markdown, _pipeline);
-            
+
             // Render with line tracking
             using var writer = new StringWriter();
             var renderer = new LineTrackingHtmlRenderer(writer);
@@ -48,23 +48,23 @@ namespace MarkdownViewer.Services
             html.AppendLine("<meta charset='utf-8'/>");
             html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src file: data: blob:; script-src 'nonce-{nonce}' 'unsafe-eval' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net;\"/>");
             html.AppendLine($"<base href='{baseUrl}'/>");
-            
+
             // CSS
             html.AppendLine("<style>");
             html.AppendLine(CssResources.MainStyles);
             html.AppendLine("</style>");
-            
+
             // External libraries
             html.AppendLine("<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css'/>");
             html.AppendLine("<script defer src='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js'></script>");
             html.AppendLine("<script defer src='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js'></script>");
             html.AppendLine("<script src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'></script>");
-            
+
             // Core event handlers
             html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(JsResources.CoreEventHandlers);
             html.AppendLine("</script>");
-            
+
             // Scroll and pointing mode
             html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(JsResources.ScrollAndPointingMode);
@@ -72,19 +72,19 @@ namespace MarkdownViewer.Services
             html.AppendLine(JsResources.GetElementContent);
             html.AppendLine(JsResources.PointingEventHandlers);
             html.AppendLine("</script>");
-            
+
             // Mermaid
             html.AppendLine("<script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script>");
             html.AppendLine($"<script nonce='{nonce}'>mermaid.initialize({{ startOnLoad: false, theme: 'default' }});</script>");
-            
+
             html.AppendLine("</head><body>");
             html.AppendLine(htmlContent);
-            
+
             // DOMContentLoaded: KaTeX + Mermaid rendering
             html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(GetDomContentLoadedScript());
             html.AppendLine("</script>");
-            
+
             html.AppendLine("</body></html>");
 
             return html.ToString();
@@ -104,7 +104,7 @@ namespace MarkdownViewer.Services
         private const string DomContentLoadedScript = """
 document.addEventListener('DOMContentLoaded', async function() {
     var renderErrors = [];
-    
+
     // KaTeX rendering with error collection
     if (typeof renderMathInElement !== 'undefined') {
         renderMathInElement(document.body, {
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 renderErrors.push('[KaTeX] ' + msg);
             }
         });
-        
+
         document.querySelectorAll('.katex-error').forEach(function(errElem) {
             var line = '?';
             var parent = errElem.parentElement;
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 renderErrors.push('[KaTeX Line ' + line + '] ' + formula);
             }
         });
-        
+
         document.querySelectorAll('.katex').forEach(function(katex) {
             var parent = katex.parentElement;
             while (parent && parent !== document.body) {
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
     }
-    
+
     // Mermaid rendering
     if (typeof mermaid !== 'undefined') {
         var mermaidElements = document.querySelectorAll('.mermaid');
@@ -160,11 +160,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 renderErrors.push('[Mermaid Line ' + line + '] ' + msg);
             }
         }
-        
+
         // Process Mermaid nodes for click handling
         processMermaidNodes();
     }
-    
+
     window.chrome.webview.postMessage('render-complete:' + JSON.stringify(renderErrors));
 });
 
@@ -175,31 +175,44 @@ function processMermaidNodes() {
         var sourceLines = source.split('\n');
         var svg = container.querySelector('svg');
         if (!svg) return;
-        
+
         var nodeLineMap = {};
         var arrowLineMap = {};
         var messageLineNums = [];
         var edgeLabelLineMap = {};
-        
+
         // Parse source for line mappings
         parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap);
-        
+
         // Apply mappings to SVG elements
         applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap);
     });
 }
 
 function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap) {
+    // Detect diagram type from first line
+    var firstLine = sourceLines[0] ? sourceLines[0].trim().toLowerCase() : '';
+    var diagramType = 'unknown';
+    if (firstLine.indexOf('graph') === 0 || firstLine.indexOf('flowchart') === 0) diagramType = 'flowchart';
+    else if (firstLine.indexOf('sequencediagram') === 0) diagramType = 'sequence';
+    else if (firstLine.indexOf('classdiagram') === 0) diagramType = 'class';
+    else if (firstLine.indexOf('statediagram') === 0) diagramType = 'state';
+    else if (firstLine.indexOf('erdiagram') === 0) diagramType = 'er';
+    else if (firstLine.indexOf('gantt') === 0) diagramType = 'gantt';
+    else if (firstLine.indexOf('pie') === 0) diagramType = 'pie';
+    else if (firstLine.indexOf('gitgraph') === 0) diagramType = 'git';
+    else if (firstLine.indexOf('mindmap') === 0) diagramType = 'mindmap';
+
     for (var i = 0; i < sourceLines.length; i++) {
         var line = sourceLines[i];
         var lineNum = baseLine + i + 1;
-        
+
         // Flowchart node
         var nodeMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*[\[\{\(]/);
         if (nodeMatch && !nodeLineMap[nodeMatch[1]]) {
             nodeLineMap[nodeMatch[1]] = lineNum;
         }
-        
+
         // Flowchart arrow
         var arrowMatch = line.match(/^\s*([A-Za-z0-9_]+)[^\-]*--[->](\|[^|]*\|)?\s*([A-Za-z0-9_]+)/);
         if (arrowMatch) {
@@ -210,25 +223,25 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
                 edgeLabelLineMap[label] = lineNum;
             }
         }
-        
+
         // Sequence diagram message
         if (/->>|-->|->/.test(line) && line.indexOf(':') !== -1) {
             messageLineNums.push(lineNum);
         }
-        
+
         // Sequence participant/actor
         var actorMatch = line.match(/^\s*(participant|actor)\s+([A-Za-z0-9_]+)/);
         if (actorMatch && !nodeLineMap[actorMatch[2]]) {
             nodeLineMap[actorMatch[2]] = lineNum;
         }
-        
+
         // Class diagram, state diagram, ER diagram, Gantt, Pie, Git graph patterns
         // (Additional pattern matching for various Mermaid diagram types)
-        parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeLabelLineMap);
+        parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeLabelLineMap, diagramType);
     }
 }
 
-function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeLabelLineMap) {
+function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeLabelLineMap, diagramType) {
     // Class diagram relationships
     var classRelPatterns = [
         { regex: /^\s*([A-Za-z0-9_]+)\s*(<\|--|&lt;\|--)\s*([A-Za-z0-9_]+)/, type: 'extends', swap: true, g1: 1, g2: 3 },
@@ -240,7 +253,7 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         { regex: /^\s*([A-Za-z0-9_]+)\s*-->\s*([A-Za-z0-9_]+)/, type: 'association', swap: false, g1: 1, g2: 2 },
         { regex: /^\s*([A-Za-z0-9_]+)\s*<--\s*([A-Za-z0-9_]+)/, type: 'association', swap: true, g1: 1, g2: 2 }
     ];
-    
+
     for (var pi = 0; pi < classRelPatterns.length; pi++) {
         var p = classRelPatterns[pi];
         var m = line.match(p.regex);
@@ -255,33 +268,33 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
             break;
         }
     }
-    
+
     // State diagram transition
     var stateTransMatch = line.match(/^\s*(\[\*\]|[A-Za-z0-9_]+)\s*-->\s*(\[\*\]|[A-Za-z0-9_]+)/);
     if (stateTransMatch) {
         arrowLineMap[stateTransMatch[1] + '->' + stateTransMatch[2]] = lineNum;
     }
-    
+
     // ER diagram
     var erRelMatch = line.match(/^\s*([A-Za-z0-9_-]+)\s*(\||\}|o).*(\||\{|o)\s*([A-Za-z0-9_-]+)\s*:\s*(\w+)/);
     if (erRelMatch) {
         arrowLineMap[erRelMatch[1] + '-' + erRelMatch[4]] = lineNum;
         nodeLineMap[erRelMatch[5]] = lineNum;
     }
-    
+
     // Gantt
     var ganttTaskMatch = line.match(/^\s*(.+?)\s*:([a-zA-Z0-9]+),/);
     if (ganttTaskMatch) {
         nodeLineMap['gantt:' + ganttTaskMatch[2]] = lineNum;
         nodeLineMap['gantt-name:' + ganttTaskMatch[1].trim()] = lineNum;
     }
-    
+
     // Pie chart
     var pieSliceMatch = line.match(/^\s*"([^"]+)"\s*:\s*(\d+)/);
     if (pieSliceMatch) {
         nodeLineMap['pie:' + pieSliceMatch[1]] = lineNum;
     }
-    
+
     // Git graph
     var gitCommitMatch = line.match(/^\s*commit(\s+id:\s*"([^"]+)")?/);
     if (gitCommitMatch) {
@@ -294,19 +307,19 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
 
 function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap) {
     // Mark flowchart nodes, sequence actors, class diagram nodes, etc.
-    svg.querySelectorAll('g.node, g.cluster, g.edgeLabel').forEach(function(node) {
+    svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^="state-"], g.note, g.activation').forEach(function(node) {
         node.style.cursor = 'pointer';
         node.setAttribute('data-mermaid-node', 'true');
-        
+
         var nodeId = node.id || '';
-        
+
         // Flowchart node: flowchart-NodeName-0
         var flowMatch = nodeId.match(/^flowchart-([^-]+)-/);
         if (flowMatch && nodeLineMap[flowMatch[1]]) {
             node.setAttribute('data-source-line', String(nodeLineMap[flowMatch[1]]));
             return;
         }
-        
+
         // Class diagram node: classId-ClassName-0
         var classMatch = nodeId.match(/^classId-([^-]+)-/);
         if (classMatch) {
@@ -316,8 +329,24 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             }
             return;
         }
+        // State diagram node: state-StateName-N
+        var stateMatch = nodeId.match(/^state-([^-]+)-/);
+        if (stateMatch) {
+            var stateName = stateMatch[1];
+            if (stateName === 'root_start') {
+                node.setAttribute('data-state-node', '[*] (start)');
+            } else if (stateName === 'root_end') {
+                node.setAttribute('data-state-node', '[*] (end)');
+            } else {
+                node.setAttribute('data-state-node', stateName);
+                if (nodeLineMap['state:' + stateName]) {
+                    node.setAttribute('data-source-line', String(nodeLineMap['state:' + stateName]));
+                }
+            }
+            return;
+        }
     });
-    
+
     // Sequence messages
     var msgIdx = 0;
     svg.querySelectorAll('text.messageText').forEach(function(msg) {
@@ -328,7 +357,20 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
         msgIdx++;
     });
-    
+
+    // Sequence diagram arrows (message lines)
+    var seqMsgIdx = 0;
+    svg.querySelectorAll('line.messageLine0, line.messageLine1').forEach(function(line) {
+        line.style.cursor = 'pointer';
+        line.setAttribute('data-mermaid-node', 'true');
+        if (seqMsgIdx < messageLineNums.length) {
+            line.setAttribute('data-source-line', String(messageLineNums[seqMsgIdx]));
+            line.setAttribute('data-seq-arrow', 'true');
+        }
+        // Only increment for messageLine0 (not messageLine1 which is the same message)
+        if (line.classList.contains('messageLine0')) seqMsgIdx++;
+    });
+
     // Flowchart arrows with hit areas
     svg.querySelectorAll('path.flowchart-link').forEach(function(path) {
         var pathId = path.id || '';
@@ -337,12 +379,12 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         if (linkMatch && arrowLineMap[linkMatch[1] + '-' + linkMatch[2]]) {
             sourceLine = String(arrowLineMap[linkMatch[1] + '-' + linkMatch[2]]);
         }
-        
+
         createHitArea(path, sourceLine, 'data-hit-area-for', pathId);
         path.setAttribute('data-mermaid-node', 'true');
         if (sourceLine) path.setAttribute('data-source-line', sourceLine);
     });
-    
+
     // Class diagram class names
     svg.querySelectorAll('g.label-group g.label').forEach(function(label) {
         var className = label.textContent.trim();
@@ -353,7 +395,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             label.setAttribute('data-source-line', String(nodeLineMap['class:' + className]));
         }
     });
-    
+
     // Class diagram members and methods
     svg.querySelectorAll('g.members-group g.label, g.methods-group g.label').forEach(function(label) {
         label.style.cursor = 'pointer';
@@ -364,7 +406,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             label.setAttribute('data-source-line', String(nodeLineMap[memberText]));
         }
     });
-    
+
     // Class diagram relations (inheritance, composition, etc.)
     svg.querySelectorAll('path.relation').forEach(function(path) {
         var pathId = path.id || '';
@@ -373,7 +415,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         var relInfo = arrowLineMap[relKey];
         var sourceLine = null;
         var relText = '';
-        
+
         if (relInfo) {
             var parts = relInfo.split(':');
             sourceLine = parts[0];
@@ -390,7 +432,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             };
             relText = fromClass + (typeLabels[relType] || ' -- ') + toClass;
         }
-        
+
         // Create hit area including marker
         var totalLen = path.getTotalLength();
         var startPoint = path.getPointAtLength(0);
@@ -399,7 +441,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         var markerEnd = path.getAttribute('marker-end') || '';
         var markerLen = 18;
         var tipX, tipY;
-        
+
         if (markerStart && markerStart !== 'none') {
             var nearStart = path.getPointAtLength(Math.min(1, totalLen));
             var dx = startPoint.x - nearStart.x;
@@ -420,7 +462,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             tipX = startPoint.x;
             tipY = startPoint.y;
         }
-        
+
         var minX = Math.min(startPoint.x, endPoint.x, tipX);
         var maxX = Math.max(startPoint.x, endPoint.x, tipX);
         var minY = Math.min(startPoint.y, endPoint.y, tipY);
@@ -431,7 +473,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             rectX = minX - (16 - rectWidth) / 2;
             rectWidth = 16;
         }
-        
+
         var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         hitRect.setAttribute('x', rectX);
         hitRect.setAttribute('y', minY);
@@ -443,11 +485,167 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         hitRect.setAttribute('data-class-relation', relText);
         if (sourceLine) hitRect.setAttribute('data-source-line', String(sourceLine));
         path.parentNode.insertBefore(hitRect, path.nextSibling);
-        
+
         path.style.cursor = 'pointer';
         path.setAttribute('data-mermaid-node', 'true');
         path.setAttribute('data-class-relation', relText);
         if (sourceLine) path.setAttribute('data-source-line', String(sourceLine));
+    });
+
+    // State diagram transitions
+    var stateTransKeys = Object.keys(arrowLineMap).filter(function(k) { return k.indexOf('->') !== -1; });
+    var transIdx = 0;
+    svg.querySelectorAll('path.transition').forEach(function(path) {
+        var sourceLine = null;
+        var transKey = stateTransKeys[transIdx] || '';
+        if (transKey && arrowLineMap[transKey]) {
+            sourceLine = String(arrowLineMap[transKey]);
+        }
+        createHitArea(path, sourceLine, 'data-state-transition', transKey);
+        path.style.cursor = 'pointer';
+        path.setAttribute('data-mermaid-node', 'true');
+        path.setAttribute('data-state-transition', transKey);
+        if (sourceLine) path.setAttribute('data-source-line', sourceLine);
+        transIdx++;
+    });
+
+    // ER diagram: entity names
+    svg.querySelectorAll('g.entityLabel').forEach(function(label) {
+        var entityName = label.textContent.trim();
+        label.style.cursor = 'pointer';
+        label.setAttribute('data-mermaid-node', 'true');
+        label.setAttribute('data-er-entity', entityName);
+        if (nodeLineMap['entity:' + entityName]) {
+            label.setAttribute('data-source-line', String(nodeLineMap['entity:' + entityName]));
+        }
+    });
+
+    // Gantt: tasks
+    svg.querySelectorAll('rect.task').forEach(function(task) {
+        var taskId = task.id || '';
+        task.style.cursor = 'pointer';
+        task.setAttribute('data-mermaid-node', 'true');
+        task.setAttribute('data-gantt-task', taskId);
+        if (nodeLineMap['gantt:' + taskId]) {
+            task.setAttribute('data-source-line', String(nodeLineMap['gantt:' + taskId]));
+        }
+    });
+
+    // Gantt: task text
+    svg.querySelectorAll('text.taskText').forEach(function(text) {
+        var taskName = text.textContent.trim();
+        text.style.cursor = 'pointer';
+        text.setAttribute('data-mermaid-node', 'true');
+        text.setAttribute('data-gantt-task-name', taskName);
+        if (nodeLineMap['gantt-name:' + taskName]) {
+            text.setAttribute('data-source-line', String(nodeLineMap['gantt-name:' + taskName]));
+        }
+    });
+
+    // Gantt: section titles
+    svg.querySelectorAll('text.sectionTitle').forEach(function(text) {
+        var sectionName = text.textContent.trim();
+        text.style.cursor = 'pointer';
+        text.setAttribute('data-mermaid-node', 'true');
+        text.setAttribute('data-gantt-section', sectionName);
+        if (nodeLineMap['gantt-section:' + sectionName]) {
+            text.setAttribute('data-source-line', String(nodeLineMap['gantt-section:' + sectionName]));
+        }
+    });
+
+    // Gantt: title
+    svg.querySelectorAll('text.titleText').forEach(function(text) {
+        var titleText = text.textContent.trim();
+        text.style.cursor = 'pointer';
+        text.setAttribute('data-mermaid-node', 'true');
+        text.setAttribute('data-gantt-title', titleText);
+        if (nodeLineMap['gantt-title:' + titleText]) {
+            text.setAttribute('data-source-line', String(nodeLineMap['gantt-title:' + titleText]));
+        }
+    });
+
+    // Pie chart: slices
+    var pieSliceIdx = 0;
+    var pieLegends = svg.querySelectorAll('g.legend text');
+    svg.querySelectorAll('.pieCircle').forEach(function(slice) {
+        slice.style.cursor = 'pointer';
+        slice.setAttribute('data-mermaid-node', 'true');
+        var legendText = pieLegends[pieSliceIdx] ? pieLegends[pieSliceIdx].textContent.trim() : '';
+        slice.setAttribute('data-pie-slice', legendText);
+        if (nodeLineMap['pie:' + legendText]) {
+            slice.setAttribute('data-source-line', String(nodeLineMap['pie:' + legendText]));
+        }
+        pieSliceIdx++;
+    });
+
+    // Pie chart: legend
+    svg.querySelectorAll('g.legend').forEach(function(legend) {
+        var legendText = legend.textContent.trim();
+        legend.style.cursor = 'pointer';
+        legend.setAttribute('data-mermaid-node', 'true');
+        legend.setAttribute('data-pie-legend', legendText);
+        if (nodeLineMap['pie:' + legendText]) {
+            legend.setAttribute('data-source-line', String(nodeLineMap['pie:' + legendText]));
+        }
+    });
+
+    // Pie chart: title
+    svg.querySelectorAll('text.pieTitleText').forEach(function(text) {
+        var titleText = text.textContent.trim();
+        text.style.cursor = 'pointer';
+        text.setAttribute('data-mermaid-node', 'true');
+        text.setAttribute('data-pie-title', titleText);
+        if (nodeLineMap['pie-title:' + titleText]) {
+            text.setAttribute('data-source-line', String(nodeLineMap['pie-title:' + titleText]));
+        }
+    });
+
+    // Git graph: commits
+    var gitCommitIdx = 0;
+    svg.querySelectorAll('circle.commit').forEach(function(commit) {
+        commit.style.cursor = 'pointer';
+        commit.setAttribute('data-mermaid-node', 'true');
+        commit.setAttribute('data-git-commit', String(gitCommitIdx));
+        if (nodeLineMap['git-commit:' + gitCommitIdx]) {
+            commit.setAttribute('data-source-line', String(nodeLineMap['git-commit:' + gitCommitIdx]));
+        }
+        gitCommitIdx++;
+    });
+
+    // Git graph: commit labels
+    svg.querySelectorAll('text.commit-label').forEach(function(text) {
+        var labelText = text.textContent.trim();
+        text.style.cursor = 'pointer';
+        text.setAttribute('data-mermaid-node', 'true');
+        text.setAttribute('data-git-label', labelText);
+        if (nodeLineMap['git-label:' + labelText]) {
+            text.setAttribute('data-source-line', String(nodeLineMap['git-label:' + labelText]));
+        }
+    });
+
+    // Git graph: branch labels
+    svg.querySelectorAll('g.branchLabel').forEach(function(branch) {
+        var branchName = branch.textContent.trim();
+        branch.style.cursor = 'pointer';
+        branch.setAttribute('data-mermaid-node', 'true');
+        branch.setAttribute('data-git-branch', branchName);
+        if (nodeLineMap['git-branch:' + branchName]) {
+            branch.setAttribute('data-source-line', String(nodeLineMap['git-branch:' + branchName]));
+        }
+    });
+
+    // Mindmap: nodes
+    svg.querySelectorAll('g.node.mindmap-node').forEach(function(node) {
+        var labelEl = node.querySelector('.nodeLabel');
+        if (labelEl) {
+            var nodeText = labelEl.textContent.trim();
+            node.style.cursor = 'pointer';
+            node.setAttribute('data-mermaid-node', 'true');
+            node.setAttribute('data-mindmap-node', nodeText);
+            if (nodeLineMap['mindmap:' + nodeText]) {
+                node.setAttribute('data-source-line', String(nodeLineMap['mindmap:' + nodeText]));
+            }
+        }
     });
 }
 
@@ -458,7 +656,7 @@ function createHitArea(element, sourceLine, dataAttr, dataValue) {
     var rectH = Math.max(bbox.height, minSize);
     var rectX = bbox.x - (rectW - bbox.width) / 2;
     var rectY = bbox.y - (rectH - bbox.height) / 2;
-    
+
     var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     hitRect.setAttribute('x', rectX);
     hitRect.setAttribute('y', rectY);
@@ -469,7 +667,7 @@ function createHitArea(element, sourceLine, dataAttr, dataValue) {
     hitRect.setAttribute('data-mermaid-node', 'true');
     if (dataAttr && dataValue) hitRect.setAttribute(dataAttr, dataValue);
     if (sourceLine) hitRect.setAttribute('data-source-line', sourceLine);
-    
+
     element.parentNode.insertBefore(hitRect, element.nextSibling);
 }
 """;

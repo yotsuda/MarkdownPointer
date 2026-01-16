@@ -266,6 +266,10 @@ function getElementContent(element) {
             nodeType = 'arrow';
             nodeText = element.getAttribute('data-seq-arrow-text');
         }
+        else if (element.hasAttribute && element.hasAttribute('data-state-node')) {
+            nodeType = 'state';
+            nodeText = element.getAttribute('data-state-node');
+        }
         else if (element.hasAttribute && element.hasAttribute('data-state-transition')) {
             nodeType = 'transition';
             var trans = element.getAttribute('data-state-transition');
