@@ -239,6 +239,12 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
             nodeLineMap[actorMatch[2]] = lineNum;
         }
 
+        // Sequence implicit actor (from message lines like Alice->>Bob: Hello)
+        var seqMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*-/);
+        if (seqMatch && !nodeLineMap[seqMatch[1]]) {
+            nodeLineMap[seqMatch[1]] = lineNum;
+        }
+
         // Class diagram, state diagram, ER diagram, Gantt, Pie, Git graph patterns
         // (Additional pattern matching for various Mermaid diagram types)
         parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeLabelLineMap, diagramType);
@@ -369,7 +375,7 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
 
 function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap) {
     // Mark flowchart nodes, sequence actors, class diagram nodes, etc.
-    svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^="state-"], g[id^="root-"], text.actor, g.note, g.activation').forEach(function(node) {
+    svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^="state-"], g[id^="root-"], g.note, g.activation').forEach(function(node) {
         node.style.cursor = 'pointer';
         node.setAttribute('data-mermaid-node', 'true');
 
@@ -457,17 +463,44 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         msgIdx++;
     });
 
-    // Sequence diagram arrows (message lines)
+    // Sequence diagram arrows (message lines) with hit areas
     var seqMsgIdx = 0;
-    svg.querySelectorAll('line.messageLine0, line.messageLine1').forEach(function(line) {
+    svg.querySelectorAll('line.messageLine0').forEach(function(line) {
+        var sourceLine = null;
+        if (seqMsgIdx < messageLineNums.length) {
+            sourceLine = String(messageLineNums[seqMsgIdx]);
+        }
+
+        // Create hit area for easier clicking
+        var x1 = parseFloat(line.getAttribute('x1')) || 0;
+        var y1 = parseFloat(line.getAttribute('y1')) || 0;
+        var x2 = parseFloat(line.getAttribute('x2')) || 0;
+        var y2 = parseFloat(line.getAttribute('y2')) || 0;
+        var minX = Math.min(x1, x2);
+        var minY = Math.min(y1, y2);
+        var width = Math.abs(x2 - x1);
+        var height = Math.max(Math.abs(y2 - y1), 16);
+
+        var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        hitRect.setAttribute('x', minX);
+        hitRect.setAttribute('y', minY - height / 2);
+        hitRect.setAttribute('width', width);
+        hitRect.setAttribute('height', height);
+        hitRect.setAttribute('fill', 'transparent');
+        hitRect.style.cursor = 'pointer';
+        hitRect.setAttribute('data-mermaid-node', 'true');
+        hitRect.setAttribute('data-seq-arrow', 'true');
+        if (sourceLine) {
+            hitRect.setAttribute('data-source-line', sourceLine);
+        }
+        line.parentNode.insertBefore(hitRect, line.nextSibling);
+
         line.style.cursor = 'pointer';
         line.setAttribute('data-mermaid-node', 'true');
-        if (seqMsgIdx < messageLineNums.length) {
-            line.setAttribute('data-source-line', String(messageLineNums[seqMsgIdx]));
-            line.setAttribute('data-seq-arrow', 'true');
+        if (sourceLine) {
+            line.setAttribute('data-source-line', sourceLine);
         }
-        // Only increment for messageLine0 (not messageLine1 which is the same message)
-        if (line.classList.contains('messageLine0')) seqMsgIdx++;
+        seqMsgIdx++;
     });
 
     // Flowchart arrows with hit areas
