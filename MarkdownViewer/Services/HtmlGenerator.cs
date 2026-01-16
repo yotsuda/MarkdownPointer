@@ -465,31 +465,36 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
 
     // Sequence diagram arrows (message lines) with hit areas
     var seqMsgIdx = 0;
-    svg.querySelectorAll('line.messageLine0').forEach(function(line) {
+    svg.querySelectorAll('line.messageLine0, line.messageLine1').forEach(function(line) {
         var sourceLine = null;
         if (seqMsgIdx < messageLineNums.length) {
             sourceLine = String(messageLineNums[seqMsgIdx]);
         }
 
+        // Get message text from previous sibling
+        var msgText = '';
+        var prev = line.previousElementSibling;
+        if (prev && prev.classList && prev.classList.contains('messageText')) {
+            msgText = prev.textContent.trim();
+        }
+
         // Create hit area for easier clicking
-        var x1 = parseFloat(line.getAttribute('x1')) || 0;
-        var y1 = parseFloat(line.getAttribute('y1')) || 0;
-        var x2 = parseFloat(line.getAttribute('x2')) || 0;
-        var y2 = parseFloat(line.getAttribute('y2')) || 0;
-        var minX = Math.min(x1, x2);
-        var minY = Math.min(y1, y2);
-        var width = Math.abs(x2 - x1);
-        var height = Math.max(Math.abs(y2 - y1), 16);
+        var bbox = line.getBBox();
+        var minSize = 16;
+        var rectW = Math.max(bbox.width, minSize);
+        var rectH = Math.max(bbox.height, minSize);
+        var rectX = bbox.x - (rectW - bbox.width) / 2;
+        var rectY = bbox.y - (rectH - bbox.height) / 2;
 
         var hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        hitRect.setAttribute('x', minX);
-        hitRect.setAttribute('y', minY - height / 2);
-        hitRect.setAttribute('width', width);
-        hitRect.setAttribute('height', height);
+        hitRect.setAttribute('x', rectX);
+        hitRect.setAttribute('y', rectY);
+        hitRect.setAttribute('width', rectW);
+        hitRect.setAttribute('height', rectH);
         hitRect.setAttribute('fill', 'transparent');
         hitRect.style.cursor = 'pointer';
         hitRect.setAttribute('data-mermaid-node', 'true');
-        hitRect.setAttribute('data-seq-arrow', 'true');
+        hitRect.setAttribute('data-seq-arrow-text', msgText);
         if (sourceLine) {
             hitRect.setAttribute('data-source-line', sourceLine);
         }
@@ -500,7 +505,8 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         if (sourceLine) {
             line.setAttribute('data-source-line', sourceLine);
         }
-        seqMsgIdx++;
+        // Only increment for messageLine0
+        if (line.classList.contains('messageLine0')) seqMsgIdx++;
     });
 
     // Flowchart arrows with hit areas
