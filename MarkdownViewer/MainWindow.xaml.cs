@@ -134,6 +134,7 @@ namespace MarkdownViewer
         private bool _isTabDragging = false;
         private TabItemData? _draggedTab = null;
         private Window? _dragPreviewWindow = null;
+        private int _tabDropTargetIndex = -1;
 
         public void BringToFront()
         {
@@ -1340,10 +1341,130 @@ namespace MarkdownViewer
                         Top = tabDropPos.Y - _tabOffsetInWindow.Y;
                     }
                 }
+                else
+                {
+                    // Dropped inside this window - reorder tabs using saved index
+                    if (_tabDropTargetIndex >= 0)
+                    {
+                        var sourceIndex = _tabs.IndexOf(tab);
+                        var targetIndex = _tabDropTargetIndex;
+                        if (sourceIndex < targetIndex) targetIndex--;
+                        if (sourceIndex != targetIndex && targetIndex >= 0 && targetIndex < _tabs.Count)
+                        {
+                            _tabs.Move(sourceIndex, targetIndex);
+                        }
+                    }
+                }
 
+                // Hide drop indicators on all windows
+                foreach (var window in Application.Current.Windows.OfType<MainWindow>())
+                {
+                    window.HideTabDropIndicator();
+                }
                 _isTabDragging = false;
                 _draggedTab = null;
             }
+        }
+
+
+        private void UpdateTabDropIndicator(Point pos)
+        {
+            _tabDropTargetIndex = -1;
+            double indicatorX = 0;
+
+            for (int i = 0; i < _tabs.Count; i++)
+            {
+                var container = FileTabControl.ItemContainerGenerator.ContainerFromIndex(i) as TabItem;
+                if (container == null) continue;
+
+                var tabPos = container.TransformToAncestor(FileTabControl).Transform(new Point(0, 0));
+                var tabWidth = container.ActualWidth;
+                var tabMidX = tabPos.X + tabWidth / 2;
+
+                if (pos.X < tabMidX)
+                {
+                    _tabDropTargetIndex = i;
+                    indicatorX = tabPos.X;
+                    break;
+                }
+                else
+                {
+                    _tabDropTargetIndex = i + 1;
+                    indicatorX = tabPos.X + tabWidth;
+                }
+            }
+
+            if (_tabDropTargetIndex >= 0)
+            {
+                // Position the indicator
+                Canvas.SetLeft(TabDropIndicator, indicatorX - 1);
+                Canvas.SetTop(TabDropIndicator, 2);
+                TabDropIndicator.Visibility = Visibility.Visible;
+            }
+        }
+
+        public void HideTabDropIndicator()
+        {
+            TabDropIndicator.Visibility = Visibility.Collapsed;
+            _tabDropTargetIndex = -1;
+        }
+
+        private void UpdateDropIndicatorFromScreenPos(Point screenPos)
+        {
+            // Check if cursor is over this window's tab strip area
+            var windowRect = new Rect(Left, Top, Width, Height);
+            if (!windowRect.Contains(screenPos))
+            {
+                HideTabDropIndicator();
+
+                // Check if over another MarkdownViewer window
+                var targetWindow = FindWindowAtPosition(screenPos);
+                if (targetWindow != null)
+                {
+                    targetWindow.ShowDropIndicatorAtScreenPos(screenPos);
+                }
+                return;
+            }
+
+            // Hide indicators on other windows
+            foreach (var window in Application.Current.Windows.OfType<MainWindow>())
+            {
+                if (window != this)
+                {
+                    window.HideTabDropIndicator();
+                }
+            }
+
+            // Convert screen position to TabControl position
+            var tabControlScreenPos = FileTabControl.PointToScreen(new Point(0, 0));
+            var tabControlPos = PhysicalToDip(tabControlScreenPos);
+            var localPos = new Point(screenPos.X - tabControlPos.X, screenPos.Y - tabControlPos.Y);
+
+            // Check if within tab strip height (roughly first 30 pixels)
+            if (localPos.Y < 0 || localPos.Y > 30)
+            {
+                HideTabDropIndicator();
+                return;
+            }
+
+            UpdateTabDropIndicator(localPos);
+        }
+
+        public void ShowDropIndicatorAtScreenPos(Point screenPos)
+        {
+            // Convert screen position to TabControl position
+            var tabControlScreenPos = FileTabControl.PointToScreen(new Point(0, 0));
+            var tabControlPos = PhysicalToDip(tabControlScreenPos);
+            var localPos = new Point(screenPos.X - tabControlPos.X, screenPos.Y - tabControlPos.Y);
+
+            // Check if within tab strip height
+            if (localPos.Y < 0 || localPos.Y > 30)
+            {
+                HideTabDropIndicator();
+                return;
+            }
+
+            UpdateTabDropIndicator(localPos);
         }
 
         private void CreateDragPreviewWindow(TabItemData tab, Point tabScreenPos, double tabWidth, double tabHeight)
@@ -1409,14 +1530,17 @@ namespace MarkdownViewer
                 return;
 
             // Update preview window position based on cursor movement from start (using DIP coordinates)
+            var currentCursor = GetCursorPosDip();
             if (_dragPreviewWindow != null)
             {
-                var currentCursor = GetCursorPosDip();
                 var deltaX = currentCursor.X - _dragStartCursorPos.X;
                 var deltaY = currentCursor.Y - _dragStartCursorPos.Y;
                 _dragPreviewWindow.Left = _dragStartWindowPos.X - 8 + deltaX;
                 _dragPreviewWindow.Top = _dragStartWindowPos.Y - 4 + deltaY;
             }
+
+            // Update drop indicator if cursor is over tab strip
+            UpdateDropIndicatorFromScreenPos(currentCursor);
         }
 
         protected override void OnGiveFeedback(GiveFeedbackEventArgs e)
@@ -1496,8 +1620,15 @@ namespace MarkdownViewer
                 UpdateWindowTitle();
             }
 
-            // Add tab to target window
-            targetWindow._tabs.Add(tab);
+            // Add tab to target window at drop position
+            if (targetWindow._tabDropTargetIndex >= 0 && targetWindow._tabDropTargetIndex <= targetWindow._tabs.Count)
+            {
+                targetWindow._tabs.Insert(targetWindow._tabDropTargetIndex, tab);
+            }
+            else
+            {
+                targetWindow._tabs.Add(tab);
+            }
             targetWindow.FileTabControl.SelectedItem = tab;
             targetWindow.PlaceholderPanel.Visibility = Visibility.Collapsed;
             targetWindow.FileTabControl.Visibility = Visibility.Visible;

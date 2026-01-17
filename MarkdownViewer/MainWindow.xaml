@@ -15,11 +15,12 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Tab control -->
-        <TabControl x:Name="FileTabControl" Grid.Row="0" 
-                    SelectionChanged="TabControl_SelectionChanged"
-                    Visibility="Collapsed">
-            <TabControl.ItemTemplate>
+        <!-- Tab control with drop indicator -->
+        <Grid Grid.Row="0">
+            <TabControl x:Name="FileTabControl" 
+                        SelectionChanged="TabControl_SelectionChanged"
+                        Visibility="Collapsed">
+                <TabControl.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal"
                                 MouseLeftButtonDown="TabHeader_MouseLeftButtonDown"
@@ -45,6 +46,14 @@
                 </DataTemplate>
             </TabControl.ContentTemplate>
         </TabControl>
+            <!-- Drop indicator for tab reordering -->
+            <Canvas x:Name="TabDropIndicatorCanvas" IsHitTestVisible="False">
+                <Rectangle x:Name="TabDropIndicator" 
+                           Width="3" Height="24" 
+                           Fill="#0078D4" 
+                           Visibility="Collapsed"/>
+            </Canvas>
+        </Grid>
 
         <!-- Scroll mode overlay -->
         <Border x:Name="DragOverlay" Grid.Row="0" 
