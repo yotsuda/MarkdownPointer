@@ -301,10 +301,12 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
     }
 
     // Class diagram member/method: ClassName : +memberName or ClassName: +methodName()
-    var classMemberMatch = line.match(/^\s*(\S+)\s*:\s*(.+)$/);
-    if (classMemberMatch) {
-        var memberText = classMemberMatch[2].trim();
-        pushLine(nodeLineMap, memberText, lineNum);
+    if (diagramType === 'class') {
+        var classMemberMatch = line.match(/^\s*(\S+)\s*:\s*(.+)$/);
+        if (classMemberMatch) {
+            if (!nodeLineMap['class-member-lines']) nodeLineMap['class-member-lines'] = [];
+            nodeLineMap['class-member-lines'].push(lineNum);
+        }
     }
 
     // State diagram transition
@@ -577,14 +579,14 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
-    // Class diagram members and methods
-    svg.querySelectorAll('g.members-group g.label, g.methods-group g.label').forEach(function(label) {
+    // Class diagram members and methods (index-based)
+    var classMemberLines = nodeLineMap['class-member-lines'] || [];
+    svg.querySelectorAll('g.members-group g.label, g.methods-group g.label').forEach(function(label, idx) {
         label.style.cursor = 'pointer';
         label.setAttribute('data-mermaid-node', 'true');
         label.setAttribute('data-class-member', 'true');
-        var memberText = label.textContent.trim();
-        if (nodeLineMap[memberText]) {
-            label.setAttribute('data-source-line', String(nodeLineMap[memberText]));
+        if (classMemberLines[idx]) {
+            label.setAttribute('data-source-line', String(classMemberLines[idx]));
         }
     });
 
