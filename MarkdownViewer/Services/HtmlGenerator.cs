@@ -340,10 +340,13 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
     }
 
     // Gantt task: TaskName :taskId, ...
-    var ganttTaskMatch = line.match(/^\s*(.+?)\s*:([a-zA-Z0-9]+),/);
-    if (ganttTaskMatch) {
-        pushLine(nodeLineMap, 'gantt:' + ganttTaskMatch[2], lineNum);
-        pushLine(nodeLineMap, 'gantt-name:' + ganttTaskMatch[1].trim(), lineNum);
+    // Gantt task (index-based)
+    if (diagramType === 'gantt') {
+        var ganttTaskMatch = line.match(/^\s*(.+?)\s*:([a-zA-Z0-9]+),/);
+        if (ganttTaskMatch) {
+            if (!nodeLineMap['gantt-task-lines']) nodeLineMap['gantt-task-lines'] = [];
+            nodeLineMap['gantt-task-lines'].push(lineNum);
+        }
     }
 
     // Gantt section: section SectionName
@@ -787,25 +790,26 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
-    // Gantt: tasks
-    svg.querySelectorAll('rect.task').forEach(function(task) {
+    // Gantt: tasks (index-based)
+    var ganttTaskLines = nodeLineMap['gantt-task-lines'] || [];
+    svg.querySelectorAll('rect.task').forEach(function(task, idx) {
         var taskId = task.id || '';
         task.style.cursor = 'pointer';
         task.setAttribute('data-mermaid-node', 'true');
         task.setAttribute('data-gantt-task', taskId);
-        if (nodeLineMap['gantt:' + taskId]) {
-            task.setAttribute('data-source-line', String(nodeLineMap['gantt:' + taskId]));
+        if (ganttTaskLines[idx]) {
+            task.setAttribute('data-source-line', String(ganttTaskLines[idx]));
         }
     });
 
-    // Gantt: task text
-    svg.querySelectorAll('text.taskText').forEach(function(text) {
+    // Gantt: task text (index-based)
+    svg.querySelectorAll('text.taskText').forEach(function(text, idx) {
         var taskName = text.textContent.trim();
         text.style.cursor = 'pointer';
         text.setAttribute('data-mermaid-node', 'true');
         text.setAttribute('data-gantt-task-name', taskName);
-        if (nodeLineMap['gantt-name:' + taskName]) {
-            text.setAttribute('data-source-line', String(nodeLineMap['gantt-name:' + taskName]));
+        if (ganttTaskLines[idx]) {
+            text.setAttribute('data-source-line', String(ganttTaskLines[idx]));
         }
     });
 
