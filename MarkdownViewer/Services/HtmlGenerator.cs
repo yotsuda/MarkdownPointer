@@ -358,10 +358,13 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         pushLine(nodeLineMap, 'gantt-title:' + ganttTitleMatch[1].trim(), lineNum);
     }
 
-    // Pie chart slice: "Label" : value
-    var pieSliceMatch = line.match(/^\s*"([^"]+)"\s*:\s*(\d+)/);
-    if (pieSliceMatch) {
-        pushLine(nodeLineMap, 'pie:' + pieSliceMatch[1], lineNum);
+    // Pie chart slice: "Label" : value (index-based)
+    if (diagramType === 'pie') {
+        var pieSliceMatch = line.match(/^\s*"([^"]+)"\s*:\s*(\d+)/);
+        if (pieSliceMatch) {
+            if (!nodeLineMap['pie-slice-lines']) nodeLineMap['pie-slice-lines'] = [];
+            nodeLineMap['pie-slice-lines'].push(lineNum);
+        }
     }
 
     // Pie chart title: pie title TitleText
@@ -828,28 +831,27 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
-    // Pie chart: slices
-    var pieSliceIdx = 0;
+    // Pie chart: slices (index-based)
+    var pieSliceLines = nodeLineMap['pie-slice-lines'] || [];
     var pieLegends = svg.querySelectorAll('g.legend text');
-    svg.querySelectorAll('path.pieCircle, .pieCircle').forEach(function(slice) {
+    svg.querySelectorAll('path.pieCircle, .pieCircle').forEach(function(slice, idx) {
         slice.style.cursor = 'pointer';
         slice.setAttribute('data-mermaid-node', 'true');
-        var legendText = pieLegends[pieSliceIdx] ? pieLegends[pieSliceIdx].textContent.trim() : '';
+        var legendText = pieLegends[idx] ? pieLegends[idx].textContent.trim() : '';
         slice.setAttribute('data-pie-slice', legendText);
-        if (nodeLineMap['pie:' + legendText]) {
-            slice.setAttribute('data-source-line', String(nodeLineMap['pie:' + legendText]));
+        if (pieSliceLines[idx]) {
+            slice.setAttribute('data-source-line', String(pieSliceLines[idx]));
         }
-        pieSliceIdx++;
     });
 
-    // Pie chart: legend
-    svg.querySelectorAll('g.legend').forEach(function(legend) {
+    // Pie chart: legend (index-based)
+    svg.querySelectorAll('g.legend').forEach(function(legend, idx) {
         var legendText = legend.textContent.trim();
         legend.style.cursor = 'pointer';
         legend.setAttribute('data-mermaid-node', 'true');
         legend.setAttribute('data-pie-legend', legendText);
-        if (nodeLineMap['pie:' + legendText]) {
-            legend.setAttribute('data-source-line', String(nodeLineMap['pie:' + legendText]));
+        if (pieSliceLines[idx]) {
+            legend.setAttribute('data-source-line', String(pieSliceLines[idx]));
         }
     });
 
