@@ -168,6 +168,23 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.chrome.webview.postMessage('render-complete:' + JSON.stringify(renderErrors));
 });
 
+// Helper functions for line number mapping (supports multiple elements with same key)
+function pushLine(map, key, lineNum) {
+    if (!map[key]) map[key] = [];
+    map[key].push(lineNum);
+}
+
+var lineIndexes = {};
+function resetLineIndexes() {
+    lineIndexes = {};
+}
+function getLine(map, key) {
+    if (!map[key] || !map[key].length) return null;
+    var idx = lineIndexes[key] || 0;
+    lineIndexes[key] = idx + 1;
+    return map[key][idx] || null;
+}
+
 function processMermaidNodes() {
     document.querySelectorAll('.mermaid').forEach(function(container) {
         var source = container.getAttribute('data-mermaid-source') || '';
@@ -209,23 +226,21 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
 
         // Flowchart node
         var nodeMatch = line.match(/^\s*([^\s\[\{\(]+)\s*[\[\{\(]/);
-        if (nodeMatch && !nodeLineMap[nodeMatch[1]]) {
-            nodeLineMap[nodeMatch[1]] = lineNum;
+        if (nodeMatch) {
+            pushLine(nodeLineMap, nodeMatch[1], lineNum);
         }
 
         // Flowchart arrow
         var arrowMatch = line.match(/^\s*([^\s\[\{\(-]+)[^\-]*--[->](\|[^|]*\|)?\s*([^\s\[\{\(]+)/);
         if (arrowMatch) {
             var key = arrowMatch[1] + '-' + arrowMatch[3];
-            arrowLineMap[key] = lineNum;
+            pushLine(arrowLineMap, key, lineNum);
             if (arrowMatch[2]) {
                 var label = arrowMatch[2].replace(/\|/g, '');
-                edgeLabelLineMap[label] = lineNum;
+                pushLine(edgeLabelLineMap, label, lineNum);
             }
             // Also register the target node
-            if (!nodeLineMap[arrowMatch[3]]) {
-                nodeLineMap[arrowMatch[3]] = lineNum;
-            }
+            pushLine(nodeLineMap, arrowMatch[3], lineNum);
         }
 
         // Sequence diagram message
@@ -235,14 +250,14 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
 
         // Sequence participant/actor
         var actorMatch = line.match(/^\s*(participant|actor)\s+(\S+)/);
-        if (actorMatch && !nodeLineMap[actorMatch[2]]) {
-            nodeLineMap[actorMatch[2]] = lineNum;
+        if (actorMatch) {
+            pushLine(nodeLineMap, actorMatch[2], lineNum);
         }
 
         // Sequence implicit actor (from message lines like Alice->>Bob: Hello)
         var seqMatch = line.match(/^\s*([^\s-]+)\s*-/);
-        if (seqMatch && !nodeLineMap[seqMatch[1]]) {
-            nodeLineMap[seqMatch[1]] = lineNum;
+        if (seqMatch) {
+            pushLine(nodeLineMap, seqMatch[1], lineNum);
         }
 
         // Class diagram, state diagram, ER diagram, Gantt, Pie, Git graph patterns
@@ -270,11 +285,11 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         if (m) {
             var class1 = m[p.g1];
             var class2 = m[p.g2];
-            if (!nodeLineMap['class:' + class1]) nodeLineMap['class:' + class1] = lineNum;
-            if (!nodeLineMap['class:' + class2]) nodeLineMap['class:' + class2] = lineNum;
+            pushLine(nodeLineMap, 'class:' + class1, lineNum);
+            pushLine(nodeLineMap, 'class:' + class2, lineNum);
             var from = p.swap ? class2 : class1;
             var to = p.swap ? class1 : class2;
-            arrowLineMap['class-rel:' + class1 + '_' + class2] = lineNum + ':' + p.type + ':' + from + ':' + to;
+            pushLine(arrowLineMap, 'class-rel:' + class1 + '_' + class2, lineNum + ':' + p.type + ':' + from + ':' + to);
             break;
         }
     }
@@ -282,117 +297,120 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
     // Class diagram class name from member definition: ClassName : member
     var classNameMatch = line.match(/^\s*(\S+)\s*:\s*.+$/);
     if (classNameMatch) {
-        if (!nodeLineMap['class:' + classNameMatch[1]]) nodeLineMap['class:' + classNameMatch[1]] = lineNum;
+        pushLine(nodeLineMap, 'class:' + classNameMatch[1], lineNum);
     }
 
     // Class diagram member/method: ClassName : +memberName or ClassName: +methodName()
     var classMemberMatch = line.match(/^\s*(\S+)\s*:\s*(.+)$/);
     if (classMemberMatch) {
         var memberText = classMemberMatch[2].trim();
-        nodeLineMap[memberText] = lineNum;
+        pushLine(nodeLineMap, memberText, lineNum);
     }
 
     // State diagram transition
     var stateTransMatch = line.match(/^\s*(\[\*\]|[^\s-]+)\s*-->\s*(\[\*\]|[^\s-]+)/);
     if (stateTransMatch) {
-        arrowLineMap[stateTransMatch[1] + '->' + stateTransMatch[2]] = lineNum;
+        pushLine(arrowLineMap, stateTransMatch[1] + '->' + stateTransMatch[2], lineNum);
         // Also register state names
-        if (stateTransMatch[1] !== '[*]' && !nodeLineMap['state:' + stateTransMatch[1]]) {
-            nodeLineMap['state:' + stateTransMatch[1]] = lineNum;
+        if (stateTransMatch[1] !== '[*]') {
+            pushLine(nodeLineMap, 'state:' + stateTransMatch[1], lineNum);
         }
-        if (stateTransMatch[2] !== '[*]' && !nodeLineMap['state:' + stateTransMatch[2]]) {
-            nodeLineMap['state:' + stateTransMatch[2]] = lineNum;
+        if (stateTransMatch[2] !== '[*]') {
+            pushLine(nodeLineMap, 'state:' + stateTransMatch[2], lineNum);
         }
     }
     // ER diagram relationship: ENTITY1 ||--o{ ENTITY2 : label
     var erRelMatch = line.match(/^\s*([^\s\|\}o]+)\s*(\||\}|o).*(\||\{|o)\s*([^\s\|\{o:]+)\s*:\s*(\S+)/);
     if (erRelMatch) {
         var erKey = erRelMatch[1] + '-' + erRelMatch[4];
-        arrowLineMap[erKey] = lineNum;
+        pushLine(arrowLineMap, erKey, lineNum);
         // Map the label
-        nodeLineMap[erRelMatch[5]] = lineNum;
+        pushLine(nodeLineMap, erRelMatch[5], lineNum);
         // Map entity names from relationship (for entities without explicit definition)
-        if (!nodeLineMap['errel:' + erRelMatch[1]]) nodeLineMap['errel:' + erRelMatch[1]] = lineNum;
-        if (!nodeLineMap['errel:' + erRelMatch[4]]) nodeLineMap['errel:' + erRelMatch[4]] = lineNum;
+        pushLine(nodeLineMap, 'errel:' + erRelMatch[1], lineNum);
+        pushLine(nodeLineMap, 'errel:' + erRelMatch[4], lineNum);
     }
 
     // ER diagram entity definition: ENTITY {
     var erEntityMatch = line.match(/^\s*([^\s\{]+)\s*\{/);
-    if (erEntityMatch && !nodeLineMap['entity:' + erEntityMatch[1]]) {
-        nodeLineMap['entity:' + erEntityMatch[1]] = lineNum;
+    if (erEntityMatch) {
+        pushLine(nodeLineMap, 'entity:' + erEntityMatch[1], lineNum);
     }
 
     // Gantt task: TaskName :taskId, ...
     var ganttTaskMatch = line.match(/^\s*(.+?)\s*:([a-zA-Z0-9]+),/);
     if (ganttTaskMatch) {
-        nodeLineMap['gantt:' + ganttTaskMatch[2]] = lineNum;
-        nodeLineMap['gantt-name:' + ganttTaskMatch[1].trim()] = lineNum;
+        pushLine(nodeLineMap, 'gantt:' + ganttTaskMatch[2], lineNum);
+        pushLine(nodeLineMap, 'gantt-name:' + ganttTaskMatch[1].trim(), lineNum);
     }
 
     // Gantt section: section SectionName
     var ganttSectionMatch = line.match(/^\s*section\s+(.+)$/);
     if (ganttSectionMatch) {
-        nodeLineMap['gantt-section:' + ganttSectionMatch[1].trim()] = lineNum;
+        pushLine(nodeLineMap, 'gantt-section:' + ganttSectionMatch[1].trim(), lineNum);
     }
 
     // Gantt title: title TitleText
     var ganttTitleMatch = line.match(/^\s*title\s+(.+)$/);
     if (ganttTitleMatch) {
-        nodeLineMap['gantt-title:' + ganttTitleMatch[1].trim()] = lineNum;
+        pushLine(nodeLineMap, 'gantt-title:' + ganttTitleMatch[1].trim(), lineNum);
     }
 
     // Pie chart slice: "Label" : value
     var pieSliceMatch = line.match(/^\s*"([^"]+)"\s*:\s*(\d+)/);
     if (pieSliceMatch) {
-        nodeLineMap['pie:' + pieSliceMatch[1]] = lineNum;
+        pushLine(nodeLineMap, 'pie:' + pieSliceMatch[1], lineNum);
     }
 
     // Pie chart title: pie title TitleText
     var pieTitleMatch = line.match(/^\s*pie\s+title\s+(.+)$/);
     if (pieTitleMatch) {
-        nodeLineMap['pie-title:' + pieTitleMatch[1].trim()] = lineNum;
+        pushLine(nodeLineMap, 'pie-title:' + pieTitleMatch[1].trim(), lineNum);
     }
 
     // Git graph commit: commit or commit id: "label"
     var gitCommitMatch = line.match(/^\s*commit(\s+id:\s*"([^"]+)")?/);
     if (gitCommitMatch) {
         if (!nodeLineMap['git-commit-count']) nodeLineMap['git-commit-count'] = 0;
-        nodeLineMap['git-commit:' + nodeLineMap['git-commit-count']] = lineNum;
-        if (gitCommitMatch[2]) nodeLineMap['git-label:' + gitCommitMatch[2]] = lineNum;
+        pushLine(nodeLineMap, 'git-commit:' + nodeLineMap['git-commit-count'], lineNum);
+        if (gitCommitMatch[2]) pushLine(nodeLineMap, 'git-label:' + gitCommitMatch[2], lineNum);
         nodeLineMap['git-commit-count']++;
     }
 
     // Git graph branch: branch BranchName
     var gitBranchMatch = line.match(/^\s*branch\s+(\S+)/);
     if (gitBranchMatch) {
-        nodeLineMap['git-branch:' + gitBranchMatch[1]] = lineNum;
+        pushLine(nodeLineMap, 'git-branch:' + gitBranchMatch[1], lineNum);
     }
 
     // Git graph merge: merge BranchName (also creates a commit circle)
     var gitMergeMatch = line.match(/^\s*merge\s+(\S+)/);
     if (gitMergeMatch) {
         if (!nodeLineMap['git-commit-count']) nodeLineMap['git-commit-count'] = 0;
-        nodeLineMap['git-commit:' + nodeLineMap['git-commit-count']] = lineNum;
+        pushLine(nodeLineMap, 'git-commit:' + nodeLineMap['git-commit-count'], lineNum);
         nodeLineMap['git-commit-count']++;
     }
 
-    // Mindmap root: root((text))
-    var mindmapRootMatch = line.match(/^\s*root\s*\(\((.+)\)\)/);
-    if (mindmapRootMatch) {
-        nodeLineMap['mindmap:' + mindmapRootMatch[1].trim()] = lineNum;
-    }
 
-    // Mindmap leaf node: indented text
-    var mindmapNodeMatch = line.match(/^\s{2,}(\S+)\s*$/);
-    if (mindmapNodeMatch && !line.includes('root')) {
-        var text = mindmapNodeMatch[1].trim();
-        if (!nodeLineMap['mindmap:' + text]) {
-            nodeLineMap['mindmap:' + text] = lineNum;
+    // Mindmap: collect line numbers in order (index-based)
+    if (diagramType === 'mindmap') {
+        if (!nodeLineMap['mindmap-lines']) nodeLineMap['mindmap-lines'] = [];
+        // root node
+        var mindmapRootMatch = line.match(/^\s*root\s*\(\((.+)\)\)/);
+        if (mindmapRootMatch) {
+            nodeLineMap['mindmap-lines'].push(lineNum);
+        }
+        // leaf nodes (indented text)
+        var mindmapNodeMatch = line.match(/^\s{2,}(\S+)\s*$/);
+        if (mindmapNodeMatch && !line.includes('root')) {
+            nodeLineMap['mindmap-lines'].push(lineNum);
         }
     }
 }
-
 function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap) {
+    // Reset line indexes for each SVG processing
+    resetLineIndexes();
+
     // Mark flowchart nodes, sequence actors, class diagram nodes, etc.
     svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^="state-"], g[id^="root-"], g.note, g.activation').forEach(function(node) {
         node.style.cursor = 'pointer';
@@ -402,10 +420,14 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
 
         // Flowchart node: flowchart-NodeName-0
         var flowMatch = nodeId.match(/^flowchart-([^-]+)-/);
-        if (flowMatch && nodeLineMap[flowMatch[1]]) {
-            node.setAttribute('data-source-line', String(nodeLineMap[flowMatch[1]]));
-            return;
+        if (flowMatch) {
+            var flowLine = getLine(nodeLineMap, flowMatch[1]);
+            if (flowLine) {
+                node.setAttribute('data-source-line', String(flowLine));
+                return;
+            }
         }
+
 
         // Class diagram node: classId-ClassName-0
         var classMatch = nodeId.match(/^classId-([^-]+)-/);
@@ -426,8 +448,9 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
                 node.setAttribute('data-state-node', '[*] (end)');
             } else {
                 node.setAttribute('data-state-node', stateName);
-                if (nodeLineMap['state:' + stateName]) {
-                    node.setAttribute('data-source-line', String(nodeLineMap['state:' + stateName]));
+                var stateLine = getLine(nodeLineMap, 'state:' + stateName);
+                if (stateLine) {
+                    node.setAttribute('data-source-line', String(stateLine));
                 }
             }
             return;
@@ -545,11 +568,12 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
     // Class diagram class names
     svg.querySelectorAll('g.label-group g.label').forEach(function(label) {
         var className = label.textContent.trim();
-        if (nodeLineMap['class:' + className]) {
+        var classLine = getLine(nodeLineMap, 'class:' + className);
+        if (classLine) {
             label.style.cursor = 'pointer';
             label.setAttribute('data-mermaid-node', 'true');
             label.setAttribute('data-class-name', className);
-            label.setAttribute('data-source-line', String(nodeLineMap['class:' + className]));
+            label.setAttribute('data-source-line', String(classLine));
         }
     });
 
@@ -883,21 +907,22 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
-    // Mindmap: nodes
-    svg.querySelectorAll('g.mindmap-node, g.node.mindmap-node').forEach(function(node) {
+
+    // Mindmap: nodes (index-based mapping)
+    var mindmapLines = nodeLineMap['mindmap-lines'] || [];
+    svg.querySelectorAll('g.mindmap-node, g.node.mindmap-node').forEach(function(node, idx) {
         var labelEl = node.querySelector('.nodeLabel');
         if (labelEl) {
             var nodeText = labelEl.textContent.trim();
             node.style.cursor = 'pointer';
             node.setAttribute('data-mermaid-node', 'true');
             node.setAttribute('data-mindmap-node', nodeText);
-            if (nodeLineMap['mindmap:' + nodeText]) {
-                node.setAttribute('data-source-line', String(nodeLineMap['mindmap:' + nodeText]));
+            if (mindmapLines[idx]) {
+                node.setAttribute('data-source-line', String(mindmapLines[idx]));
             }
         }
     });
 }
-
 function createHitArea(element, sourceLine, dataAttr, dataValue) {
     var bbox = element.getBBox();
     var minSize = 16;
