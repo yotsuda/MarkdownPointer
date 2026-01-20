@@ -52,6 +52,12 @@ namespace MarkdownViewer.Models
         public bool IsInitialized { get; set; }
 
         /// <summary>
+        /// Reference to the MainWindow that owns this tab.
+        /// Used for routing WebView messages to the correct window.
+        /// </summary>
+        public object? OwnerWindow { get; set; }
+
+        /// <summary>
         /// Pending line to scroll to after initialization.
         /// </summary>
         public int? PendingScrollLine { get; set; }

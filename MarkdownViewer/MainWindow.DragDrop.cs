@@ -430,6 +430,15 @@ namespace MarkdownViewer
 
             // Ensure WebView is enabled/disabled based on target window's drag mode
             tab.WebView.IsEnabled = !targetWindow._isDragMoveMode;
+
+            // Sync pointing mode state with target window
+            if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+            {
+                tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(targetWindow._isPointingMode ? "true" : "false")})");
+            }
+
+            // Update owner window reference for message routing
+            tab.OwnerWindow = targetWindow;
         }
 
         private void DetachTabToNewWindow(TabItemData tab, Point tabDropPos)
@@ -482,6 +491,17 @@ namespace MarkdownViewer
 
             // Ensure WebView is enabled (new window has drag mode off by default)
             tab.WebView.IsEnabled = true;
+
+            // Inherit pointing mode state from source window
+            newWindow._isPointingMode = _isPointingMode;
+            newWindow.PointingModeToggle.IsChecked = _isPointingMode;
+            if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+            {
+                tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
+            }
+
+            // Update owner window reference for message routing
+            tab.OwnerWindow = newWindow;
         }
 
         #endregion

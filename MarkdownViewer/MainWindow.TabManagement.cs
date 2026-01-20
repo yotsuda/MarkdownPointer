@@ -351,6 +351,13 @@ namespace MarkdownViewer
 
         private void HandleWebMessageReceived(TabItemData tab, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
         {
+            // Redirect to the correct owner window if tab was moved
+            if (tab.OwnerWindow is MainWindow owner && owner != this)
+            {
+                owner.HandleWebMessageReceived(tab, e);
+                return;
+            }
+
             var message = e.TryGetWebMessageAsString();
 
             if (string.IsNullOrEmpty(message))
