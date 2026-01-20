@@ -42,3 +42,9 @@ Desktop.ini
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+# Debug output
+debug_output.html
+
+# Test files
+test_*.md

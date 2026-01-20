@@ -9,7 +9,7 @@ namespace MarkdownViewer.Models
     /// Data model for a tab in the Markdown Viewer.
     /// Implements INotifyPropertyChanged for WPF binding.
     /// </summary>
-    public class TabItemData : INotifyPropertyChanged
+    public class TabItemData : INotifyPropertyChanged, IDisposable
     {
         private string _title = "";
 

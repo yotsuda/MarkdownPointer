@@ -268,8 +268,9 @@ namespace MarkdownViewer.Services
                     Clipboard.SetImage(bitmap);
                     _setStatusText($"✓ {imageType} copied");
                 }
-                catch
+                catch (Exception ex)
                 {
+                    System.Diagnostics.Debug.WriteLine($"Clipboard error: {ex.Message}");
                     _setStatusText($"✗ {imageType} copy failed");
                 }
             }
