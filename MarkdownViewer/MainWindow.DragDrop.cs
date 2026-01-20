@@ -503,6 +503,10 @@ namespace MarkdownViewer
             newWindow.DragOverlay.Visibility = _isDragMoveMode ? Visibility.Visible : Visibility.Collapsed;
             tab.WebView.IsEnabled = !_isDragMoveMode;
 
+            // Inherit topmost state from source window
+            newWindow.Topmost = Topmost;
+            newWindow.TopmostToggle.IsChecked = Topmost;
+
             // Update owner window reference for message routing
             tab.OwnerWindow = newWindow;
         }
