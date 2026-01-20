@@ -427,6 +427,9 @@ namespace MarkdownViewer
 
             // Re-setup file watcher in target window context
             targetWindow.SetupFileWatcher(tab);
+
+            // Ensure WebView is enabled/disabled based on target window's drag mode
+            tab.WebView.IsEnabled = !targetWindow._isDragMoveMode;
         }
 
         private void DetachTabToNewWindow(TabItemData tab, Point tabDropPos)
@@ -476,6 +479,9 @@ namespace MarkdownViewer
 
             // Re-setup file watcher in new window context
             newWindow.SetupFileWatcher(tab);
+
+            // Ensure WebView is enabled (new window has drag mode off by default)
+            tab.WebView.IsEnabled = true;
         }
 
         #endregion
