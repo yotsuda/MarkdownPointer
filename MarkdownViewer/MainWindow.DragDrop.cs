@@ -489,9 +489,6 @@ namespace MarkdownViewer
             // Re-setup file watcher in new window context
             newWindow.SetupFileWatcher(tab);
 
-            // Ensure WebView is enabled (new window has drag mode off by default)
-            tab.WebView.IsEnabled = true;
-
             // Inherit pointing mode state from source window
             newWindow._isPointingMode = _isPointingMode;
             newWindow.PointingModeToggle.IsChecked = _isPointingMode;
@@ -499,6 +496,12 @@ namespace MarkdownViewer
             {
                 tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
             }
+
+            // Inherit drag/pan mode state from source window
+            newWindow._isDragMoveMode = _isDragMoveMode;
+            newWindow.DragMoveToggle.IsChecked = _isDragMoveMode;
+            newWindow.DragOverlay.Visibility = _isDragMoveMode ? Visibility.Visible : Visibility.Collapsed;
+            tab.WebView.IsEnabled = !_isDragMoveMode;
 
             // Update owner window reference for message routing
             tab.OwnerWindow = newWindow;
