@@ -270,5 +270,26 @@ namespace MarkdownViewer
         }
 
         #endregion
+
+        #region Copy Source
+
+        private void CopySourceButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FileTabControl.SelectedItem is TabItemData tab && !string.IsNullOrEmpty(tab.FilePath))
+            {
+                try
+                {
+                    var content = System.IO.File.ReadAllText(tab.FilePath);
+                    Clipboard.SetText(content);
+                    ShowStatusMessage("✓ Source copied");
+                }
+                catch (Exception ex)
+                {
+                    ShowStatusMessage($"✗ Failed: {ex.Message}");
+                }
+            }
+        }
+
+        #endregion
     }
 }

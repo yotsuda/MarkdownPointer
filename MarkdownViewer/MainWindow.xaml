@@ -165,6 +165,15 @@
                                   Margin="4,0,0,0"
                                   Background="Transparent"
                                   BorderThickness="1"/>
+                    <Button x:Name="CopySourceButton" 
+                                  Content="Copy Source" 
+                                  ToolTip="Copy markdown source to clipboard"
+                                  Click="CopySourceButton_Click"
+                                  Width="70" Height="20"
+                                  FontSize="9"
+                                  Margin="4,0,0,0"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
                 </StackPanel>
             </Grid>
         </Border>
