@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Wpf;
 using MarkdownViewer.Models;
@@ -765,11 +766,36 @@ namespace MarkdownViewer
 
         private void ShowStatusMessage(string message, double seconds = 3.0)
         {
-            StatusText.Text = message;
+            // Stop existing timers first
             _statusMessageTimer?.Stop();
-            _statusMessageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
-            _statusMessageTimer.Tick += (s, args) => { StatusText.Text = ""; _statusMessageTimer.Stop(); };
-            _statusMessageTimer.Start();
+            _statusBlinkTimer?.Stop();
+            
+            StatusText.Text = message;
+            StatusText.Visibility = Visibility.Visible;
+            var flashCount = 0;
+            
+            _statusBlinkTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            _statusBlinkTimer.Tick += (s, args) =>
+            {
+                flashCount++;
+                StatusText.Visibility = (flashCount % 2 == 1) ? Visibility.Hidden : Visibility.Visible;
+                
+                if (flashCount >= 4) // 2 blinks
+                {
+                    _statusBlinkTimer.Stop();
+                    StatusText.Visibility = Visibility.Visible;
+                    
+                    // After specified seconds, clear message
+                    _statusMessageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
+                    _statusMessageTimer.Tick += (s2, args2) =>
+                    {
+                        StatusText.Text = "";
+                        _statusMessageTimer.Stop();
+                    };
+                    _statusMessageTimer.Start();
+                }
+            };
+            _statusBlinkTimer.Start();
         }
 
         private async void RenderMarkdown(TabItemData tab)

@@ -178,11 +178,11 @@ namespace MarkdownViewer
                         UseShellExecute = false,
                         CreateNoWindow = true
                     });
+                    ShowStatusMessage("✓ Opened in VS Code");
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Failed to open VS Code: {ex.Message}", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    ShowStatusMessage($"✗ VS Code failed: {ex.Message}");
                 }
             }
         }
@@ -270,6 +270,8 @@ namespace MarkdownViewer
         }
 
         #endregion
+
+
 
         #region Copy Source
 

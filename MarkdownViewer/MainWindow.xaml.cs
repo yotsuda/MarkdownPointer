@@ -56,6 +56,7 @@ namespace MarkdownViewer
 
         // UI state
         private DispatcherTimer? _statusMessageTimer;
+        private DispatcherTimer? _statusBlinkTimer;
         private Point _contextMenuPosition;
 
         // Document scroll state (for drag mode)
