@@ -178,8 +178,13 @@ function getTableRowMarkdown(tr) {
         /// </summary>
         public const string GetElementContent = @"
 function getElementContent(element) {
-    var tagName = element.tagName.toLowerCase();
+    // Check for render error first (e.g., failed Mermaid diagrams)
+    var errorElem = element.closest('[data-render-error]');
+    if (errorElem) {
+        return errorElem.getAttribute('data-render-error');
+    }
     
+    var tagName = element.tagName.toLowerCase();
     if (tagName === 'td' || tagName === 'th') {
         var tr = element.parentElement;
         var table = tr ? tr.closest('table') : null;

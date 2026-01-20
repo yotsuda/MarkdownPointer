@@ -16,8 +16,13 @@ namespace MarkdownViewer
             if (FileTabControl.SelectedItem is TabItemData tab)
             {
                 UpdateWindowTitle();
+                UpdateErrorIndicator(tab);
                 _targetZoomFactor = tab.WebView.ZoomFactor;
                 _lastZoomFactor = tab.WebView.ZoomFactor;
+            }
+            else
+            {
+                UpdateErrorIndicator(null);
             }
         }
 
@@ -247,6 +252,20 @@ namespace MarkdownViewer
                 contextMenu.Items.Add(copyPngItem);
 
                 contextMenu.IsOpen = true;
+            }
+        }
+
+        #endregion
+
+        #region Error Indicator
+
+        private void ErrorIndicator_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (FileTabControl.SelectedItem is TabItemData tab && tab.LastRenderErrors.Count > 0)
+            {
+                var errorText = string.Join(Environment.NewLine + Environment.NewLine, tab.LastRenderErrors);
+                Clipboard.SetText(errorText);
+                StatusText.Text = $"✓ {tab.LastRenderErrors.Count} error(s) copied to clipboard";
             }
         }
 

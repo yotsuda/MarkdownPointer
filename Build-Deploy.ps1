@@ -46,7 +46,7 @@ Write-Host '=== MarkdownViewer Build & Deploy ===' -ForegroundColor Cyan
 # Step 1: Build
 if (-not $SkipBuild) {
     Write-Host "`n[1/3] Building project..." -ForegroundColor Yellow
-    dotnet build $ProjectFile -c Release
+    dotnet build $ProjectFile -c Release --no-incremental
     if ($LASTEXITCODE -ne 0) {
         throw "Build failed with exit code $LASTEXITCODE"
     }
@@ -57,8 +57,8 @@ if (-not $SkipBuild) {
 
 # Step 2: Stop running processes
 Write-Host "`n[2/3] Stopping MarkdownViewer processes..." -ForegroundColor Yellow
-$processes = Get-Process -Name 'MarkdownViewer' -ErrorAction SilentlyContinue
-if ($processes) {
+$processes = @(Get-Process -Name 'MarkdownViewer' -ErrorAction Ignore)
+if ($processes.Count -gt 0) {
     $processes | Stop-Process -Force
     Write-Host "      Stopped $($processes.Count) process(es)." -ForegroundColor Green
     Start-Sleep -Milliseconds 500

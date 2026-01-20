@@ -496,6 +496,29 @@ namespace MarkdownViewer
                 tab.LastRenderErrors = new List<string>();
                 tab.RenderCompletion?.TrySetResult(new List<string>());
             }
+
+            // Update error indicator if this is the selected tab
+            if (FileTabControl.SelectedItem == tab)
+            {
+                UpdateErrorIndicator(tab);
+            }
+        }
+
+        /// <summary>
+        /// Updates the error indicator in the status bar based on the tab's render errors.
+        /// </summary>
+        private void UpdateErrorIndicator(TabItemData? tab)
+        {
+            if (tab == null || tab.LastRenderErrors.Count == 0)
+            {
+                ErrorIndicator.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var errorCount = tab.LastRenderErrors.Count;
+            ErrorIndicatorText.Text = $"⚠ {errorCount} error{(errorCount > 1 ? "s" : "")}";
+            ErrorToolTipText.Text = string.Join(Environment.NewLine + Environment.NewLine, tab.LastRenderErrors);
+            ErrorIndicator.Visibility = Visibility.Visible;
         }
 
         #endregion

@@ -132,7 +132,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             var formula = errElem.getAttribute('title') || errElem.textContent;
             if (formula && !renderErrors.some(e => e.includes(formula.substring(0, 20)))) {
-                renderErrors.push('[KaTeX Line ' + line + '] ' + formula);
+                var errorMsg = '[KaTeX Line ' + line + '] ' + formula;
+                renderErrors.push(errorMsg);
+                // Store error message on the element for click handling
+                errElem.setAttribute('data-render-error', errorMsg);
             }
         });
 
@@ -157,7 +160,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             } catch (e) {
                 var line = elem.getAttribute('data-line') || '?';
                 var msg = e.message || String(e);
-                renderErrors.push('[Mermaid Line ' + line + '] ' + msg);
+                var errorMsg = '[Mermaid Line ' + line + '] ' + msg;
+                renderErrors.push(errorMsg);
+                // Store error message on the element for click handling
+                elem.setAttribute('data-render-error', errorMsg);
             }
         }
 

@@ -1,4 +1,4 @@
-<Window x:Class="MarkdownViewer.MainWindow"
+﻿<Window x:Class="MarkdownViewer.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
@@ -108,6 +108,27 @@
                                Foreground="#586069"
                                Margin="0,0,12,0"/>
                     
+                    
+                    <!-- Error indicator -->
+                    <Border x:Name="ErrorIndicator" 
+                            Background="#FFF3CD" 
+                            BorderBrush="#FFECB5" 
+                            BorderThickness="1" 
+                            CornerRadius="3" 
+                            Padding="6,2" 
+                            Margin="0,0,12,0"
+                            Cursor="Hand"
+                            Visibility="Collapsed"
+                            MouseLeftButtonUp="ErrorIndicator_Click">
+                        <Border.ToolTip>
+                            <ToolTip x:Name="ErrorToolTip" MaxWidth="500">
+                                <TextBlock x:Name="ErrorToolTipText" TextWrapping="Wrap"/>
+                            </ToolTip>
+                        </Border.ToolTip>
+                        <TextBlock x:Name="ErrorIndicatorText" 
+                                   FontSize="11" 
+                                   Foreground="#856404"/>
+                    </Border>
                     <!-- Toggle buttons -->
                     <ToggleButton x:Name="TopmostToggle" FontFamily="Segoe UI Emoji" 
                                   Content="📌" 
