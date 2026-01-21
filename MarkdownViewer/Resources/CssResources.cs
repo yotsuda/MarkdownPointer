@@ -102,6 +102,12 @@ p {
     background-color: rgba(0, 120, 212, 0.1) !important;
     cursor: pointer !important;
 }
+/* Pie chart slices - use filter instead of outline */
+.pieCircle.pointing-highlight {
+    outline: none !important;
+    background-color: transparent !important;
+    filter: drop-shadow(0 0 4px #0078d4) drop-shadow(0 0 2px #0078d4) !important;
+}
 .code-line {
     display: block;
 }

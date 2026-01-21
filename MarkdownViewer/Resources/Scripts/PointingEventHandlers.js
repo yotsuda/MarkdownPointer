@@ -46,7 +46,31 @@ document.addEventListener('click', function(e) {
             if (prevElem) flashTarget = prevElem;
         }
         var isSvg = flashTarget instanceof SVGElement;
-        if (isSvg) {
+        var isPieSlice = isSvg && flashTarget.classList && flashTarget.classList.contains('pieCircle');
+        
+        if (isPieSlice) {
+            // Pie chart: animate fill color blend
+            var origFill = flashTarget.getAttribute('fill');
+            var computed = window.getComputedStyle(flashTarget).fill;
+            var match = computed.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+            var orig = match ? {r: +match[1], g: +match[2], b: +match[3]} : {r: 200, g: 200, b: 200};
+            var flash = {r: 0, g: 120, b: 212};
+            var start = performance.now();
+            (function anim(now) {
+                var p = Math.min((now - start) / 500, 1);
+                var e = 1 - Math.pow(1 - p, 2);
+                var b = 0.4 * (1 - e);
+                var c = {
+                    r: Math.round(orig.r * (1 - b) + flash.r * b),
+                    g: Math.round(orig.g * (1 - b) + flash.g * b),
+                    b: Math.round(orig.b * (1 - b) + flash.b * b)
+                };
+                var hex = '#' + [c.r, c.g, c.b].map(function(x) { return x.toString(16).padStart(2, '0'); }).join('');
+                flashTarget.setAttribute('fill', hex);
+                if (p < 1) requestAnimationFrame(anim);
+                else if (origFill) flashTarget.setAttribute('fill', origFill);
+            })(start);
+        } else if (isSvg) {
             flashTarget.style.transition = 'none';
             flashTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 120, 212, 1)) drop-shadow(0 0 4px rgba(0, 120, 212, 0.8))';
             setTimeout(function() {
