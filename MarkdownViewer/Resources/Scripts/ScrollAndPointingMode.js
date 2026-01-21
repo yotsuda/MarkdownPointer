@@ -30,3 +30,11 @@ function setPointingMode(enabled) {
     document.body.style.cursor = enabled ? 'crosshair' : '';
     document.body.style.userSelect = enabled ? 'none' : '';
 }
+
+// Initialize pointing mode settings on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (pointingModeEnabled) {
+        document.body.style.cursor = 'crosshair';
+        document.body.style.userSelect = 'none';
+    }
+});
