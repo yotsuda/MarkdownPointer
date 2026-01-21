@@ -323,7 +323,7 @@ namespace MarkdownViewer
                 var elementContent = parts.Length > 1 ? parts[1] : "";
                 var reference = $"[{tab.FilePath}:{line}] {elementContent}";
                 Clipboard.SetText(reference);
-                ShowStatusMessage("✓ Copied - Paste into prompt to point AI here", 3.0);
+                ShowStatusMessage("✓ Ref copied - Paste into prompt to point AI here", 3.0);
             }
         }
 
