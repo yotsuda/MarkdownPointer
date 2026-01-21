@@ -292,6 +292,22 @@ namespace MarkdownViewer
             }
         }
 
+        private void CopyPathButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FileTabControl.SelectedItem is TabItemData tab && !string.IsNullOrEmpty(tab.FilePath))
+            {
+                try
+                {
+                    Clipboard.SetText(tab.FilePath);
+                    ShowStatusMessage("✓ Path copied");
+                }
+                catch (Exception ex)
+                {
+                    ShowStatusMessage($"✗ Failed: {ex.Message}");
+                }
+            }
+        }
+
         #endregion
     }
 }

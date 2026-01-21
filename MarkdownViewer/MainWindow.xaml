@@ -174,6 +174,15 @@
                                   Margin="4,0,0,0"
                                   Background="Transparent"
                                   BorderThickness="1"/>
+                    <Button x:Name="CopyPathButton" 
+                                  Content="Copy Path" 
+                                  ToolTip="Copy full file path to clipboard"
+                                  Click="CopyPathButton_Click"
+                                  Width="60" Height="20"
+                                  FontSize="9"
+                                  Margin="4,0,0,0"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
                 </StackPanel>
             </Grid>
         </Border>
