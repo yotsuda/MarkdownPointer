@@ -62,7 +62,7 @@ namespace MarkdownViewer
             {
                 RenderMarkdown(tab);
             }
-            StatusText.Text = $"✓ {tab.LastFileWriteTime:HH:mm:ss}";
+            ShowStatusMessage($"✓ Source loaded - Last modified at {tab.LastFileWriteTime:HH:mm:ss}");
         }
 
         private void WebView_PreviewDragOver(object sender, DragEventArgs e)

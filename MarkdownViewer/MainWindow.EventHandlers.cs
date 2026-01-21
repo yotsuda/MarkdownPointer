@@ -50,7 +50,7 @@ namespace MarkdownViewer
                 if (FileTabControl.SelectedItem is TabItemData tab)
                 {
                     RenderMarkdown(tab);
-                    StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
+                    ShowStatusMessage($"✓ Source reloaded at {DateTime.Now:HH:mm:ss}");
                 }
                 e.Handled = true;
             }

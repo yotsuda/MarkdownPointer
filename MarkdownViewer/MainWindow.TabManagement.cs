@@ -62,7 +62,7 @@ namespace MarkdownViewer
             if (tab.IsInitialized)
             {
                 RenderMarkdown(tab);
-                StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
+                ShowStatusMessage($"✓ Source reloaded at {DateTime.Now:HH:mm:ss}");
             }
         }
 
@@ -306,7 +306,7 @@ namespace MarkdownViewer
                 tab.LastFileWriteTime = currentWriteTime;
 
                 RenderMarkdown(tab);
-                StatusText.Text = $"✓ {currentWriteTime:HH:mm:ss}";
+                ShowStatusMessage($"✓ Source updated at {currentWriteTime:HH:mm:ss}");
             };
 
             tab.Watcher.Changed += (s, e) =>
@@ -354,7 +354,7 @@ namespace MarkdownViewer
                     UpdateWindowTitle();
                     if (FileTabControl.SelectedItem == tab)
                     {
-                        StatusText.Text = $"✓ {DateTime.Now:HH:mm:ss}";
+                        ShowStatusMessage($"✓ Source renamed");
                     }
                 });
             };
