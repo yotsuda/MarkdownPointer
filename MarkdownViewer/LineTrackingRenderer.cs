@@ -124,8 +124,6 @@ namespace MarkdownViewer
                     var lineContent = System.Web.HttpUtility.HtmlEncode(line.Slice.ToString());
                     var sourceLine = obj.Line + (obj is FencedCodeBlock ? 2 : 1) + i;
                     renderer.Write($"<span class=\"code-line\" data-line=\"{sourceLine}\">{lineContent}</span>");
-                    if (i < lines.Count - 1)
-                        renderer.WriteLine();
                 }
                 
                 renderer.WriteLine("</code></pre>");

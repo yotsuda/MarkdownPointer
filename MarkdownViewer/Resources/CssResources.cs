@@ -37,7 +37,7 @@ pre {
     padding: 16px;
     border-radius: 6px;
     overflow: auto;
-    line-height: 1.45;
+    line-height: 1.55;
 }
 pre code {
     background-color: transparent;
