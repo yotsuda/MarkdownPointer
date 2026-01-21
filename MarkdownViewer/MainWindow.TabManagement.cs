@@ -415,8 +415,10 @@ namespace MarkdownViewer
             // Stop existing timers first
             _statusMessageTimer?.Stop();
             _statusBlinkTimer?.Stop();
+            StatusText.BeginAnimation(OpacityProperty, null); // Cancel any running animation
             
             StatusText.Text = message;
+            StatusText.Opacity = 1.0;
             StatusText.Visibility = Visibility.Visible;
             var flashCount = 0;
             
@@ -431,12 +433,24 @@ namespace MarkdownViewer
                     _statusBlinkTimer.Stop();
                     StatusText.Visibility = Visibility.Visible;
                     
-                    // After specified seconds, clear message
+                    // After specified seconds, fade out and clear message
                     _statusMessageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
                     _statusMessageTimer.Tick += (s2, args2) =>
                     {
-                        StatusText.Text = "";
                         _statusMessageTimer.Stop();
+                        var fadeOut = new System.Windows.Media.Animation.DoubleAnimation
+                        {
+                            From = 1.0,
+                            To = 0.0,
+                            Duration = TimeSpan.FromMilliseconds(200),
+                            EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                        };
+                        fadeOut.Completed += (s3, args3) =>
+                        {
+                            StatusText.Text = "";
+                            StatusText.Opacity = 1.0;
+                        };
+                        StatusText.BeginAnimation(OpacityProperty, fadeOut);
                     };
                     _statusMessageTimer.Start();
                 }
