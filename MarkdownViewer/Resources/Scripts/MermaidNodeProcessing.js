@@ -1,4 +1,4 @@
-function processMermaidNodes() {
+﻿function processMermaidNodes() {
     document.querySelectorAll('.mermaid').forEach(function(container) {
         var source = container.getAttribute('data-mermaid-source') || '';
         var baseLine = parseInt(container.getAttribute('data-line') || '0', 10);
@@ -64,15 +64,27 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
             }
         }
 
-        // Sequence diagram message
+        // Sequence diagram message - also build text-to-line mapping
         if (/->>|-->|->/.test(line) && line.indexOf(':') !== -1) {
             messageLineNums.push(lineNum);
+            var colonIdx = line.indexOf(':');
+            var msgText = line.substring(colonIdx + 1).trim();
+            if (msgText && !edgeLabelLineMap['seq:' + msgText]) {
+                edgeLabelLineMap['seq:' + msgText] = lineNum;
+            }
         }
 
-        // Sequence participant/actor
-        var actorMatch = line.match(/^\s*(participant|actor)\s+(\S+)/);
-        if (actorMatch && !nodeLineMap[actorMatch[2]]) {
-            nodeLineMap[actorMatch[2]] = lineNum;
+        // Sequence participant/actor - handle "participant A as Alice" format
+        var actorMatch = line.match(/^\s*(participant|actor)\s+(\S+)(?:\s+as\s+(.+))?/);
+        if (actorMatch) {
+            var actorId = actorMatch[2];
+            var actorAlias = actorMatch[3] ? actorMatch[3].trim() : actorId;
+            if (!nodeLineMap[actorId]) {
+                nodeLineMap[actorId] = lineNum;
+            }
+            if (actorAlias !== actorId && !nodeLineMap[actorAlias]) {
+                nodeLineMap[actorAlias] = lineNum;
+            }
         }
 
         // Sequence implicit actor (from message lines like Alice->>Bob: Hello)
@@ -130,10 +142,14 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         }
     }
 
-    // State diagram transition
-    var stateTransMatch = line.match(/^\s*(\[\*\]|[^\s-]+)\s*-->\s*(\[\*\]|[^\s-]+)/);
+    // State diagram transition with optional label
+    var stateTransMatch = line.match(/^\s*(\[\*\]|[^\s-]+)\s*-->\s*(\[\*\]|[^\s:]+)(?:\s*:\s*(.+))?/);
     if (stateTransMatch) {
         arrowLineMap[stateTransMatch[1] + '->' + stateTransMatch[2]] = lineNum;
+        // Register transition label
+        if (stateTransMatch[3]) {
+            edgeLabelLineMap['state:' + stateTransMatch[3].trim()] = lineNum;
+        }
         // Also register state names
         if (stateTransMatch[1] !== '[*]' && !nodeLineMap['state:' + stateTransMatch[1]]) {
             nodeLineMap['state:' + stateTransMatch[1]] = lineNum;
@@ -143,12 +159,13 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         }
     }
     // ER diagram relationship: ENTITY1 ||--o{ ENTITY2 : label
-    var erRelMatch = line.match(/^\s*([^\s\|\}o]+)\s*(\||\}|o).*(\||\{|o)\s*([^\s\|\{o:]+)\s*:\s*(\S+)/);
+    var erRelMatch = line.match(/^\s*([^\s\|\}o]+)\s*(\||\}|o).*(\||\{|o)\s*([^\s\|\{o:]+)\s*:\s*(.+)$/);
     if (erRelMatch) {
         var erKey = erRelMatch[1] + '-' + erRelMatch[4];
         arrowLineMap[erKey] = lineNum;
-        // Map the label
-        nodeLineMap[erRelMatch[5]] = lineNum;
+        // Map the label to edgeLabelLineMap
+        var erLabel = erRelMatch[5].trim();
+        edgeLabelLineMap['er:' + erLabel] = lineNum;
         // Map entity names from relationship (for entities without explicit definition)
         if (!nodeLineMap['errel:' + erRelMatch[1]]) nodeLineMap['errel:' + erRelMatch[1]] = lineNum;
         if (!nodeLineMap['errel:' + erRelMatch[4]]) nodeLineMap['errel:' + erRelMatch[4]] = lineNum;
@@ -160,12 +177,28 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         nodeLineMap['entity:' + erEntityMatch[1]] = lineNum;
     }
 
-    // Gantt task: TaskName :taskId, ... (index-based for duplicate task names)
+    // ER diagram attribute: type name (inside entity block)
+    if (diagramType === 'er') {
+        var erAttrMatch = line.match(/^\s+(\S+)\s+(\S+)\s*$/);
+        if (erAttrMatch) {
+            // Store attribute with type and name
+            edgeLabelLineMap['er-attr:' + erAttrMatch[1] + ':' + erAttrMatch[2]] = lineNum;
+            edgeLabelLineMap['er-attr-name:' + erAttrMatch[2]] = lineNum;
+        }
+    }
+
+    // Gantt task: TaskName :... (any task line with colon)
     if (diagramType === 'gantt') {
-        var ganttTaskMatch = line.match(/^\s*(.+?)\s*:([a-zA-Z0-9]+),/);
+        // Match task lines: "Task Name :something" (but not section/title/dateFormat)
+        var ganttTaskMatch = line.match(/^\s*([^:]+?)\s*:/);
         if (ganttTaskMatch) {
-            if (!nodeLineMap['gantt-task-lines']) nodeLineMap['gantt-task-lines'] = [];
-            nodeLineMap['gantt-task-lines'].push(lineNum);
+            var taskName = ganttTaskMatch[1].trim();
+            // Exclude keywords
+            if (taskName !== 'section' && taskName !== 'title' && taskName !== 'dateFormat' && 
+                taskName !== 'axisFormat' && taskName !== 'excludes') {
+                if (!nodeLineMap['gantt-task-lines']) nodeLineMap['gantt-task-lines'] = [];
+                nodeLineMap['gantt-task-lines'].push(lineNum);
+            }
         }
     }
 
@@ -288,11 +321,13 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             return;
         }
 
-        // Flowchart edge label
+        // Flowchart/State/ER diagram edge label
         if (node.classList.contains('edgeLabel')) {
             var labelText = node.textContent.trim();
-            if (edgeLabelLineMap[labelText]) {
-                node.setAttribute('data-source-line', String(edgeLabelLineMap[labelText]));
+            // Try direct lookup (flowchart) first, then state/ER diagram prefix
+            var sourceLine = edgeLabelLineMap[labelText] || edgeLabelLineMap['state:' + labelText] || edgeLabelLineMap['er:' + labelText];
+            if (sourceLine) {
+                node.setAttribute('data-source-line', String(sourceLine));
             }
             return;
         }
@@ -338,19 +373,16 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
     });
 
     // Sequence diagram arrows (message lines) with hit areas
-    var seqMsgIdx = 0;
     svg.querySelectorAll('line.messageLine0, line.messageLine1').forEach(function(line) {
-        var sourceLine = null;
-        if (seqMsgIdx < messageLineNums.length) {
-            sourceLine = String(messageLineNums[seqMsgIdx]);
-        }
-
         // Get message text from previous sibling
         var msgText = '';
         var prev = line.previousElementSibling;
         if (prev && prev.classList && prev.classList.contains('messageText')) {
             msgText = prev.textContent.trim();
         }
+
+        // Look up line number by message text
+        var sourceLine = edgeLabelLineMap['seq:' + msgText] ? String(edgeLabelLineMap['seq:' + msgText]) : null;
 
         // Create hit area for easier clicking
         var bbox = line.getBBox();
@@ -379,8 +411,7 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         if (sourceLine) {
             line.setAttribute('data-source-line', sourceLine);
         }
-        // Only increment for messageLine0
-        if (line.classList.contains('messageLine0')) seqMsgIdx++;
+
     });
 
     // Flowchart arrows with hit areas
@@ -602,14 +633,16 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             var nextSib = label.nextElementSibling;
             if (nextSib && nextSib.classList.contains('attribute-name')) {
                 var nameText = nextSib.textContent.trim();
-                if (nodeLineMap[nameText]) {
-                    label.setAttribute('data-source-line', String(nodeLineMap[nameText]));
+                var sourceLine = edgeLabelLineMap['er-attr-name:' + nameText];
+                if (sourceLine) {
+                    label.setAttribute('data-source-line', String(sourceLine));
                 }
             }
         } else {
             // attribute-name
-            if (nodeLineMap[attrText]) {
-                label.setAttribute('data-source-line', String(nodeLineMap[attrText]));
+            var sourceLine = edgeLabelLineMap['er-attr-name:' + attrText];
+            if (sourceLine) {
+                label.setAttribute('data-source-line', String(sourceLine));
             }
         }
     });
