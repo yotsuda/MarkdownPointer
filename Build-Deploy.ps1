@@ -61,7 +61,6 @@ $processes = @(Get-Process -Name 'MarkdownViewer' -ErrorAction Ignore)
 if ($processes.Count -gt 0) {
     $processes | Stop-Process -Force
     Write-Host "      Stopped $($processes.Count) process(es)." -ForegroundColor Green
-    Start-Sleep -Milliseconds 500
 } else {
     Write-Host '      No running processes found.' -ForegroundColor DarkGray
 }
@@ -69,17 +68,35 @@ if ($processes.Count -gt 0) {
 # Step 3: Deploy
 Write-Host "`n[3/3] Deploying files..." -ForegroundColor Yellow
 
-# Copy bin files
+# Copy bin files with retry
+$savedErrorPref = $ErrorActionPreference
+$ErrorActionPreference = 'SilentlyContinue'
 foreach ($file in $BinFiles) {
     $src = Join-Path $BuildOutput $file
     $dst = Join-Path $BinTarget $file
     if (Test-Path $src) {
-        Copy-Item $src $dst -Force
-        Write-Host "      bin\$file" -ForegroundColor DarkGray
+        $maxRetries = 20
+        $retryDelay = 100
+        $copied = $false
+        $srcTime = (Get-Item $src).LastWriteTime
+        for ($i = 0; $i -lt $maxRetries; $i++) {
+            Copy-Item $src $dst -Force 2>$null
+            if ((Test-Path $dst) -and (Get-Item $dst).LastWriteTime -ge $srcTime) {
+                Write-Host "      bin\$file" -ForegroundColor DarkGray
+                $copied = $true
+                break
+            }
+            Start-Sleep -Milliseconds $retryDelay
+        }
+        if (-not $copied) {
+            $ErrorActionPreference = $savedErrorPref
+            throw "Failed to copy $file after $maxRetries retries"
+        }
     } else {
         Write-Warning "File not found: $src"
     }
 }
+$ErrorActionPreference = $savedErrorPref
 
 # Copy module files
 foreach ($file in $ModuleFiles) {
