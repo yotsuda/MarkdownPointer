@@ -361,9 +361,9 @@ function getElementContent(element) {
         var src = element.getAttribute('data-mermaid-source') || '';
         if (src) {
             var firstLine = src.split('\n')[0].trim();
-            return '```mermaid ' + firstLine + '```';
+            return 'mermaid diagram: ' + firstLine;
         }
-        return '```mermaid```';
+        return 'mermaid diagram';
     }
     if (element.classList.contains('katex') || element.classList.contains('math') || element.querySelector('.katex')) {
         var mathSrc = element.getAttribute('data-math') || element.textContent.trim();
