@@ -43,26 +43,27 @@ $ModuleFiles = @(
 
 Write-Host '=== MarkdownViewer Build & Deploy ===' -ForegroundColor Cyan
 
-# Step 1: Build
+# Step 1: Stop running processes (BEFORE build to avoid file locks)
+Write-Host "`n[1/3] Stopping MarkdownViewer processes..." -ForegroundColor Yellow
+$processes = @(Get-Process -Name 'MarkdownViewer' -ErrorAction Ignore)
+if ($processes.Count -gt 0) {
+    $processes | Stop-Process -Force
+    Start-Sleep -Milliseconds 500
+    Write-Host "      Stopped $($processes.Count) process(es)." -ForegroundColor Green
+} else {
+    Write-Host '      No running processes found.' -ForegroundColor DarkGray
+}
+
+# Step 2: Build
 if (-not $SkipBuild) {
-    Write-Host "`n[1/3] Building project..." -ForegroundColor Yellow
+    Write-Host "`n[2/3] Building project..." -ForegroundColor Yellow
     dotnet build $ProjectFile -c Release --no-incremental
     if ($LASTEXITCODE -ne 0) {
         throw "Build failed with exit code $LASTEXITCODE"
     }
     Write-Host '      Build succeeded.' -ForegroundColor Green
 } else {
-    Write-Host "`n[1/3] Skipping build (SkipBuild specified)" -ForegroundColor DarkGray
-}
-
-# Step 2: Stop running processes
-Write-Host "`n[2/3] Stopping MarkdownViewer processes..." -ForegroundColor Yellow
-$processes = @(Get-Process -Name 'MarkdownViewer' -ErrorAction Ignore)
-if ($processes.Count -gt 0) {
-    $processes | Stop-Process -Force
-    Write-Host "      Stopped $($processes.Count) process(es)." -ForegroundColor Green
-} else {
-    Write-Host '      No running processes found.' -ForegroundColor DarkGray
+    Write-Host "`n[2/3] Skipping build (SkipBuild specified)" -ForegroundColor DarkGray
 }
 
 # Step 3: Deploy
