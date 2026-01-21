@@ -47,6 +47,9 @@ document.addEventListener('click', function(e) {
         }
         var isSvg = flashTarget instanceof SVGElement;
         var isPieSlice = isSvg && flashTarget.classList && flashTarget.classList.contains('pieCircle');
+        var isSvgRoot = isSvg && flashTarget.tagName && flashTarget.tagName.toLowerCase() === 'svg';
+        // Check if HTML element contains a mermaid diagram (SVG inside)
+        var containsMermaid = !isSvg && flashTarget.querySelector && flashTarget.querySelector('svg.mermaid, .mermaid svg');
         
         if (isPieSlice) {
             // Pie chart: animate fill color blend
@@ -70,7 +73,17 @@ document.addEventListener('click', function(e) {
                 if (p < 1) requestAnimationFrame(anim);
                 else if (origFill) flashTarget.setAttribute('fill', origFill);
             })(start);
+        } else if (isSvgRoot || containsMermaid) {
+            // SVG root or HTML containing mermaid: outer glow effect
+            flashTarget.style.transition = 'none';
+            flashTarget.style.boxShadow = '0 0 12px 4px rgba(0, 120, 212, 0.6)';
+            setTimeout(function() {
+                flashTarget.style.transition = 'box-shadow 0.5s ease-out';
+                flashTarget.style.boxShadow = '';
+            }, 10);
+            setTimeout(function() { flashTarget.style.transition = ''; }, 520);
         } else if (isSvg) {
+            // SVG child elements: use drop-shadow filter
             flashTarget.style.transition = 'none';
             flashTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 120, 212, 1)) drop-shadow(0 0 4px rgba(0, 120, 212, 0.8))';
             setTimeout(function() {
@@ -79,6 +92,7 @@ document.addEventListener('click', function(e) {
             }, 10);
             setTimeout(function() { flashTarget.style.transition = ''; }, 720);
         } else {
+            // HTML elements: use CSS class
             flashTarget.classList.remove('pointing-flash');
             void flashTarget.offsetWidth;
             flashTarget.classList.add('pointing-flash');
