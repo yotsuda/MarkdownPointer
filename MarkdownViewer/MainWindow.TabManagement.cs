@@ -404,7 +404,7 @@ namespace MarkdownViewer
         {
             if (FileTabControl.SelectedItem is TabItemData tab)
             {
-                Title = $"Markdown Viewer - {tab.Title}";
+                Title = $"{tab.Title} - Markdown Viewer";
                 LinkStatusText.Text = "";
                 WatchStatusText.Text = "👁 Watching";
             }

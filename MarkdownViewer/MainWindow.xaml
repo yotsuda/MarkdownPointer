@@ -69,7 +69,7 @@
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="📝" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                <TextBlock Text="Markdown Viewer" FontSize="24" FontWeight="SemiBold" 
+                <TextBlock Text="Markdown Viewer for AI" FontSize="24" FontWeight="SemiBold" 
                            Foreground="#24292e" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                 <TextBlock Text="Drag &amp; drop a file here" FontSize="14" 
                            Foreground="#586069" HorizontalAlignment="Center" Margin="0,0,0,4"/>
