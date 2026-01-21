@@ -47,12 +47,15 @@ document.addEventListener('click', function(e) {
         }
         var isSvg = flashTarget instanceof SVGElement;
         var isPieSlice = isSvg && flashTarget.classList && flashTarget.classList.contains('pieCircle');
+        var isPolygon = isSvg && flashTarget.tagName && flashTarget.tagName.toLowerCase() === 'polygon';
+        // Check if g element contains polygon (diamond node)
+        var hasPolygon = isSvg && flashTarget.tagName && flashTarget.tagName.toLowerCase() === 'g' && flashTarget.querySelector('polygon');
         var isSvgRoot = isSvg && flashTarget.tagName && flashTarget.tagName.toLowerCase() === 'svg';
         // Check if HTML element contains a mermaid diagram (SVG inside)
         var containsMermaid = !isSvg && flashTarget.querySelector && flashTarget.querySelector('svg.mermaid, .mermaid svg');
         
-        if (isPieSlice) {
-            // Pie chart: animate fill color blend
+        if (isPieSlice || isPolygon) {
+            // Pie chart or polygon (diamond): animate fill color blend
             var origFill = flashTarget.getAttribute('fill');
             var computed = window.getComputedStyle(flashTarget).fill;
             var match = computed.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
@@ -73,6 +76,15 @@ document.addEventListener('click', function(e) {
                 if (p < 1) requestAnimationFrame(anim);
                 else if (origFill) flashTarget.setAttribute('fill', origFill);
             })(start);
+        } else if (hasPolygon) {
+            // g element containing polygon: use drop-shadow filter like other nodes
+            flashTarget.style.transition = 'none';
+            flashTarget.style.filter = 'drop-shadow(0 0 8px rgba(0, 120, 212, 1)) drop-shadow(0 0 4px rgba(0, 120, 212, 0.8))';
+            setTimeout(function() {
+                flashTarget.style.transition = 'filter 0.7s ease-out';
+                flashTarget.style.filter = '';
+            }, 10);
+            setTimeout(function() { flashTarget.style.transition = ''; }, 720);
         } else if (isSvgRoot || containsMermaid) {
             // SVG root or HTML containing mermaid: outer glow effect
             flashTarget.style.transition = 'none';
@@ -98,7 +110,6 @@ document.addEventListener('click', function(e) {
             flashTarget.classList.add('pointing-flash');
             setTimeout(function() { flashTarget.classList.remove('pointing-flash'); }, 500);
         }
-        
         var line = getElementLine(pointable);
         var content = getElementContent(pointable);
         window.chrome.webview.postMessage('point:' + line + '|' + content);

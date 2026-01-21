@@ -106,7 +106,13 @@ p {
 .pieCircle.pointing-highlight {
     outline: none !important;
     background-color: transparent !important;
-    filter: drop-shadow(0 0 4px #0078d4) drop-shadow(0 0 2px #0078d4) !important;
+    filter: drop-shadow(0 0 4px #0078d4) drop-shadow(0 0 2px #0078d4);
+}
+/* Diamond/rhombus nodes (g element containing polygon) - use filter */
+g.pointing-highlight:has(polygon) {
+    outline: none !important;
+    background-color: transparent !important;
+    filter: drop-shadow(0 0 4px #0078d4) drop-shadow(0 0 2px #0078d4);
 }
 .code-line {
     display: block;
