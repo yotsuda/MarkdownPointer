@@ -244,11 +244,12 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         nodeLineMap['git-branch:' + gitBranchMatch[1]] = lineNum;
     }
 
-    // Git graph merge: merge BranchName (also creates a commit circle)
-    var gitMergeMatch = line.match(/^\s*merge\s+(\S+)/);
+    // Git graph merge: merge BranchName id: "label" (also creates a commit circle)
+    var gitMergeMatch = line.match(/^\s*merge\s+(\S+)(?:\s+id:\s*"([^"]+)")?/);
     if (gitMergeMatch) {
         if (!nodeLineMap['git-commit-count']) nodeLineMap['git-commit-count'] = 0;
         nodeLineMap['git-commit:' + nodeLineMap['git-commit-count']] = lineNum;
+        if (gitMergeMatch[2]) nodeLineMap['git-label:' + gitMergeMatch[2]] = lineNum;
         nodeLineMap['git-commit-count']++;
     }
 
