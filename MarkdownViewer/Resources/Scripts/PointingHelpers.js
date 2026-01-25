@@ -1,8 +1,21 @@
 function getPointableElement(element) {
+    // First, check if element is inside a table cell - if so, return the cell
+    var checkElement = element;
+    while (checkElement && checkElement !== document.body) {
+        var tagName = checkElement.tagName ? checkElement.tagName.toLowerCase() : '';
+        if (tagName === 'td' || tagName === 'th') {
+            return checkElement;
+        }
+        // Stop at table boundary
+        if (tagName === 'table') break;
+        checkElement = checkElement.parentElement || checkElement.parentNode;
+    }
+
+    // Normal pointable element detection
     while (element && element !== document.body) {
         var tagName = element.tagName ? element.tagName.toLowerCase() : '';
         
-        // Table cells
+        // Table cells (already handled above, but keep for direct clicks)
         if (tagName === 'td' || tagName === 'th') return element;
         
         // Code block lines
