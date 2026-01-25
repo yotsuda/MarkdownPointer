@@ -164,6 +164,12 @@ public class PipeServer : IDisposable
             {
                 // Timeout is recorded in LastRenderErrors
             }
+            
+            // Scroll to line after render completes
+            if (message.Line.HasValue)
+            {
+                targetWindow.ScrollToLine(openedTab, message.Line.Value);
+            }
         }
 
         // Build response with all window/tab info
