@@ -48,3 +48,11 @@ debug_output.html
 
 # Test files
 test_*.md
+
+# Test files
+test_er_svg*.html
+
+# Build scripts (local)
+env_filter.sh
+filter.sh
+rewrite.sh

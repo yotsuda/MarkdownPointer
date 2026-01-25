@@ -177,13 +177,23 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         nodeLineMap['entity:' + erEntityMatch[1]] = lineNum;
     }
 
-    // ER diagram attribute: type name (inside entity block)
+    // ER diagram attribute: type name [key] ["comment"] (inside entity block)
+    // Use index-based approach to handle duplicate attribute names across entities
     if (diagramType === 'er') {
-        var erAttrMatch = line.match(/^\s+(\S+)\s+(\S+)\s*$/);
-        if (erAttrMatch) {
-            // Store attribute with type and name
-            edgeLabelLineMap['er-attr:' + erAttrMatch[1] + ':' + erAttrMatch[2]] = lineNum;
-            edgeLabelLineMap['er-attr-name:' + erAttrMatch[2]] = lineNum;
+        var trimmed = line.trim();
+        // Skip entity definition lines (ends with {), closing braces, and relationship lines
+        var isEntityDef = trimmed.endsWith('{');
+        var isClosingBrace = trimmed === '}';
+        var isRelationship = /(\|\||--|\}o|o\{|\|\{|\}\||\|o|o\|)/.test(trimmed);
+        
+        if (!isEntityDef && !isClosingBrace && !isRelationship) {
+            // Match: type name, type name PK, type name "comment", type name PK "comment"
+            var erAttrMatch = line.match(/^\s+(\S+)\s+(\S+)(?:\s+(\S+))?(?:\s+"([^"]*)")?/);
+            if (erAttrMatch) {
+                // Store attribute line numbers in order (index-based)
+                if (!nodeLineMap['er-attr-lines']) nodeLineMap['er-attr-lines'] = [];
+                nodeLineMap['er-attr-lines'].push(lineNum);
+            }
         }
     }
 
@@ -621,31 +631,56 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
-    // ER diagram: attributes
-    svg.querySelectorAll('g.label.attribute-name, g.label.attribute-type').forEach(function(label) {
-        var attrText = label.textContent.trim();
-        var isType = label.classList.contains('attribute-type');
+    // ER diagram: attributes (all columns index-based)
+    // SVG element order matches source code order for each column type
+    var erAttrLines = nodeLineMap['er-attr-lines'] || [];
+    
+    // Process attribute-type (1st column) - index based
+    var typeIdx = 0;
+    svg.querySelectorAll('g.label.attribute-type').forEach(function(label) {
         label.style.cursor = 'pointer';
         label.setAttribute('data-mermaid-node', 'true');
-        label.setAttribute('data-er-attr', attrText);
-
-        // For attribute-type, get line from next sibling (attribute-name)
-        if (isType) {
-            var nextSib = label.nextElementSibling;
-            if (nextSib && nextSib.classList.contains('attribute-name')) {
-                var nameText = nextSib.textContent.trim();
-                var sourceLine = edgeLabelLineMap['er-attr-name:' + nameText];
-                if (sourceLine) {
-                    label.setAttribute('data-source-line', String(sourceLine));
-                }
-            }
-        } else {
-            // attribute-name
-            var sourceLine = edgeLabelLineMap['er-attr-name:' + attrText];
-            if (sourceLine) {
-                label.setAttribute('data-source-line', String(sourceLine));
-            }
+        label.setAttribute('data-er-attr', label.textContent.trim());
+        if (erAttrLines[typeIdx]) {
+            label.setAttribute('data-source-line', String(erAttrLines[typeIdx]));
         }
+        typeIdx++;
+    });
+
+    // Process attribute-name (2nd column) - index based
+    var nameIdx = 0;
+    svg.querySelectorAll('g.label.attribute-name').forEach(function(label) {
+        label.style.cursor = 'pointer';
+        label.setAttribute('data-mermaid-node', 'true');
+        label.setAttribute('data-er-attr', label.textContent.trim());
+        if (erAttrLines[nameIdx]) {
+            label.setAttribute('data-source-line', String(erAttrLines[nameIdx]));
+        }
+        nameIdx++;
+    });
+
+    // Process attribute-keys (3rd column) - index based
+    var keysIdx = 0;
+    svg.querySelectorAll('g.label.attribute-keys').forEach(function(label) {
+        label.style.cursor = 'pointer';
+        label.setAttribute('data-mermaid-node', 'true');
+        label.setAttribute('data-er-attr', label.textContent.trim());
+        if (erAttrLines[keysIdx]) {
+            label.setAttribute('data-source-line', String(erAttrLines[keysIdx]));
+        }
+        keysIdx++;
+    });
+
+    // Process attribute-comment (4th column) - index based
+    var commentIdx = 0;
+    svg.querySelectorAll('g.label.attribute-comment').forEach(function(label) {
+        label.style.cursor = 'pointer';
+        label.setAttribute('data-mermaid-node', 'true');
+        label.setAttribute('data-er-attr', label.textContent.trim());
+        if (erAttrLines[commentIdx]) {
+            label.setAttribute('data-source-line', String(erAttrLines[commentIdx]));
+        }
+        commentIdx++;
     });
 
     // Gantt: tasks (index-based for duplicate task names)
