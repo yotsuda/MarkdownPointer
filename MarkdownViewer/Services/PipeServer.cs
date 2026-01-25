@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Windows;
 using MarkdownViewer.Models;
 
@@ -18,6 +19,12 @@ public class PipeServer : IDisposable
     
     private CancellationTokenSource? _cts;
     private Task? _serverTask;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     public void Start()
     {
@@ -65,7 +72,7 @@ public class PipeServer : IDisposable
                         var response = await Application.Current.Dispatcher.InvokeAsync(
                             () => HandleMessageAsync(message)).Task.Unwrap();
 
-                        var responseJson = JsonSerializer.Serialize(response);
+                        var responseJson = JsonSerializer.Serialize(response, JsonOptions);
                         var responseBytes = Encoding.UTF8.GetBytes(responseJson);
                         await server.WriteAsync(responseBytes, ct);
                     }
@@ -84,81 +91,145 @@ public class PipeServer : IDisposable
 
     private async Task<PipeResponse> HandleMessageAsync(PipeMessage message)
     {
-        var windows = Application.Current.Windows.OfType<MainWindow>();
+        var windows = Application.Current.Windows.OfType<MainWindow>().ToList();
         
         switch (message.Command)
         {
             case "open":
                 return await HandleOpenAsync(message, windows);
 
-            case "openTemp":
-                return await HandleOpenTempAsync(message, windows);
-
             case "activate":
                 return HandleActivate(windows);
-
-            case "getTabs":
-                return GetTabsResponse(windows);
 
             default:
                 return new PipeResponse { Success = false, Error = "Unknown command" };
         }
     }
 
-    private async Task<PipeResponse> HandleOpenAsync(PipeMessage message, IEnumerable<MainWindow> windows)
+    private async Task<PipeResponse> HandleOpenAsync(PipeMessage message, List<MainWindow> windows)
     {
         if (string.IsNullOrEmpty(message.Path) || !File.Exists(message.Path))
         {
             return new PipeResponse { Success = false, Error = "File not found" };
         }
 
+        TabItemData? openedTab = null;
+        MainWindow? targetWindow = null;
+        int targetWindowIndex = 0;
+
         // Check if file is already open in any window
-        foreach (var win in windows)
+        for (int i = 0; i < windows.Count; i++)
         {
-            var existingTab = win.FindTabByFilePath(message.Path);
+            var existingTab = windows[i].FindTabByFilePath(message.Path);
             if (existingTab != null)
             {
-                win.BringToFront();
-                win.SelectTab(existingTab);
+                windows[i].BringToFront();
+                windows[i].SelectTab(existingTab);
                 if (message.Line.HasValue)
                 {
-                    win.ScrollToLine(existingTab, message.Line.Value);
+                    windows[i].ScrollToLine(existingTab, message.Line.Value);
                 }
-                return new PipeResponse { Success = true };
+                openedTab = existingTab;
+                targetWindow = windows[i];
+                targetWindowIndex = i;
+                break;
             }
         }
 
         // File not open - open in first window
-        var window = windows.FirstOrDefault();
-        if (window != null)
+        if (openedTab == null)
         {
-            var tab = window.LoadMarkdownFile(message.Path, message.Line, message.Title);
-            window.BringToFront();
-            return await WaitForRenderAsync(tab);
+            targetWindow = windows.FirstOrDefault();
+            if (targetWindow != null)
+            {
+                openedTab = targetWindow.LoadMarkdownFile(message.Path, message.Line, message.Title);
+                targetWindow.BringToFront();
+                targetWindowIndex = 0;
+            }
         }
 
-        return new PipeResponse { Success = false, Error = "No window available" };
+        if (openedTab == null || targetWindow == null)
+        {
+            return new PipeResponse { Success = false, Error = "No window available" };
+        }
+
+        // Wait for render if it's a new tab
+        if (openedTab.RenderCompletion != null)
+        {
+            try
+            {
+                await openedTab.RenderCompletion.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            }
+            catch (TimeoutException)
+            {
+                // Timeout is recorded in LastRenderErrors
+            }
+        }
+
+        // Build response with all window/tab info
+        return BuildFullResponse(openedTab, targetWindow, targetWindowIndex, windows);
     }
 
-    private async Task<PipeResponse> HandleOpenTempAsync(PipeMessage message, IEnumerable<MainWindow> windows)
+    private static PipeResponse BuildFullResponse(
+        TabItemData openedTab, 
+        MainWindow targetWindow, 
+        int targetWindowIndex,
+        List<MainWindow> windows)
     {
-        if (string.IsNullOrEmpty(message.Path) || !File.Exists(message.Path))
+        var windowInfos = new List<WindowInfo>();
+        OpenedTabInfo? openedTabInfo = null;
+
+        for (int winIdx = 0; winIdx < windows.Count; winIdx++)
         {
-            return new PipeResponse { Success = false, Error = "File not found" };
+            var window = windows[winIdx];
+            var tabs = window.GetTabs();
+            var selectedIndex = window.GetSelectedTabIndex();
+            var tabInfos = new List<TabInfo>();
+
+            for (int tabIdx = 0; tabIdx < tabs.Count; tabIdx++)
+            {
+                var tab = tabs[tabIdx];
+                var errors = tab.LastRenderErrors.Count > 0 ? tab.LastRenderErrors.ToArray() : null;
+                var isSelected = tabIdx == selectedIndex;
+
+                tabInfos.Add(new TabInfo
+                {
+                    Index = tabIdx,
+                    Title = tab.Title,
+                    Path = tab.FilePath,
+                    IsSelected = isSelected,
+                    Errors = errors
+                });
+
+                // Capture opened tab info
+                if (tab == openedTab)
+                {
+                    openedTabInfo = new OpenedTabInfo
+                    {
+                        WindowIndex = winIdx,
+                        TabIndex = tabIdx,
+                        Title = tab.Title,
+                        Path = tab.FilePath
+                    };
+                }
+            }
+
+            windowInfos.Add(new WindowInfo
+            {
+                Index = winIdx,
+                Tabs = tabInfos.ToArray()
+            });
         }
 
-        var window = windows.FirstOrDefault();
-        if (window != null)
+        return new PipeResponse
         {
-            var tab = window.LoadMarkdownFile(message.Path, message.Line, message.Title, isTemp: true);
-            window.BringToFront();
-            return await WaitForRenderAsync(tab);
-        }
-
-        return new PipeResponse { Success = false, Error = "No window available" };
+            Success = true,
+            OpenedTab = openedTabInfo,
+            Windows = windowInfos.ToArray()
+        };
     }
 
-    private static PipeResponse HandleActivate(IEnumerable<MainWindow> windows)
+    private static PipeResponse HandleActivate(List<MainWindow> windows)
     {
         var mainWindow = windows.FirstOrDefault();
         if (mainWindow != null)
@@ -166,68 +237,7 @@ public class PipeServer : IDisposable
             mainWindow.BringToFront();
             return new PipeResponse { Success = true };
         }
-        return new PipeResponse { Success = false };
-    }
-
-    private static async Task<PipeResponse> WaitForRenderAsync(TabItemData? tab)
-    {
-        if (tab?.RenderCompletion != null)
-        {
-            try
-            {
-                var errors = await tab.RenderCompletion.Task.WaitAsync(TimeSpan.FromSeconds(30));
-                return new PipeResponse 
-                { 
-                    Success = true, 
-                    Errors = errors.Count > 0 ? errors.ToArray() : null 
-                };
-            }
-            catch (TimeoutException)
-            {
-                return new PipeResponse { Success = true, Error = "Render timeout" };
-            }
-        }
-
-        // Existing tab - return cached errors
-        if (tab != null)
-        {
-            var cachedErrors = tab.LastRenderErrors;
-            return new PipeResponse 
-            { 
-                Success = true, 
-                Errors = cachedErrors.Count > 0 ? cachedErrors.ToArray() : null 
-            };
-        }
-
-        return new PipeResponse { Success = true };
-    }
-
-    private static PipeResponse GetTabsResponse(IEnumerable<MainWindow> windows)
-    {
-        var tabs = new List<TabInfo>();
-        var tabIndex = 0;
-        var windowIndex = 0;
-
-        foreach (var window in windows)
-        {
-            var windowTabs = window.GetTabs();
-            var selectedIndex = window.GetSelectedTabIndex();
-
-            foreach (var tab in windowTabs)
-            {
-                tabs.Add(new TabInfo
-                {
-                    Index = tabIndex++,
-                    WindowIndex = windowIndex,
-                    Title = tab.Title,
-                    Path = tab.FilePath,
-                    IsSelected = (windowTabs.IndexOf(tab) == selectedIndex)
-                });
-            }
-            windowIndex++;
-        }
-
-        return new PipeResponse { Success = true, Tabs = tabs.ToArray() };
+        return new PipeResponse { Success = false, Error = "No window available" };
     }
 
     /// <summary>
@@ -257,7 +267,6 @@ public class PipeMessage
 {
     public string Command { get; set; } = "";
     public string? Path { get; set; }
-    public int? Index { get; set; }
     public int? Line { get; set; }
     public string? Title { get; set; }
 }
@@ -266,17 +275,31 @@ public class PipeResponse
 {
     public bool Success { get; set; }
     public string? Error { get; set; }
-    public TabInfo[]? Tabs { get; set; }
-    public string[]? Errors { get; set; }
+    public OpenedTabInfo? OpenedTab { get; set; }
+    public WindowInfo[]? Windows { get; set; }
+}
+
+public class OpenedTabInfo
+{
+    public int WindowIndex { get; set; }
+    public int TabIndex { get; set; }
+    public string Title { get; set; } = "";
+    public string Path { get; set; } = "";
+}
+
+public class WindowInfo
+{
+    public int Index { get; set; }
+    public TabInfo[] Tabs { get; set; } = Array.Empty<TabInfo>();
 }
 
 public class TabInfo
 {
     public int Index { get; set; }
-    public int WindowIndex { get; set; }
     public string Title { get; set; } = "";
     public string Path { get; set; } = "";
     public bool IsSelected { get; set; }
+    public string[]? Errors { get; set; }
 }
 
 #endregion

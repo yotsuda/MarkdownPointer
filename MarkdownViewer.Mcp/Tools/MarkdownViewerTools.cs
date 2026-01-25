@@ -1,6 +1,7 @@
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MarkdownViewer.Mcp.Services;
 
 namespace MarkdownViewer.Mcp.Tools;
@@ -10,106 +11,45 @@ public class MarkdownViewerTools(NamedPipeClient pipeClient)
 {
     private readonly NamedPipeClient _pipeClient = pipeClient;
 
-    [McpServerTool, Description("Open a Markdown file in MarkdownViewer. Supports Mermaid diagrams and KaTeX math rendering.")]
+    [McpServerTool(Name = "show_markdown"), Description("Open a Markdown file in MarkdownViewer. Supports Mermaid diagrams and KaTeX math rendering. Returns current tab status and any render errors.")]
     public async Task<string> ShowMarkdown(
         [Description("Path to the Markdown file to open")] string path,
         [Description("Optional line number to scroll to")] int? line = null,
         CancellationToken cancellationToken = default)
     {
-        // Resolve to absolute path
-        var fullPath = Path.GetFullPath(path);
-        
-        if (!File.Exists(fullPath))
+        try
         {
-            return $"Error: File not found: {fullPath}";
-        }
-        
-        var message = new Dictionary<string, object>
-        {
-            ["Command"] = "open",
-            ["Path"] = fullPath
-        };
-        
-        if (line.HasValue)
-        {
-            message["Line"] = line.Value;
-        }
-        
-        var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
-        
-        if (result != null)
-        {
-            if (result.RootElement.TryGetProperty("Errors", out var errors))
+            var fullPath = Path.GetFullPath(path);
+            
+            if (!File.Exists(fullPath))
             {
-                return $"Opened with warnings: {errors}";
+                return JsonSerializer.Serialize(
+                    new ErrorResponse { Success = false, Error = $"File not found: {fullPath}" },
+                    PipeJsonContext.Default.ErrorResponse);
             }
-            return $"Opened: {fullPath}";
-        }
-        
-        return $"Opened: {fullPath}";
-    }
-
-    [McpServerTool, Description("Display Markdown content directly in MarkdownViewer without saving to a file.")]
-    public async Task<string> ShowMarkdownContent(
-        [Description("Markdown content to display")] string content,
-        [Description("Title for the preview tab")] string title = "Preview",
-        [Description("Optional line number to scroll to")] int? line = null,
-        CancellationToken cancellationToken = default)
-    {
-        // Create temp file
-        var tempDir = Path.Combine(Path.GetTempPath(), "MarkdownViewer");
-        Directory.CreateDirectory(tempDir);
-        
-        var safeTitle = string.Join("_", title.Split(Path.GetInvalidFileNameChars()));
-        var tempFile = Path.Combine(tempDir, $"{safeTitle}.md");
-        
-        await File.WriteAllTextAsync(tempFile, content, cancellationToken);
-        
-        var message = new Dictionary<string, object>
-        {
-            ["Command"] = "openTemp",
-            ["Path"] = tempFile,
-            ["Title"] = title
-        };
-        
-        if (line.HasValue)
-        {
-            message["Line"] = line.Value;
-        }
-        
-        var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
-        
-        if (result != null)
-        {
-            if (result.RootElement.TryGetProperty("Errors", out var errors))
+            
+            var message = new PipeCommand { Command = "open", Path = fullPath, Line = line };
+            var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
+            
+            if (result == null)
             {
-                return $"Opened preview with warnings: {errors}";
+                return JsonSerializer.Serialize(
+                    new ErrorResponse 
+                    { 
+                        Success = false, 
+                        Error = "Failed to communicate with MarkdownViewer",
+                        ViewerRunning = _pipeClient.IsViewerRunning()
+                    },
+                    PipeJsonContext.Default.ErrorResponse);
             }
+            
+            return result.RootElement.GetRawText();
         }
-        
-        return $"Opened preview: {title}";
-    }
-
-    [McpServerTool, Description("Get a list of all open tabs in MarkdownViewer.")]
-    public async Task<string> GetTabs(CancellationToken cancellationToken = default)
-    {
-        var message = new Dictionary<string, object>
+        catch (Exception ex)
         {
-            ["Command"] = "getTabs"
-        };
-        
-        var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
-        
-        if (result == null)
-        {
-            return "MarkdownViewer is not running or no tabs are open.";
+            return JsonSerializer.Serialize(
+                new ErrorResponse { Success = false, Error = $"{ex.GetType().Name}: {ex.Message}" },
+                PipeJsonContext.Default.ErrorResponse);
         }
-        
-        if (result.RootElement.TryGetProperty("Tabs", out var tabs))
-        {
-            return tabs.GetRawText();
-        }
-        
-        return "No tabs information available.";
     }
 }
