@@ -121,10 +121,16 @@ namespace MarkdownViewer
                 WindowState = WindowState.Normal;
             }
 
-            // Temporarily set Topmost to force window to front
+            // Use native API to force foreground (works across processes)
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                NativeMethods.ForceForegroundWindow(hwnd);
+            }
+
+            // Also use WPF methods as backup
             Topmost = true;
             Topmost = false;
-
             Activate();
             Focus();
         }
