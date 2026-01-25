@@ -1,0 +1,190 @@
+<Window x:Class="MarkdownPointer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Markdown Viewer" Height="768" Width="1024"
+        WindowStartupLocation="CenterScreen"
+        Background="#FFFFFF"
+        AllowDrop="True"
+        PreviewDrop="Window_Drop"
+        PreviewDragOver="Window_DragOver"
+        KeyDown="Window_KeyDown" PreviewMouseWheel="Window_PreviewMouseWheel">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Tab control with drop indicator -->
+        <Grid Grid.Row="0">
+            <TabControl x:Name="FileTabControl" 
+                        SelectionChanged="TabControl_SelectionChanged"
+                        Visibility="Collapsed">
+                <TabControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal"
+                                MouseLeftButtonDown="TabHeader_MouseLeftButtonDown"
+                                MouseMove="TabHeader_MouseMove"
+                                Tag="{Binding}">
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                        <Button Content="&#x00D7;" 
+                                Click="CloseTab_Click"
+                                Tag="{Binding}"
+                                Width="16" Height="16" 
+                                Margin="8,0,0,0"
+                                FontSize="8"
+                                Padding="0"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DataTemplate>
+            </TabControl.ItemTemplate>
+            <TabControl.ContentTemplate>
+                <DataTemplate>
+                    <ContentPresenter Content="{Binding WebView}"/>
+                </DataTemplate>
+            </TabControl.ContentTemplate>
+        </TabControl>
+            <!-- Drop indicator for tab reordering -->
+            <Canvas x:Name="TabDropIndicatorCanvas" IsHitTestVisible="False">
+                <Rectangle x:Name="TabDropIndicator" 
+                           Width="3" Height="24" 
+                           Fill="#0078D4" 
+                           Visibility="Collapsed"/>
+            </Canvas>
+        </Grid>
+
+        <!-- Scroll mode overlay -->
+        <Border x:Name="DragOverlay" Grid.Row="0" 
+                Background="#01000000" 
+                Visibility="Collapsed"
+                Margin="0,22,0,0"
+                MouseLeftButtonDown="DragOverlay_MouseLeftButtonDown" MouseMove="DragOverlay_MouseMove" MouseLeftButtonUp="DragOverlay_MouseLeftButtonUp"
+                PreviewMouseWheel="DragOverlay_PreviewMouseWheel"
+                MouseRightButtonUp="DragOverlay_MouseRightButtonUp"
+                />
+
+        <!-- Placeholder when no file is loaded -->
+        <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="📝" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                <TextBlock Text="Markdown Viewer for AI" FontSize="24" FontWeight="SemiBold" 
+                           Foreground="#24292e" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                <TextBlock Text="Drag &amp; drop a file here" FontSize="14" 
+                           Foreground="#586069" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock Text="or press Ctrl+O to open" FontSize="12" 
+                           Foreground="#6a737d" HorizontalAlignment="Center"/>
+                <TextBlock Text="F5 to reload" FontSize="12" 
+                           Foreground="#6a737d" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border Grid.Row="1" Background="#F8F9FA" BorderBrush="#E1E4E8" BorderThickness="0,1,0,0">
+            <Grid Height="24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock x:Name="LinkStatusText" 
+                           Grid.Column="0"
+                           VerticalAlignment="Center" 
+                           Margin="12,0" 
+                           FontSize="11"
+                           Foreground="#586069"
+                           TextTrimming="CharacterEllipsis"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,12,0">
+                    <TextBlock x:Name="StatusText" 
+                               VerticalAlignment="Center" 
+                               FontSize="11"
+                               Foreground="#28A745"
+                               Margin="0,0,12,0"/>
+                    <TextBlock x:Name="WatchStatusText" 
+                               VerticalAlignment="Center" 
+                               FontSize="11"
+                               Foreground="#586069"
+                               Margin="0,0,12,0"/>
+                    
+                    
+                    <!-- Error indicator -->
+                    <Border x:Name="ErrorIndicator" 
+                            Background="#FFF3CD" 
+                            BorderBrush="#FFECB5" 
+                            BorderThickness="1" 
+                            CornerRadius="3" 
+                            Padding="6,2" 
+                            Margin="0,0,12,0"
+                            Cursor="Hand"
+                            Visibility="Collapsed"
+                            MouseLeftButtonUp="ErrorIndicator_Click">
+                        <Border.ToolTip>
+                            <ToolTip x:Name="ErrorToolTip" MaxWidth="500">
+                                <TextBlock x:Name="ErrorToolTipText" TextWrapping="Wrap"/>
+                            </ToolTip>
+                        </Border.ToolTip>
+                        <TextBlock x:Name="ErrorIndicatorText" 
+                                   FontSize="11" 
+                                   Foreground="#856404"/>
+                    </Border>
+                    <!-- Toggle buttons -->
+                    <ToggleButton x:Name="TopmostToggle" FontFamily="Segoe UI Emoji" 
+                                  Content="📌" 
+                                  ToolTip="Always on top"
+                                  Click="TopmostToggle_Click"
+                                  Width="24" Height="20"
+                                  FontSize="10"
+                                  Margin="0,0,4,0"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
+                    <ToggleButton x:Name="DragMoveToggle" FontFamily="Segoe UI Emoji" 
+                                  Content="✋" 
+                                  ToolTip="Scroll mode (Off: text selection)"
+                                  Click="DragMoveToggle_Click"
+                                  Width="24" Height="20"
+                                  FontSize="10"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
+                    <ToggleButton x:Name="PointingModeToggle" FontFamily="Segoe UI Emoji" IsChecked="True" 
+                                  Content="👆" 
+                                  ToolTip="Pointing mode (click to copy element reference)"
+                                  Click="PointingModeToggle_Click"
+                                  Width="24" Height="20"
+                                  FontSize="10"
+                                  Margin="4,0,0,0"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
+                    <Button x:Name="OpenInCodeButton" 
+                                  Content="VS Code" 
+                                  ToolTip="Open in VS Code"
+                                  Click="OpenInCodeButton_Click"
+                                  Width="50" Height="20"
+                                  FontSize="9"
+                                  Margin="4,0,0,0"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
+                    <Button x:Name="CopySourceButton" 
+                                  Content="Copy Source" 
+                                  ToolTip="Copy markdown source to clipboard"
+                                  Click="CopySourceButton_Click"
+                                  Width="70" Height="20"
+                                  FontSize="9"
+                                  Margin="4,0,0,0"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
+                    <Button x:Name="CopyPathButton" 
+                                  Content="Copy Path" 
+                                  ToolTip="Copy full file path to clipboard"
+                                  Click="CopyPathButton_Click"
+                                  Width="60" Height="20"
+                                  FontSize="9"
+                                  Margin="4,0,0,0"
+                                  Background="Transparent"
+                                  BorderThickness="1"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

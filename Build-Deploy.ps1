@@ -1,18 +1,18 @@
 <#
 .SYNOPSIS
-    Build and package MarkdownViewer for release.
+    Build and package MarkdownPointer for release.
 .DESCRIPTION
-    Builds the MarkdownViewer application and MCP server, then creates
+    Builds the MarkdownPointer application and MCP server, then creates
     release artifacts for GitHub Releases and NuGet.
     
     Output structure:
     dist/
-    ├── MarkdownViewer-win-x64.zip       # WPF app + MCP server bundle
-    ├── MarkdownViewer.Mcp-win-x64.zip   # MCP server standalone
-    ├── MarkdownViewer.Mcp-linux-x64.zip # MCP server for Linux
-    ├── MarkdownViewer.Mcp-osx-x64.zip   # MCP server for macOS Intel
-    ├── MarkdownViewer.Mcp-osx-arm64.zip # MCP server for macOS Apple Silicon
-    └── MarkdownViewer.Mcp.x.x.x.nupkg   # NuGet package (dotnet tool)
+    ├── MarkdownPointer-win-x64.zip       # WPF app + MCP server bundle
+    ├── MarkdownPointer.Mcp-win-x64.zip   # MCP server standalone
+    ├── MarkdownPointer.Mcp-linux-x64.zip # MCP server for Linux
+    ├── MarkdownPointer.Mcp-osx-x64.zip   # MCP server for macOS Intel
+    ├── MarkdownPointer.Mcp-osx-arm64.zip # MCP server for macOS Apple Silicon
+    └── MarkdownPointer.Mcp.x.x.x.nupkg   # NuGet package (dotnet tool)
 
 .PARAMETER SkipBuild
     Skip the build step and only package existing outputs.
@@ -41,8 +41,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $ProjectRoot = $PSScriptRoot
-$AppProject = Join-Path $ProjectRoot 'MarkdownViewer\MarkdownViewer.App.csproj'
-$McpProject = Join-Path $ProjectRoot 'MarkdownViewer.Mcp\MarkdownViewer.Mcp.csproj'
+$AppProject = Join-Path $ProjectRoot 'MarkdownPointer\MarkdownPointer.App.csproj'
+$McpProject = Join-Path $ProjectRoot 'MarkdownPointer.Mcp\MarkdownPointer.Mcp.csproj'
 $DistDir = Join-Path $ProjectRoot 'dist'
 
 # Get version from MCP project
@@ -53,12 +53,12 @@ if ($csprojContent -match '<Version>([^<]+)</Version>') {
     $Version = '0.1.0'
 }
 
-Write-Host '=== MarkdownViewer Build & Package ===' -ForegroundColor Cyan
+Write-Host '=== MarkdownPointer Build & Package ===' -ForegroundColor Cyan
 Write-Host "Version: $Version" -ForegroundColor DarkGray
 
 # Step 1: Stop running processes
 Write-Host "`n[1/4] Stopping running processes..." -ForegroundColor Yellow
-$processes = @(Get-Process -Name 'MarkdownViewer', 'MarkdownViewer.Mcp' -ErrorAction Ignore)
+$processes = @(Get-Process -Name 'MarkdownPointer', 'MarkdownPointer.Mcp' -ErrorAction Ignore)
 if ($processes.Count -gt 0) {
     $processes | Stop-Process -Force
     Start-Sleep -Milliseconds 500
@@ -82,14 +82,14 @@ if (-not $SkipBuild) {
     if (-not $NuGetOnly) {
         # Build WPF App (Windows only)
         if ($Platform -contains 'win-x64') {
-            Write-Host "      Building MarkdownViewer.App (win-x64)..." -ForegroundColor DarkGray
+            Write-Host "      Building MarkdownPointer.App (win-x64)..." -ForegroundColor DarkGray
             dotnet publish $AppProject -c Release -r win-x64 --self-contained -o "$DistDir\app-win-x64"
             if ($LASTEXITCODE -ne 0) { throw "App build failed" }
         }
         
         # Build MCP Server for each platform
         foreach ($rid in $Platform) {
-            Write-Host "      Building MarkdownViewer.Mcp ($rid)..." -ForegroundColor DarkGray
+            Write-Host "      Building MarkdownPointer.Mcp ($rid)..." -ForegroundColor DarkGray
             dotnet publish $McpProject -c Release -r $rid --self-contained -o "$DistDir\mcp-$rid"
             if ($LASTEXITCODE -ne 0) { throw "MCP build failed for $rid" }
         }
@@ -120,7 +120,7 @@ if (-not $NuGetOnly) {
         # Copy MCP server
         $mcpExe = Get-ChildItem "$DistDir\mcp-win-x64" -Filter '*.exe' | Select-Object -First 1
         if ($mcpExe) {
-            Copy-Item $mcpExe.FullName "$bundleDir\MarkdownViewer.Mcp.exe"
+            Copy-Item $mcpExe.FullName "$bundleDir\MarkdownPointer.Mcp.exe"
         }
         
         # Copy README and LICENSE
@@ -128,9 +128,9 @@ if (-not $NuGetOnly) {
         Copy-Item "$ProjectRoot\LICENSE" $bundleDir -ErrorAction SilentlyContinue
         
         # Create zip
-        $zipPath = "$DistDir\MarkdownViewer-win-x64.zip"
+        $zipPath = "$DistDir\MarkdownPointer-win-x64.zip"
         Compress-Archive -Path "$bundleDir\*" -DestinationPath $zipPath -Force
-        Write-Host "      Created: MarkdownViewer-win-x64.zip" -ForegroundColor DarkGray
+        Write-Host "      Created: MarkdownPointer-win-x64.zip" -ForegroundColor DarkGray
         
         Remove-Item $bundleDir -Recurse -Force
     }
@@ -140,7 +140,7 @@ if (-not $NuGetOnly) {
         $mcpDir = "$DistDir\mcp-$rid"
         if (Test-Path $mcpDir) {
             # Find the executable
-            $exePattern = if ($rid -like 'win-*') { '*.exe' } else { 'MarkdownViewer.Mcp' }
+            $exePattern = if ($rid -like 'win-*') { '*.exe' } else { 'MarkdownPointer.Mcp' }
             $mcpExe = Get-ChildItem $mcpDir -Filter $exePattern | Where-Object { $_.Name -notlike '*.dll' } | Select-Object -First 1
             
             # Create staging directory
@@ -148,7 +148,7 @@ if (-not $NuGetOnly) {
             New-Item $stageDir -ItemType Directory -Force | Out-Null
             
             if ($mcpExe) {
-                $targetName = if ($rid -like 'win-*') { 'markdownviewer-mcp.exe' } else { 'markdownviewer-mcp' }
+                $targetName = if ($rid -like 'win-*') { 'markdown-pointer.exe' } else { 'markdown-pointer' }
                 Copy-Item $mcpExe.FullName "$stageDir\$targetName"
             }
             
@@ -157,9 +157,9 @@ if (-not $NuGetOnly) {
             Copy-Item "$ProjectRoot\LICENSE" $stageDir -ErrorAction SilentlyContinue
             
             # Create zip
-            $zipPath = "$DistDir\MarkdownViewer.Mcp-$rid.zip"
+            $zipPath = "$DistDir\MarkdownPointer.Mcp-$rid.zip"
             Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -Force
-            Write-Host "      Created: MarkdownViewer.Mcp-$rid.zip" -ForegroundColor DarkGray
+            Write-Host "      Created: MarkdownPointer.Mcp-$rid.zip" -ForegroundColor DarkGray
             
             # Cleanup
             Remove-Item $stageDir -Recurse -Force
@@ -190,18 +190,18 @@ Upload the zip files to GitHub Releases.
 
 ## NuGet (dotnet tool)
 Publish to NuGet.org:
-  dotnet nuget push dist\MarkdownViewer.Mcp.$Version.nupkg -k <API_KEY> -s https://api.nuget.org/v3/index.json
+  dotnet nuget push dist\MarkdownPointer.Mcp.$Version.nupkg -k <API_KEY> -s https://api.nuget.org/v3/index.json
 
 Install as dotnet tool:
-  dotnet tool install --global MarkdownViewer.Mcp
+  dotnet tool install --global MarkdownPointer.Mcp
 
 ## Claude Desktop Configuration
 Add to claude_desktop_config.json:
 
 {
   "mcpServers": {
-    "markdownviewer": {
-      "command": "markdownviewer-mcp"
+    "MarkdownPointer": {
+      "command": "markdown-pointer"
     }
   }
 }
@@ -209,8 +209,8 @@ Add to claude_desktop_config.json:
 Or with explicit path (Windows):
 {
   "mcpServers": {
-    "markdownviewer": {
-      "command": "C:\\path\\to\\markdownviewer-mcp.exe"
+    "MarkdownPointer": {
+      "command": "C:\\path\\to\\markdown-pointer.exe"
     }
   }
 }

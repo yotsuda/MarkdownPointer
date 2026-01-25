@@ -15,10 +15,10 @@
 
 | filename | status | priority | effort | notes |
 |----------|:------:|:--------:|-------:|-------|
-| MarkdownViewer.Mcp.csproj | ✅ | High | - | NuGet Tool 設定済み |
+| MarkdownPointer.Mcp.csproj | ✅ | High | - | NuGet Tool 設定済み |
 | Program.cs | ✅ | High | - | MCP Server エントリポイント |
 | Services/NamedPipeClient.cs | ✅ | High | - | Named Pipe 通信、自動起動対応 |
-| Tools/MarkdownViewerTools.cs | ✅ | High | - | 3ツール実装済み |
+| Tools/MarkdownPointerTools.cs | ✅ | High | - | 3ツール実装済み |
 | server.json | 🚀 | Normal | 30m | MCP Registry 用メタデータ |
 | README.md | 🚀 | Normal | 30m | MCP Server 使用方法を追記 |
 

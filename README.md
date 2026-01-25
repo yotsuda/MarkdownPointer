@@ -1,4 +1,4 @@
-# MarkdownViewer
+# MarkdownPointer
 
 A WPF-based Markdown viewer with Mermaid diagram and KaTeX math rendering support, designed for seamless integration with PowerShell.
 
@@ -11,7 +11,7 @@ A WPF-based Markdown viewer with Mermaid diagram and KaTeX math rendering suppor
 - **Tab Detachment** - Drag tabs to create new windows or transfer between windows
 - **File Watching** - Auto-reload on file changes
 - **Pointing Mode** - Click elements to copy source line references
-- **PowerShell Integration** - Control via `Show-MarkdownViewer` cmdlet
+- **PowerShell Integration** - Control via `Show-MarkdownPointer` cmdlet
 
 ## Requirements
 
@@ -25,9 +25,9 @@ A WPF-based Markdown viewer with Mermaid diagram and KaTeX math rendering suppor
 
 ```powershell
 # Clone and build
-git clone https://github.com/yotsuda/MarkdownViewer.git
-cd MarkdownViewer
-dotnet build MarkdownViewer\MarkdownViewer.App.csproj -c Release
+git clone https://github.com/yotsuda/MarkdownPointer.git
+cd MarkdownPointer
+dotnet build MarkdownPointer\MarkdownPointer.App.csproj -c Release
 
 # Deploy (runs build and copies to PowerShell module directory)
 .\Build-Deploy.ps1
@@ -38,14 +38,14 @@ dotnet build MarkdownViewer\MarkdownViewer.App.csproj -c Release
 Copy the contents of `Module\` to your PowerShell module path:
 
 ```
-C:\Program Files\PowerShell\7\Modules\MarkdownViewer\
+C:\Program Files\PowerShell\7\Modules\MarkdownPointer\
 ├── bin\
-│   ├── MarkdownViewer.exe
-│   ├── MarkdownViewer.dll
+│   ├── MarkdownPointer.exe
+│   ├── MarkdownPointer.dll
 │   ├── Markdig.dll
 │   └── ... (other dependencies)
-├── MarkdownViewer.psd1
-├── MarkdownViewer.psm1
+├── MarkdownPointer.psd1
+├── MarkdownPointer.psm1
 └── LICENSE
 ```
 
@@ -55,19 +55,19 @@ C:\Program Files\PowerShell\7\Modules\MarkdownViewer\
 
 ```powershell
 # Import module (auto-imported if in module path)
-Import-Module MarkdownViewer
+Import-Module MarkdownPointer
 
 # Open a file
-Show-MarkdownViewer .\README.md
+Show-MarkdownPointer .\README.md
 
 # Open and scroll to specific line
-Show-MarkdownViewer .\README.md -Line 50
+Show-MarkdownPointer .\README.md -Line 50
 
 # Open multiple files
-Get-ChildItem *.md | Show-MarkdownViewer
+Get-ChildItem *.md | Show-MarkdownPointer
 
 # Render Markdown content directly
-"# Hello World`n`nThis is **bold** text." | Show-MarkdownViewer
+"# Hello World`n`nThis is **bold** text." | Show-MarkdownPointer
 
 # Render with custom title
 @"
@@ -75,10 +75,10 @@ Get-ChildItem *.md | Show-MarkdownViewer
 | Item | Value |
 |------|-------|
 | CPU  | 80%   |
-"@ | Show-MarkdownViewer -Title "System Report"
+"@ | Show-MarkdownPointer -Title "System Report"
 
 # List open tabs
-Get-MarkdownViewerTab
+Get-MarkdownPointerTab
 ```
 
 ### Keyboard Shortcuts
@@ -123,16 +123,16 @@ $$
 ## Project Structure
 
 ```
-MarkdownViewer/
-├── MarkdownViewer/          # WPF Application
+MarkdownPointer/
+├── MarkdownPointer/          # WPF Application
 │   ├── MainWindow.xaml      # Main UI
 │   ├── MainWindow.*.cs      # Partial classes (TabManagement, EventHandlers, DragDrop)
 │   ├── Models/              # Data models
 │   ├── Services/            # HtmlGenerator, ClipboardService
 │   └── Resources/           # CSS, JS resources
 ├── Module/                  # PowerShell module
-│   ├── MarkdownViewer.psd1
-│   └── MarkdownViewer.psm1
+│   ├── MarkdownPointer.psd1
+│   └── MarkdownPointer.psm1
 ├── Build-Deploy.ps1         # Build and deploy script
 └── README.md
 ```

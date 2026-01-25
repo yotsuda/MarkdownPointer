@@ -124,7 +124,7 @@ gitGraph
 
 ```mermaid
 mindmap
-    root((MarkdownViewer))
+    root((MarkdownPointer))
         Features
             Markdown
             Mermaid
@@ -133,8 +133,8 @@ mindmap
             show_markdown
             get_tabs
         Module
-            Show-MarkdownViewer
-            Get-MarkdownViewerTab
+            Show-MarkdownPointer
+            Get-MarkdownPointerTab
 ```
 
 ## 11. 小さいノード

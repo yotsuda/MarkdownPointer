@@ -1,11 +1,12 @@
 using System.IO;
 using Markdig;
-using Markdig.Extensions.Tables;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
 using Markdig.Renderers.Html.Inlines;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
+using Markdig.Extensions.Tables;
+using Markdig.Extensions.Mathematics;
 
 namespace MarkdownPointer
 {
@@ -16,9 +17,21 @@ namespace MarkdownPointer
     {
         public LineTrackingHtmlRenderer(TextWriter writer) : base(writer)
         {
+            // Initial replacement (for built-in renderers)
+            ReplaceAllRenderers();
+        }
+        
+        /// <summary>
+        /// Call this AFTER pipeline.Setup() to replace extension renderers
+        /// </summary>
+        public void ReplaceExtensionRenderers()
+        {
+            ReplaceAllRenderers();
+        }
+        
+        private void ReplaceAllRenderers()
+        {
             // Replace specific renderers with line-tracking versions
-            // Note: Don't use Clear() or pipeline.Setup() - it breaks DiagramExtension
-            
             ReplaceRenderer<ParagraphBlock, LineTrackingParagraphRenderer>();
             ReplaceRenderer<HeadingBlock, LineTrackingHeadingRenderer>();
             ReplaceRenderer<CodeBlock, LineTrackingCodeBlockRenderer>();
@@ -26,9 +39,8 @@ namespace MarkdownPointer
             ReplaceRenderer<QuoteBlock, LineTrackingQuoteBlockRenderer>();
             ReplaceRenderer<ThematicBreakBlock, LineTrackingThematicBreakRenderer>();
             ReplaceRenderer<HtmlBlock, LineTrackingHtmlBlockRenderer>();
-            
-            // Add table renderer (not included in base HtmlRenderer)
-            ObjectRenderers.Add(new HtmlTableRenderer());
+            ReplaceRenderer<Table, LineTrackingTableRenderer>();
+            ReplaceRenderer<MathBlock, LineTrackingMathBlockRenderer>();
         }
         
         private void ReplaceRenderer<TBlock, TRenderer>() 
@@ -81,8 +93,15 @@ namespace MarkdownPointer
             
             if (isMermaid)
             {
-                // Mermaid needs: <pre class="mermaid">content</pre>
-                renderer.Write($"<pre class=\"mermaid\" data-line=\"{obj.Line + 1}\">");
+                // Get mermaid source for data attribute
+                var sourceWriter = new StringWriter();
+                var tempRenderer = new HtmlRenderer(sourceWriter);
+                tempRenderer.WriteLeafRawLines(obj, true, true, true);
+                var mermaidSource = sourceWriter.ToString().Trim();
+                var escapedSource = System.Web.HttpUtility.HtmlAttributeEncode(mermaidSource);
+                
+                // Mermaid needs: <pre class="mermaid" data-mermaid-source="...">content</pre>
+                renderer.Write($"<pre class=\"mermaid\" data-line=\"{obj.Line + 1}\" data-mermaid-source=\"{escapedSource}\">");
                 renderer.WriteLeafRawLines(obj, true, true, true);
                 renderer.WriteLine("</pre>");
             }
@@ -96,7 +115,17 @@ namespace MarkdownPointer
                 }
                 
                 renderer.Write(">");
-                renderer.WriteLeafRawLines(obj, true, true, true);
+                
+                // Render each line wrapped in a span with data-line attribute
+                var lines = obj.Lines;
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    var line = lines.Lines[i];
+                    var lineContent = System.Web.HttpUtility.HtmlEncode(line.Slice.ToString());
+                    var sourceLine = obj.Line + (obj is FencedCodeBlock ? 2 : 1) + i;
+                    renderer.Write($"<span class=\"code-line\" data-line=\"{sourceLine}\">{lineContent}</span>");
+                }
+                
                 renderer.WriteLine("</code></pre>");
             }
         }
@@ -148,6 +177,49 @@ namespace MarkdownPointer
         protected override void Write(HtmlRenderer renderer, HtmlBlock obj)
         {
             renderer.WriteLeafRawLines(obj, true, false, false);
+        }
+    }
+
+    public class LineTrackingTableRenderer : HtmlObjectRenderer<Table>
+    {
+        protected override void Write(HtmlRenderer renderer, Table obj)
+        {
+            renderer.Write($"<table data-line=\"{obj.Line + 1}\">");
+            renderer.WriteLine();
+            
+            foreach (var row in obj)
+            {
+                if (row is TableRow tableRow)
+                {
+                    var isHeader = tableRow.IsHeader;
+                    renderer.Write($"<tr data-line=\"{tableRow.Line + 1}\">");
+                    foreach (var cell in tableRow)
+                    {
+                        if (cell is TableCell tableCell)
+                        {
+                            var tag = isHeader ? "th" : "td";
+                            renderer.Write($"<{tag}>");
+                            renderer.WriteChildren(tableCell);
+                            renderer.Write($"</{tag}>");
+                        }
+                    }
+                    renderer.WriteLine("</tr>");
+                }
+            }
+            
+            renderer.WriteLine("</table>");
+        }
+    }
+
+    public class LineTrackingMathBlockRenderer : HtmlObjectRenderer<MathBlock>
+    {
+        protected override void Write(HtmlRenderer renderer, MathBlock obj)
+        {
+            renderer.Write($"<div class=\"math\" data-line=\"{obj.Line + 1}\">");
+            renderer.WriteLine("\\[");
+            renderer.WriteLeafRawLines(obj, true, true, true);
+            renderer.Write("\\]</div>");
+            renderer.WriteLine();
         }
     }
 }
