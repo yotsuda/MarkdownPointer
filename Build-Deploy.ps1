@@ -33,7 +33,7 @@
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
-    [string[]]$Platform = @('win-x64', 'linux-x64', 'osx-x64', 'osx-arm64'),
+    [string[]]$Platform = @('win-x64'),
     [switch]$NuGetOnly
 )
 
@@ -45,8 +45,8 @@ $AppProject = Join-Path $ProjectRoot 'MarkdownPointer\MarkdownPointer.App.csproj
 $McpProject = Join-Path $ProjectRoot 'MarkdownPointer.Mcp\MarkdownPointer.Mcp.csproj'
 $DistDir = Join-Path $ProjectRoot 'dist'
 
-# Get version from MCP project
-$csprojContent = Get-Content $McpProject -Raw
+# Get version from App project
+$csprojContent = Get-Content $AppProject -Raw
 if ($csprojContent -match '<Version>([^<]+)</Version>') {
     $Version = $Matches[1]
 } else {
@@ -83,23 +83,18 @@ if (-not $SkipBuild) {
         # Build WPF App (Windows only)
         if ($Platform -contains 'win-x64') {
             Write-Host "      Building MarkdownPointer.App (win-x64)..." -ForegroundColor DarkGray
-            dotnet publish $AppProject -c Release -r win-x64 --self-contained -o "$DistDir\app-win-x64"
+            dotnet publish $AppProject -c Release -r win-x64 --no-self-contained -o "$DistDir\app-win-x64"
             if ($LASTEXITCODE -ne 0) { throw "App build failed" }
         }
         
         # Build MCP Server for each platform
         foreach ($rid in $Platform) {
             Write-Host "      Building MarkdownPointer.Mcp ($rid)..." -ForegroundColor DarkGray
-            dotnet publish $McpProject -c Release -r $rid --self-contained -o "$DistDir\mcp-$rid"
+            dotnet publish $McpProject -c Release -r $rid --no-self-contained -o "$DistDir\mcp-$rid"
             if ($LASTEXITCODE -ne 0) { throw "MCP build failed for $rid" }
         }
     }
-    
-    # Build NuGet package
-    Write-Host "      Creating NuGet package..." -ForegroundColor DarkGray
-    dotnet pack $McpProject -c Release -o $DistDir
-    if ($LASTEXITCODE -ne 0) { throw "NuGet pack failed" }
-    
+
     Write-Host '      Build succeeded.' -ForegroundColor Green
 } else {
     Write-Host "`n[3/4] Skipping build (SkipBuild specified)" -ForegroundColor DarkGray
@@ -111,7 +106,8 @@ Write-Host "`n[4/4] Creating release archives..." -ForegroundColor Yellow
 if (-not $NuGetOnly) {
     # Windows bundle (App + MCP)
     if ($Platform -contains 'win-x64' -and (Test-Path "$DistDir\app-win-x64")) {
-        $bundleDir = "$DistDir\bundle-win-x64"
+        $folderName = "MarkdownPointer-$Version"
+        $bundleDir = "$DistDir\$folderName"
         New-Item $bundleDir -ItemType Directory -Force | Out-Null
         
         # Copy App files
@@ -127,42 +123,19 @@ if (-not $NuGetOnly) {
         Copy-Item "$ProjectRoot\README.md" $bundleDir -ErrorAction SilentlyContinue
         Copy-Item "$ProjectRoot\LICENSE" $bundleDir -ErrorAction SilentlyContinue
         
-        # Create zip
-        $zipPath = "$DistDir\MarkdownPointer-win-x64.zip"
-        Compress-Archive -Path "$bundleDir\*" -DestinationPath $zipPath -Force
-        Write-Host "      Created: MarkdownPointer-win-x64.zip" -ForegroundColor DarkGray
+        # Create zip (include folder)
+        $zipName = "MarkdownPointer-$Version-win-x64.zip"
+        $zipPath = "$DistDir\$zipName"
+        Compress-Archive -Path $bundleDir -DestinationPath $zipPath -Force
+        Write-Host "      Created: $zipName" -ForegroundColor DarkGray
         
         Remove-Item $bundleDir -Recurse -Force
     }
     
-    # MCP server standalone archives
+    # Cleanup MCP build directory
     foreach ($rid in $Platform) {
         $mcpDir = "$DistDir\mcp-$rid"
         if (Test-Path $mcpDir) {
-            # Find the executable
-            $exePattern = if ($rid -like 'win-*') { '*.exe' } else { 'MarkdownPointer.Mcp' }
-            $mcpExe = Get-ChildItem $mcpDir -Filter $exePattern | Where-Object { $_.Name -notlike '*.dll' } | Select-Object -First 1
-            
-            # Create staging directory
-            $stageDir = "$DistDir\stage-mcp-$rid"
-            New-Item $stageDir -ItemType Directory -Force | Out-Null
-            
-            if ($mcpExe) {
-                $targetName = if ($rid -like 'win-*') { 'markdown-pointer.exe' } else { 'markdown-pointer' }
-                Copy-Item $mcpExe.FullName "$stageDir\$targetName"
-            }
-            
-            # Copy README and LICENSE
-            Copy-Item "$ProjectRoot\README.md" $stageDir -ErrorAction SilentlyContinue
-            Copy-Item "$ProjectRoot\LICENSE" $stageDir -ErrorAction SilentlyContinue
-            
-            # Create zip
-            $zipPath = "$DistDir\MarkdownPointer.Mcp-$rid.zip"
-            Compress-Archive -Path "$stageDir\*" -DestinationPath $zipPath -Force
-            Write-Host "      Created: MarkdownPointer.Mcp-$rid.zip" -ForegroundColor DarkGray
-            
-            # Cleanup
-            Remove-Item $stageDir -Recurse -Force
             Remove-Item $mcpDir -Recurse -Force
         }
     }
@@ -186,14 +159,7 @@ Write-Host "`n=== Installation Instructions ===" -ForegroundColor Cyan
 Write-Host @"
 
 ## GitHub Releases
-Upload the zip files to GitHub Releases.
-
-## NuGet (dotnet tool)
-Publish to NuGet.org:
-  dotnet nuget push dist\MarkdownPointer.Mcp.$Version.nupkg -k <API_KEY> -s https://api.nuget.org/v3/index.json
-
-Install as dotnet tool:
-  dotnet tool install --global MarkdownPointer.Mcp
+Upload the zip file to GitHub Releases.
 
 ## Claude Desktop Configuration
 Add to claude_desktop_config.json:
@@ -201,16 +167,7 @@ Add to claude_desktop_config.json:
 {
   "mcpServers": {
     "MarkdownPointer": {
-      "command": "markdown-pointer"
-    }
-  }
-}
-
-Or with explicit path (Windows):
-{
-  "mcpServers": {
-    "MarkdownPointer": {
-      "command": "C:\\path\\to\\markdown-pointer.exe"
+      "command": "C:\\path\\to\\MarkdownPointer.Mcp.exe"
     }
   }
 }

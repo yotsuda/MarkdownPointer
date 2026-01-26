@@ -1,85 +1,83 @@
 # MarkdownPointer
 
-A WPF-based Markdown viewer with Mermaid diagram and KaTeX math rendering support, designed for seamless integration with PowerShell.
+A Markdown viewer designed for AI-assisted document review. Click any rendered element to copy its file path and line number to clipboard - perfect for pointing AI to specific locations in your documents.
+
+## Key Feature: Pointing Mode
+
+When reviewing AI-generated Markdown, click any element (headings, paragraphs, code blocks, Mermaid nodes, etc.) to instantly copy a reference like:
+
+```
+C:\docs\report.md:42
+```
+
+Paste this into your AI prompt to precisely point to the location that needs revision.
 
 ## Features
 
-- **Markdown Rendering** - Full CommonMark support via [Markdig](https://github.com/xoofx/markdig)
+- **Pointing Mode** - Click any element to copy file path + line number
 - **Mermaid Diagrams** - Flowchart, Sequence, Class, State, ER, Gantt, Pie, Git graph, Mindmap
-- **KaTeX Math** - Inline and block math expressions
+- **KaTeX Math** - Inline (`$...$`) and block (`$$...$$`) math expressions
 - **Multi-Tab Interface** - Open multiple files with drag-and-drop tab reordering
-- **Tab Detachment** - Drag tabs to create new windows or transfer between windows
 - **File Watching** - Auto-reload on file changes
-- **Pointing Mode** - Click elements to copy source line references
-- **PowerShell Integration** - Control via `Show-MarkdownPointer` cmdlet
+- **MCP Server** - Integration with Claude Desktop and other MCP clients
+- **PowerShell Module** - Control via `Show-MarkdownPointer` cmdlet
 
 ## Requirements
 
 - Windows 10/11
-- .NET 8.0 Runtime
-- PowerShell 7.x (for module integration)
+- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) (if not already installed)
 
 ## Installation
 
-### Build from Source
+### Option 1: Download from GitHub Releases
+
+1. Download `MarkdownPointer-win-x64.zip` from [Releases](https://github.com/yotsuda/MarkdownPointer/releases)
+2. Extract to a folder (e.g., `C:\Tools\MarkdownPointer`)
+3. Run `MarkdownPointer.exe`
+
+### Option 2: Build from Source
 
 ```powershell
-# Clone and build
 git clone https://github.com/yotsuda/MarkdownPointer.git
 cd MarkdownPointer
-dotnet build MarkdownPointer\MarkdownPointer.App.csproj -c Release
-
-# Deploy (runs build and copies to PowerShell module directory)
-.\Build-Deploy.ps1
+.\Build-Deploy.ps1 -Platform win-x64
+# Output: dist\MarkdownPointer-win-x64.zip
 ```
 
-### Manual Installation
+## MCP Server Setup
 
-Copy the contents of `Module\` to your PowerShell module path:
+MarkdownPointer includes an MCP server for integration with Claude Desktop and other MCP clients.
 
+### Claude Desktop Configuration
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "MarkdownPointer": {
+      "command": "C:\\Tools\\MarkdownPointer\\MarkdownPointer.Mcp.exe"
+    }
+  }
+}
 ```
-C:\Program Files\PowerShell\7\Modules\MarkdownPointer\
-├── bin\
-│   ├── MarkdownPointer.exe
-│   ├── MarkdownPointer.dll
-│   ├── Markdig.dll
-│   └── ... (other dependencies)
-├── MarkdownPointer.psd1
-├── MarkdownPointer.psm1
-└── LICENSE
-```
+
+### Available MCP Tools
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `show_markdown` | Open a Markdown file | `path`, `line?` |
+| `show_markdown_content` | Display Markdown text | `content`, `title?` |
+| `get_tabs` | List open tabs | none |
 
 ## Usage
 
-### PowerShell Module
+### Pointing Mode
 
-```powershell
-# Import module (auto-imported if in module path)
-Import-Module MarkdownPointer
-
-# Open a file
-Show-MarkdownPointer .\README.md
-
-# Open and scroll to specific line
-Show-MarkdownPointer .\README.md -Line 50
-
-# Open multiple files
-Get-ChildItem *.md | Show-MarkdownPointer
-
-# Render Markdown content directly
-"# Hello World`n`nThis is **bold** text." | Show-MarkdownPointer
-
-# Render with custom title
-@"
-# Report
-| Item | Value |
-|------|-------|
-| CPU  | 80%   |
-"@ | Show-MarkdownPointer -Title "System Report"
-
-# List open tabs
-Get-MarkdownPointerTab
-```
+1. Click the **👆** button in the toolbar to enable pointing mode
+2. Click any element in the rendered Markdown
+3. The file path and line number are copied to clipboard
+4. Paste into your AI prompt
 
 ### Keyboard Shortcuts
 
@@ -92,49 +90,22 @@ Get-MarkdownPointerTab
 | `Ctrl+1-9` | Switch to tab 1-9 |
 | `F5` | Reload current file |
 
-### UI Controls
+### PowerShell Module
 
-- **📌** Toggle always-on-top
-- **✋** Toggle scroll/pan mode
-- **👆** Toggle pointing mode (click to copy element references)
-- **VS Code** Open current file in VS Code
+```powershell
+Import-Module MarkdownPointer
 
-## Mermaid Support
+# Open a file
+Show-MarkdownPointer .\README.md
 
-All major Mermaid diagram types are supported with source line tracking:
+# Open and scroll to specific line
+Show-MarkdownPointer .\README.md -Line 50
 
-```mermaid
-flowchart TD
-    A[Start] --> B{Decision}
-    B -->|Yes| C[Process]
-    B -->|No| D[End]
-```
+# Render content directly
+"# Hello World" | Show-MarkdownPointer
 
-## KaTeX Support
-
-Inline math with `$...$` and block math with `$$...$$`:
-
-The quadratic formula is $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$.
-
-$$
-\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
-$$
-
-## Project Structure
-
-```
-MarkdownPointer/
-├── MarkdownPointer/          # WPF Application
-│   ├── MainWindow.xaml      # Main UI
-│   ├── MainWindow.*.cs      # Partial classes (TabManagement, EventHandlers, DragDrop)
-│   ├── Models/              # Data models
-│   ├── Services/            # HtmlGenerator, ClipboardService
-│   └── Resources/           # CSS, JS resources
-├── Module/                  # PowerShell module
-│   ├── MarkdownPointer.psd1
-│   └── MarkdownPointer.psm1
-├── Build-Deploy.ps1         # Build and deploy script
-└── README.md
+# List open tabs
+Get-MarkdownPointerTab
 ```
 
 ## License

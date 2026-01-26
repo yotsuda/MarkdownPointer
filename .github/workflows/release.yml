@@ -44,10 +44,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          name: MarkdownViewer v${{ steps.version.outputs.version }}
+          name: MarkdownPointer v${{ steps.version.outputs.version }}
           draft: ${{ github.event_name == 'workflow_dispatch' }}
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
           generate_release_notes: true
           files: |
             dist/*.zip
-            dist/*.nupkg
