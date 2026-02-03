@@ -20,103 +20,10 @@ public class NamedPipeClient
     
     private static string? FindViewerExe()
     {
-        // 0. Environment variable override
-        var envPath = Environment.GetEnvironmentVariable("MarkdownPointer_PATH");
-        if (!string.IsNullOrEmpty(envPath) && File.Exists(envPath))
-        {
-            return envPath;
-        }
-        
-        // Search order:
-        // 1. Bundled with this MCP server (for NuGet distribution)
-        var baseDir = AppContext.BaseDirectory;
-        var bundledPath = Path.Combine(baseDir, "viewer", "MarkdownPointer.exe");
-        if (File.Exists(bundledPath))
-        {
-            return bundledPath;
-        }
-        
-        // 2. Development environment: look for sibling WPF project
-        // From: MarkdownPointer.Mcp/bin/{config}/{tfm}/{rid}/
-        // To:   MarkdownPointer/bin/{config}/{tfm}-windows/{rid}/
-        var devPath = FindDevEnvironmentViewer(baseDir);
-        if (devPath != null)
-        {
-            return devPath;
-        }
-        
-        // 3. PowerShell module installation
-        var psModulePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            "PowerShell", "7", "Modules", "MarkdownPointer", "bin", "MarkdownPointer.exe");
-        if (File.Exists(psModulePath))
-        {
-            return psModulePath;
-        }
-        
-        // 4. User module path
-        var userModulePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "PowerShell", "Modules", "MarkdownPointer", "bin", "MarkdownPointer.exe");
-        if (File.Exists(userModulePath))
-        {
-            return userModulePath;
-        }
-        
-        return null;
+        var exePath = Path.Combine(AppContext.BaseDirectory, "MarkdownPointer.exe");
+        return File.Exists(exePath) ? exePath : null;
     }
-    
-    private static string? FindDevEnvironmentViewer(string baseDir)
-    {
-        // Try to find MarkdownPointer.exe in development structure
-        // Example baseDir: .../MarkdownPointer.Mcp/bin/Debug/net8.0/win-x64/
-        try
-        {
-            var dir = new DirectoryInfo(baseDir);
-            
-            // Navigate up to solution root (looking for .sln file or MarkdownPointer folder)
-            var current = dir;
-            while (current != null && current.Parent != null)
-            {
-                current = current.Parent;
-                
-                // Check if we found the solution directory
-                var viewerProjectDir = Path.Combine(current.FullName, "MarkdownPointer");
-                if (Directory.Exists(viewerProjectDir))
-                {
-                    // Look for exe in various build configurations
-                    var configs = new[] { "Debug", "Release" };
-                    var tfms = new[] { "net8.0-windows", "net9.0-windows", "net10.0-windows" };
-                    var rids = new[] { "win-x64", "win-x86", "win-arm64", "" };
-                    
-                    foreach (var config in configs)
-                    {
-                        foreach (var tfm in tfms)
-                        {
-                            foreach (var rid in rids)
-                            {
-                                var exePath = string.IsNullOrEmpty(rid)
-                                    ? Path.Combine(viewerProjectDir, "bin", config, tfm, "MarkdownPointer.exe")
-                                    : Path.Combine(viewerProjectDir, "bin", config, tfm, rid, "MarkdownPointer.exe");
-                                
-                                if (File.Exists(exePath))
-                                {
-                                    return exePath;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // Ignore errors in dev environment detection
-        }
-        
-        return null;
-    }
-    
+
     public async Task<JsonDocument?> SendCommandAsync(PipeCommand message, CancellationToken cancellationToken = default)
     {
         var json = JsonSerializer.Serialize(message, PipeJsonContext.Default.PipeCommand);
@@ -211,9 +118,7 @@ public class NamedPipeClient
         
         if (_viewerExePath == null)
         {
-            throw new FileNotFoundException(
-                "MarkdownPointer.exe not found. " +
-                "Please install MarkdownPointer module: Install-Module MarkdownPointer");
+            throw new FileNotFoundException("MarkdownPointer.exe not found in the same directory as MarkdownPointer.Mcp.exe");
         }
         
         var startInfo = new ProcessStartInfo

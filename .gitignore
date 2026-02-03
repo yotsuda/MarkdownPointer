@@ -57,3 +57,12 @@ test_er_svg*.html
 env_filter.sh
 filter.sh
 rewrite.sh
+
+# WebView2 cache
+**/*.exe.WebView2/
+
+# PowerShell Module binaries (generated during build)
+Module/bin/
+
+# Local install scripts
+Install-MarkdownPointer.ps1

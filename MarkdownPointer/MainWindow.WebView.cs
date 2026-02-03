@@ -43,6 +43,25 @@ namespace MarkdownPointer
             tab.WebView.CoreWebView2.WebMessageReceived += (s, e) =>
                 HandleWebMessageReceived(tab, e);
 
+            // Apply pointing mode and drag mode state after navigation
+            tab.WebView.CoreWebView2.NavigationCompleted += (s, e) =>
+            {
+                if (tab.IsInitialized)
+                {
+                    tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
+                    
+                    // Also update text selection style
+                    var userSelect = _isDragMoveMode ? "none" : (_isPointingMode ? "none" : "");
+                    tab.WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
+                    
+                    // Restore saved scroll position
+                    if (tab.SavedScrollPosition > 0)
+                    {
+                        tab.WebView.CoreWebView2.ExecuteScriptAsync($"window.scrollTo(0, {tab.SavedScrollPosition})");
+                    }
+                }
+            };
+
             // Setup zoom
             SetupZoomForTab(tab);
 

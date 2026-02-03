@@ -32,6 +32,11 @@ namespace MarkdownPointer.Models
         public string FilePath { get; set; } = "";
 
         /// <summary>
+        /// Original file name for tracking renames during file updates.
+        /// </summary>
+        public string OriginalFileName { get; set; } = "";
+
+        /// <summary>
         /// WebView2 instance for rendering HTML.
         /// </summary>
         public WebView2 WebView { get; set; } = null!;
@@ -71,6 +76,16 @@ namespace MarkdownPointer.Models
         /// Whether this is a temporary file (e.g., piped content).
         /// </summary>
         public bool IsTemp { get; set; }
+
+        /// <summary>
+        /// Whether the source file has been deleted.
+        /// </summary>
+        public bool IsFileDeleted { get; set; }
+
+        /// <summary>
+        /// Saved scroll position for restoring after reload.
+        /// </summary>
+        public double SavedScrollPosition { get; set; }
 
         /// <summary>
         /// Task completion source for waiting on render completion.

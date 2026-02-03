@@ -288,6 +288,9 @@ namespace MarkdownPointer
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName
             };
 
+            // Remember original file name for tracking renames
+            tab.OriginalFileName = fileName;
+
             // Debounce timer
             tab.DebounceTimer = new DispatcherTimer
             {
@@ -300,13 +303,37 @@ namespace MarkdownPointer
                 // Check if tab still exists
                 if (!_tabs.Contains(tab)) return;
 
-                // Skip if file timestamp hasn't changed
+                // Check if recovering from deleted state
+                var wasDeleted = tab.IsFileDeleted;
+                
+                // Check if file exists
+                if (!File.Exists(tab.FilePath))
+                {
+                    // File still missing
+                    return;
+                }
+
+                // File exists now - check if it changed
                 var currentWriteTime = File.GetLastWriteTime(tab.FilePath);
-                if (currentWriteTime == tab.LastFileWriteTime) return;
+                if (!wasDeleted && currentWriteTime == tab.LastFileWriteTime)
+                {
+                    // No change in timestamp, skip
+                    return;
+                }
+
                 tab.LastFileWriteTime = currentWriteTime;
 
+                // Restore from deleted state
+                if (wasDeleted)
+                {
+                    tab.IsFileDeleted = false;
+                    tab.Title = Path.GetFileName(tab.FilePath);
+                }
+
                 RenderMarkdown(tab);
-                ShowStatusMessage($"✓ Source updated at {currentWriteTime:HH:mm:ss}");
+                ShowStatusMessage(wasDeleted 
+                    ? "✓ File is back"
+                    : $"✓ Source updated at {currentWriteTime:HH:mm:ss}");
             };
 
             tab.Watcher.Changed += (s, e) =>
@@ -316,6 +343,7 @@ namespace MarkdownPointer
                     // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
 
+                    // Always use debounce timer for both normal updates and recovery from deletion
                     tab.DebounceTimer?.Stop();
                     tab.DebounceTimer?.Start();
                     if (FileTabControl.SelectedItem == tab)
@@ -332,7 +360,12 @@ namespace MarkdownPointer
                     // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
 
-                    CloseTab(tab);
+                    tab.IsFileDeleted = true;
+                    tab.Title = "[Missing] " + Path.GetFileName(tab.FilePath);
+                    if (FileTabControl.SelectedItem == tab)
+                    {
+                        ShowStatusMessage("⚠ File missing");
+                    }
                 });
             };
 
@@ -343,19 +376,58 @@ namespace MarkdownPointer
                     // Check if tab still exists
                     if (!_tabs.Contains(tab)) return;
 
-                    tab.FilePath = e.FullPath;
-                    tab.Title = e.Name ?? Path.GetFileName(e.FullPath);
-
-                    if (tab.Watcher != null && e.Name != null)
+                    // Check if renamed back to original file name
+                    var newFileName = e.Name ?? Path.GetFileName(e.FullPath);
+                    var isBackToOriginal = newFileName.Equals(tab.OriginalFileName, StringComparison.OrdinalIgnoreCase);
+                    
+                    if (isBackToOriginal)
                     {
-                        tab.Watcher.Filter = e.Name;
+                        // File was renamed back to original (e.g., from .tmp)
+                        var wasDeleted = tab.IsFileDeleted;
+                        tab.FilePath = e.FullPath;
+                        tab.IsFileDeleted = false;
+                        tab.Title = newFileName;
+                        
+                        if (tab.Watcher != null)
+                        {
+                            tab.Watcher.Filter = newFileName;
+                        }
+                        
+                        UpdateWindowTitle();
+                        tab.LastFileWriteTime = File.GetLastWriteTime(tab.FilePath);
+                        RenderMarkdown(tab);
+                        ShowStatusMessage("✓ File is back");
+                    }
+                    else
+                    {
+                        // Temporary rename (e.g., to .tmp) - do not update filter
+                        // Keep watching the original file name
+                        if (FileTabControl.SelectedItem == tab)
+                        {
+                            ShowStatusMessage($"⚠ File renamed to {newFileName}");
+                        }
+                    }
+                });
+            };
+
+            tab.Watcher.Created += (s, e) =>
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    // Check if tab still exists
+                    if (!_tabs.Contains(tab)) return;
+
+                    // File was recreated
+                    if (tab.IsFileDeleted)
+                    {
+                        tab.IsFileDeleted = false;
+                        tab.Title = Path.GetFileName(tab.FilePath);
+                        ShowStatusMessage("✓ File is back");
                     }
 
-                    UpdateWindowTitle();
-                    if (FileTabControl.SelectedItem == tab)
-                    {
-                        ShowStatusMessage($"✓ Source renamed");
-                    }
+                    // Trigger reload
+                    tab.DebounceTimer?.Stop();
+                    tab.DebounceTimer?.Start();
                 });
             };
 
@@ -462,6 +534,23 @@ namespace MarkdownPointer
         {
             try
             {
+                // Save current scroll position before re-rendering
+                if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+                {
+                    try
+                    {
+                        var scrollPosJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync("window.scrollY");
+                        if (double.TryParse(scrollPosJson, out var scrollPos))
+                        {
+                            tab.SavedScrollPosition = scrollPos;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore errors when getting scroll position
+                    }
+                }
+
                 // Read file asynchronously with retry for locked files
                 string? markdown = null;
                 for (int i = 0; i < 3; i++)
@@ -488,7 +577,11 @@ namespace MarkdownPointer
                 var baseDir = Path.GetDirectoryName(tab.FilePath);
                 var html = _htmlGenerator.ConvertToHtml(markdown, baseDir!);
                 tab.RenderedHtml = html;  // Cache for fast window detach
+                
                 tab.WebView.NavigateToString(html);
+
+                // Bring window to front after rendering
+                BringToFront();
             }
             catch (Exception ex)
             {
