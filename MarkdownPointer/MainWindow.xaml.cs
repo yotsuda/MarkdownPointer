@@ -84,7 +84,7 @@ namespace MarkdownPointer
             InitializeComponent();
 
             // Configure Markdig pipeline
-            // Note: UseDiagrams() is excluded because it causes NullReferenceException in Setup()
+            // Note: UseDiagrams() is excluded - we have custom Mermaid handling in LineTrackingCodeBlockRenderer
             _pipeline = new MarkdownPipelineBuilder()
                 .UseAbbreviations()
                 .UseAutoIdentifiers()

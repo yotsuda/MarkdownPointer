@@ -566,16 +566,12 @@ namespace MarkdownPointer
                     }
                 }
 
-                if (markdown == null)
-                {
-                    markdown = await File.ReadAllTextAsync(tab.FilePath, Encoding.UTF8);
-                }
 
                 // Check if tab still exists after async operation
                 if (!_tabs.Contains(tab)) return;
 
                 var baseDir = Path.GetDirectoryName(tab.FilePath);
-                var html = _htmlGenerator.ConvertToHtml(markdown, baseDir!);
+                var html = _htmlGenerator.ConvertToHtml(markdown!, baseDir!);
                 tab.RenderedHtml = html;  // Cache for fast window detach
                 
                 tab.WebView.NavigateToString(html);
