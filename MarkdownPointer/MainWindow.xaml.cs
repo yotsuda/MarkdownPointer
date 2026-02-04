@@ -53,6 +53,7 @@ namespace MarkdownPointer
         // Mode toggles
         private bool _isDragMoveMode = false;
         private bool _isPointingMode = true;
+        private bool _pointingModeBeforeSvg = true;
 
         // UI state
         private DispatcherTimer? _statusMessageTimer;

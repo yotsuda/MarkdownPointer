@@ -19,6 +19,7 @@ namespace MarkdownPointer
                 UpdateErrorIndicator(tab);
                 _targetZoomFactor = tab.WebView.ZoomFactor;
                 _lastZoomFactor = tab.WebView.ZoomFactor;
+                UpdatePointingModeAvailability(tab);
             }
             else
             {
@@ -114,6 +115,10 @@ namespace MarkdownPointer
             DragOverlay.Cursor = Cursors.SizeAll;
 
             // Disable pointing mode if enabling drag mode
+            if (_isDragMoveMode)
+            {
+                _pointingModeBeforeSvg = false;
+            }
             if (_isDragMoveMode && _isPointingMode)
             {
                 PointingModeToggle.IsChecked = false;
@@ -143,6 +148,7 @@ namespace MarkdownPointer
         private void PointingModeToggle_Click(object sender, RoutedEventArgs e)
         {
             _isPointingMode = PointingModeToggle.IsChecked == true;
+            _pointingModeBeforeSvg = _isPointingMode;
 
             // Disable drag mode if enabling pointing mode
             if (_isPointingMode && _isDragMoveMode)
@@ -161,6 +167,54 @@ namespace MarkdownPointer
                 if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
                 {
                     tab.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(" + (_isPointingMode ? "true" : "false") + ")");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates pointing mode availability based on file type.
+        /// SVG files don't support pointing mode since they are typically auto-generated.
+        /// </summary>
+        private void UpdatePointingModeAvailability(TabItemData tab)
+        {
+            var isSvgFile = !string.IsNullOrEmpty(tab.FilePath) && 
+                           tab.FilePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
+            
+            PointingModeToggle.IsEnabled = !isSvgFile;
+            
+            if (isSvgFile)
+            {
+                if (_isPointingMode)
+                {
+                    // Save state and disable pointing mode for SVG files
+                    _pointingModeBeforeSvg = true;
+                    PointingModeToggle.IsChecked = false;
+                    _isPointingMode = false;
+                    
+                    foreach (var t in _tabs)
+                    {
+                        if (t.IsInitialized && t.WebView.CoreWebView2 != null)
+                        {
+                            t.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(false)");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Restore pointing mode when switching back to non-SVG file
+                if (_pointingModeBeforeSvg && !_isPointingMode)
+                {
+                    PointingModeToggle.IsChecked = true;
+                    _isPointingMode = true;
+                    
+                    foreach (var t in _tabs)
+                    {
+                        if (t.IsInitialized && t.WebView.CoreWebView2 != null)
+                        {
+                            t.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(true)");
+                        }
+                    }
                 }
             }
         }
