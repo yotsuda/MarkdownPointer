@@ -23,6 +23,12 @@ document.addEventListener('click', function(e) {
     if (!pointingModeEnabled) return;
     var pointable = getPointableElement(e.target);
     if (pointable) {
+        // Allow links to work normally
+        var clickedLink = e.target.closest('a[href]');
+        if (clickedLink) {
+            return; // Let the link click proceed
+        }
+        
         e.preventDefault();
         e.stopPropagation();
         
