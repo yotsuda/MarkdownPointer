@@ -11,7 +11,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 {
     private readonly NamedPipeClient _pipeClient = pipeClient;
 
-    [McpServerTool(Name = "show_markdown"), Description("Open a Markdown file in MarkdownPointer. Supports Mermaid diagrams and KaTeX math rendering. Returns current tab status and any render errors.")]
+    [McpServerTool(Name = "show_markdown"), Description("Open a Markdown or SVG file in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors.")]
     public async Task<string> ShowMarkdown(
         [Description("Path to the Markdown file to open")] string path,
         [Description("Optional line number to scroll to")] int? line = null,

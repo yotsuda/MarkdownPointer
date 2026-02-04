@@ -34,7 +34,7 @@ namespace MarkdownPointer
         private const double ScrollbarWidth = 20.0;
         private const double MinWindowWidth = 400.0;
 
-        private static readonly string[] SupportedExtensions = { ".md", ".markdown", ".txt" };
+        private static readonly string[] SupportedExtensions = { ".md", ".markdown", ".txt", ".svg" };
 
         #endregion
 
