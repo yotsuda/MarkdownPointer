@@ -115,7 +115,7 @@ g.pointing-highlight:has(polygon) {
     filter: drop-shadow(0 0 4px #0078d4) drop-shadow(0 0 2px #0078d4);
 }
 .code-line {
-    display: block;
+    display: block; min-height: 1.55em;
 }
 .code-line.pointing-highlight {
     outline: none !important;
