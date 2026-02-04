@@ -8,7 +8,7 @@ namespace MarkdownPointer.Mcp.Services;
 public class NamedPipeClient
 {
     private const string PipeName = "MarkdownPointer_Pipe";
-    private const int ConnectionTimeoutMs = 10000;
+    private const int ConnectionTimeoutMs = 5000;
     private const int BufferSize = 65536; // 64KB to match server
     
     private readonly string? _viewerExePath;
@@ -26,6 +26,12 @@ public class NamedPipeClient
 
     public async Task<JsonDocument?> SendCommandAsync(PipeCommand message, CancellationToken cancellationToken = default)
     {
+        // Start viewer first if not running
+        if (!IsViewerRunning())
+        {
+            await StartViewerAsync();
+        }
+        
         var json = JsonSerializer.Serialize(message, PipeJsonContext.Default.PipeCommand);
         var bytes = Encoding.UTF8.GetBytes(json);
         Exception? lastException = null;
@@ -57,20 +63,6 @@ public class NamedPipeClient
             {
                 lastException = ex;
                 Console.Error.WriteLine($"[WARN] Pipe connection timeout (retry {retry + 1}/3)");
-                
-                // Try to start the viewer if not running
-                if (retry == 0 && !IsViewerRunning())
-                {
-                    try
-                    {
-                        await StartViewerAsync();
-                    }
-                    catch (Exception startEx)
-                    {
-                        Console.Error.WriteLine($"[ERROR] Failed to start viewer: {startEx.Message}");
-                        throw; // Re-throw to indicate viewer cannot be started
-                    }
-                }
                 
                 if (retry < 2)
                 {
