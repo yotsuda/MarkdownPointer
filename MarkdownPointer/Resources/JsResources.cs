@@ -47,6 +47,7 @@ namespace MarkdownPointer.Resources
         /// </summary>
         public static string MermaidNodeProcessing => GetScript("MermaidNodeProcessing.js");
 
+
         /// <summary>
         /// Reads an embedded JavaScript resource.
         /// </summary>
