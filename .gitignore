@@ -66,3 +66,16 @@ Module/bin/
 
 # Local install scripts
 Install-MarkdownPointer.ps1
+
+# Local deployment script
+Deploy-Local.ps1
+
+# Claude AI configuration
+.claude/
+
+# Development notes and proposals
+bug_*.md
+svg-font-fix-proposal.md
+
+# Test SVG files
+test-*.svg
