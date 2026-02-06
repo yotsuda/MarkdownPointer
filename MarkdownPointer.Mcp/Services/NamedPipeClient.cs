@@ -20,7 +20,7 @@ public class NamedPipeClient
     
     private static string? FindViewerExe()
     {
-        var exePath = Path.Combine(AppContext.BaseDirectory, "MarkdownPointer.exe");
+        var exePath = Path.Combine(AppContext.BaseDirectory, "mdp.exe");
         return File.Exists(exePath) ? exePath : null;
     }
 
@@ -98,7 +98,7 @@ public class NamedPipeClient
     
     public bool IsViewerRunning()
     {
-        return Process.GetProcessesByName("MarkdownPointer").Length > 0;
+        return Process.GetProcessesByName("mdp").Length > 0;
     }
     
     public async Task StartViewerAsync()
@@ -110,7 +110,7 @@ public class NamedPipeClient
         
         if (_viewerExePath == null)
         {
-            throw new FileNotFoundException("MarkdownPointer.exe not found in the same directory as MarkdownPointer.Mcp.exe");
+            throw new FileNotFoundException("mdp.exe not found in the same directory as mdp-mcp.exe");
         }
         
         var startInfo = new ProcessStartInfo

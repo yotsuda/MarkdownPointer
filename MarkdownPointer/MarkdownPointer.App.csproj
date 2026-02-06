@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <AssemblyName>MarkdownPointer</AssemblyName>
+    <AssemblyName>mdp</AssemblyName>
     <Version>0.1.0</Version>
     
     <!-- Single file publish settings -->

@@ -5,6 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>mdp-mcp</AssemblyName>
     <Version>0.1.0</Version>
     
     <!-- NuGet Tool Package settings -->

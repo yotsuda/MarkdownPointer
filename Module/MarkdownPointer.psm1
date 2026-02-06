@@ -1,7 +1,7 @@
 # MarkdownPointer PowerShell Module
 
 $script:PipeName = "MarkdownPointer_Pipe"
-$script:ExePath = Join-Path $PSScriptRoot "bin\MarkdownPointer.exe"
+$script:ExePath = Join-Path $PSScriptRoot "bin\mdp.exe"
 
 function Send-MarkdownPointerCommand {
     [CmdletBinding()]
@@ -57,7 +57,7 @@ function Start-MarkdownPointer {
     param()
     
     if (-not (Test-Path $script:ExePath)) {
-        throw "MarkdownPointer.exe not found at: $script:ExePath"
+        throw "mdp.exe not found at: $script:ExePath"
     }
     
     Start-Process -FilePath $script:ExePath -WindowStyle Normal
@@ -69,7 +69,7 @@ function Start-MarkdownPointer {
         Start-Sleep -Milliseconds 200
         $elapsed += 0.2
         $proc = $null
-        $proc = Get-Process -Name MarkdownPointer -ErrorAction Ignore
+        $proc = Get-Process -Name mdp -ErrorAction Ignore
         if ($proc) {
             Start-Sleep -Milliseconds 500  # Extra wait for pipe initialization
             return
@@ -132,7 +132,7 @@ function Show-MarkdownPointer {
     
     begin {
         # Check if MarkdownPointer is running
-        $process = Get-Process -Name MarkdownPointer -ErrorAction Ignore
+        $process = Get-Process -Name mdp -ErrorAction Ignore
         if (-not $process) {
             Start-MarkdownPointer
         }

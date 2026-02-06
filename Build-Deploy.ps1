@@ -58,7 +58,7 @@ Write-Host "Version: $Version" -ForegroundColor DarkGray
 
 # Step 1: Stop running processes
 Write-Host "`n[1/4] Stopping running processes..." -ForegroundColor Yellow
-$processes = @(Get-Process -Name 'MarkdownPointer', 'MarkdownPointer.Mcp' -ErrorAction Ignore)
+$processes = @(Get-Process -Name 'mdp', 'mdp-mcp' -ErrorAction Ignore)
 if ($processes.Count -gt 0) {
     $processes | Stop-Process -Force
     Start-Sleep -Milliseconds 500
@@ -116,7 +116,7 @@ if (-not $NuGetOnly) {
         # Copy MCP server
         $mcpExe = Get-ChildItem "$DistDir\mcp-win-x64" -Filter '*.exe' | Select-Object -First 1
         if ($mcpExe) {
-            Copy-Item $mcpExe.FullName "$bundleDir\MarkdownPointer.Mcp.exe"
+            Copy-Item $mcpExe.FullName "$bundleDir\mdp-mcp.exe"
         }
         
         # Copy README and LICENSE
@@ -167,7 +167,7 @@ Add to claude_desktop_config.json:
 {
   "mcpServers": {
     "MarkdownPointer": {
-      "command": "C:\\path\\to\\MarkdownPointer.Mcp.exe"
+      "command": "C:\\path\\to\\mdp-mcp.exe"
     }
   }
 }
