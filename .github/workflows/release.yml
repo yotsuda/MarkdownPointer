@@ -11,6 +11,9 @@ on:
         required: true
         default: '0.0.0-test'
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: windows-latest
