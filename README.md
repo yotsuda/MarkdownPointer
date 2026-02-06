@@ -19,8 +19,7 @@ Paste this into your AI prompt to precisely point to the location that needs rev
 - **KaTeX Math** - Inline (`$...$`) and block (`$$...$$`) math expressions
 - **Multi-Tab Interface** - Open multiple files with drag-and-drop tab reordering
 - **File Watching** - Auto-reload on file changes
-- **MCP Server** - Integration with Claude Desktop and other MCP clients
-- **PowerShell Module** - Control via `Show-MarkdownPointer` cmdlet
+- **MCP Server** - Integration with Claude Code, Claude Desktop and other MCP clients
 
 ## Requirements
 
@@ -29,13 +28,18 @@ Paste this into your AI prompt to precisely point to the location that needs rev
 
 ## Installation
 
-### Option 1: Download from GitHub Releases
-
 1. Download `MarkdownPointer-win-x64.zip` from [Releases](https://github.com/yotsuda/MarkdownPointer/releases)
 2. Extract to a folder (e.g., `C:\Tools\MarkdownPointer`)
-3. Run `MarkdownPointer.exe`
+3. Configure MCP Server for your AI client (see below)
 
-### Option 2: Build from Source
+You can also open files directly from the command line:
+
+```cmd
+C:\Tools\MarkdownPointer\MarkdownPointer.exe README.md
+```
+
+<details>
+<summary>Build from Source</summary>
 
 ```powershell
 git clone https://github.com/yotsuda/MarkdownPointer.git
@@ -44,13 +48,27 @@ cd MarkdownPointer
 # Output: dist\MarkdownPointer-win-x64.zip
 ```
 
+</details>
+
 ## MCP Server Setup
 
-MarkdownPointer includes an MCP server for integration with Claude Desktop and other MCP clients.
+MarkdownPointer includes an MCP server for integration with Claude Code, Claude Desktop, and other MCP clients.
 
-### Claude Desktop Configuration
+### Claude Code (Recommended)
 
-Add to your `claude_desktop_config.json`:
+```bash
+claude mcp add MarkdownPointer C:\Tools\MarkdownPointer\MarkdownPointer.Mcp.exe
+```
+
+### Other MCP Clients
+
+MarkdownPointer.Mcp.exe is a standard MCP server using stdio transport. Configure your MCP client to run:
+
+```
+C:\Tools\MarkdownPointer\MarkdownPointer.Mcp.exe
+```
+
+For Claude Desktop, add to `claude_desktop_config.json`:
 
 ```json
 {
@@ -66,9 +84,7 @@ Add to your `claude_desktop_config.json`:
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `show_markdown` | Open a Markdown file | `path`, `line?` |
-| `show_markdown_content` | Display Markdown text | `content`, `title?` |
-| `get_tabs` | List open tabs | none |
+| `show_markdown` | Open a Markdown or SVG file | `path`, `line?` |
 
 ## Usage
 
@@ -89,25 +105,6 @@ Add to your `claude_desktop_config.json`:
 | `Ctrl+Shift+Tab` | Previous tab |
 | `Ctrl+1-9` | Switch to tab 1-9 |
 | `F5` | Reload current file |
-
-### PowerShell Module
-
-```powershell
-Import-Module MarkdownPointer
-
-# Open a file
-Show-MarkdownPointer .\README.md
-
-# Open and scroll to specific line
-Show-MarkdownPointer .\README.md -Line 50
-
-# Render content directly
-"# Hello World" | Show-MarkdownPointer
-
-# List open tabs
-Get-MarkdownPointerTab
-```
-
 ## License
 
 MIT License
