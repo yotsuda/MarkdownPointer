@@ -48,17 +48,40 @@ public class PipeServer : IDisposable
     {
         while (!ct.IsCancellationRequested)
         {
+            NamedPipeServerStream? server = null;
             try
             {
-                using var server = new NamedPipeServerStream(
+                server = new NamedPipeServerStream(
                     PipeName, 
                     PipeDirection.InOut, 
-                    1,
+                    NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte, 
                     PipeOptions.Asynchronous);
 
                 await server.WaitForConnectionAsync(ct);
 
+                // Handle connection in a separate task so we can accept the next one immediately
+                _ = HandleConnectionAsync(server, ct);
+                server = null; // Ownership transferred to HandleConnectionAsync
+            }
+            catch (OperationCanceledException)
+            {
+                server?.Dispose();
+                break;
+            }
+            catch
+            {
+                server?.Dispose();
+            }
+        }
+    }
+
+    private async Task HandleConnectionAsync(NamedPipeServerStream server, CancellationToken ct)
+    {
+        try
+        {
+            using (server)
+            {
                 var buffer = new byte[BufferSize];
                 var bytesRead = await server.ReadAsync(buffer, ct);
 
@@ -78,14 +101,10 @@ public class PipeServer : IDisposable
                     }
                 }
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch
-            {
-                // Continue listening on error
-            }
+        }
+        catch
+        {
+            // Ignore errors in individual connections
         }
     }
 

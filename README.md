@@ -28,14 +28,14 @@ Paste this into your AI prompt to precisely point to the location that needs rev
 
 ## Installation
 
-1. Download `MarkdownPointer-win-x64.zip` from [Releases](https://github.com/yotsuda/MarkdownPointer/releases)
+1. Download the latest zip from [Releases](https://github.com/yotsuda/MarkdownPointer/releases)
 2. Extract to a folder (e.g., `C:\Tools\MarkdownPointer`)
 3. Configure MCP Server for your AI client (see below)
 
 You can also open files directly from the command line:
 
 ```cmd
-C:\Tools\MarkdownPointer\MarkdownPointer.exe README.md
+C:\Tools\MarkdownPointer\mdp.exe README.md
 ```
 
 <details>
@@ -57,15 +57,20 @@ MarkdownPointer includes an MCP server for integration with Claude Code, Claude 
 ### Claude Code (Recommended)
 
 ```bash
-claude mcp add MarkdownPointer C:\Tools\MarkdownPointer\MarkdownPointer.Mcp.exe
+claude mcp add mdp C:\Tools\MarkdownPointer\mdp-mcp.exe
 ```
+
+Example prompts:
+
+- "open README.md in mdp"
+- "show the report in mdp and scroll to line 50"
 
 ### Other MCP Clients
 
-MarkdownPointer.Mcp.exe is a standard MCP server using stdio transport. Configure your MCP client to run:
+mdp-mcp.exe is a standard MCP server using stdio transport. Configure your MCP client to run:
 
 ```
-C:\Tools\MarkdownPointer\MarkdownPointer.Mcp.exe
+C:\Tools\MarkdownPointer\mdp-mcp.exe
 ```
 
 For Claude Desktop, add to `claude_desktop_config.json`:
@@ -73,8 +78,8 @@ For Claude Desktop, add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "MarkdownPointer": {
-      "command": "C:\\Tools\\MarkdownPointer\\MarkdownPointer.Mcp.exe"
+    "mdp": {
+      "command": "C:\\Tools\\MarkdownPointer\\mdp-mcp.exe"
     }
   }
 }
@@ -103,7 +108,6 @@ For Claude Desktop, add to `claude_desktop_config.json`:
 | `Ctrl+W` | Close current tab |
 | `Ctrl+Tab` | Next tab |
 | `Ctrl+Shift+Tab` | Previous tab |
-| `Ctrl+1-9` | Switch to tab 1-9 |
 | `F5` | Reload current file |
 ## License
 
