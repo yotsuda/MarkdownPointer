@@ -217,7 +217,7 @@ namespace MarkdownPointer
                             return;
                         }
 
-                        var step = diff * 0.1;
+                        var step = diff * 0.3;
                         var newZoom = currentZoom + step;
                         currentTab.WebView.ZoomFactor = newZoom;
 
@@ -248,21 +248,11 @@ namespace MarkdownPointer
 
         private void ApplyZoomDelta(int delta)
         {
-            if (delta > 0)
-            {
-                _targetZoomFactor = Math.Min(MaxZoom, _targetZoomFactor + ZoomStep);
-            }
-            else
-            {
-                _targetZoomFactor = Math.Max(MinZoom, _targetZoomFactor - ZoomStep);
-            }
+            double notches = delta / 120.0;
+            double factor = Math.Pow(ZoomMultiplier, notches);
+            _targetZoomFactor = Math.Clamp(_targetZoomFactor * factor, MinZoom, MaxZoom);
 
-            // Apply zoom immediately without animation
-            if (FileTabControl.SelectedItem is TabItemData tab)
-            {
-                tab.WebView.ZoomFactor = _targetZoomFactor;
-                _lastZoomFactor = _targetZoomFactor;
-            }
+            _zoomAnimationTimer?.Start();
         }
 
         #endregion

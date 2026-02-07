@@ -27,7 +27,7 @@ namespace MarkdownPointer
     {
         #region Constants
 
-        private const double ZoomStep = 0.01;
+        private const double ZoomMultiplier = 1.1;
         private const double MinZoom = 0.25;
         private const double MaxZoom = 5.0;
         private const double BaseContentWidth = 1060.0;
