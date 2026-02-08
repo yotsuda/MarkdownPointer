@@ -73,7 +73,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
             var outputPath = output != null ? Path.GetFullPath(output) : Path.ChangeExtension(fullPath, ".docx");
 
-            var process = new Process
+            using var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
