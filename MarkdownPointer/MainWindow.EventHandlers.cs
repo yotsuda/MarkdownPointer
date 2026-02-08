@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using MarkdownPointer.Models;
+using MarkdownPointer.Services;
 
 namespace MarkdownPointer
 {
@@ -326,6 +328,49 @@ namespace MarkdownPointer
         #endregion
 
 
+
+        #region Export
+
+        private async void ExportDocxButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FileTabControl.SelectedItem is not TabItemData tab || string.IsNullOrEmpty(tab.FilePath))
+                return;
+
+            if (!PandocService.IsPandocInstalled())
+            {
+                var result = MessageBox.Show(
+                    "Pandoc is required to export .docx files.\nWould you like to open the Pandoc download page?",
+                    "Pandoc not found",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo("https://pandoc.org/installing.html")
+                        { UseShellExecute = true });
+                }
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                FileName = Path.GetFileNameWithoutExtension(tab.FilePath) + ".docx",
+                DefaultExt = ".docx",
+                Filter = "Word Document (*.docx)|*.docx",
+                InitialDirectory = Path.GetDirectoryName(tab.FilePath)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                var (success, error) = await PandocService.ConvertToDocxAsync(tab.FilePath, dialog.FileName);
+                if (success)
+                    ShowStatusMessage("✓ Exported .docx");
+                else
+                    ShowStatusMessage($"✗ Export failed: {error}");
+            }
+        }
+
+        #endregion
 
         #region Copy Source
 

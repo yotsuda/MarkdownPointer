@@ -8,18 +8,19 @@
 
         var nodeLineMap = {};
         var arrowLineMap = {};
+        var arrowTypeMap = {};
         var messageLineNums = [];
         var edgeLabelLineMap = {};
 
         // Parse source for line mappings
-        parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap);
+        parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap, arrowTypeMap);
 
         // Apply mappings to SVG elements
-        applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap);
+        applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap, arrowTypeMap);
     });
 }
 
-function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap) {
+function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap, arrowTypeMap) {
     // Detect diagram type from first line
     var firstLine = sourceLines[0] ? sourceLines[0].trim().toLowerCase() : '';
     var diagramType = 'unknown';
@@ -54,8 +55,13 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
         if (arrowMatch) {
             var key = arrowMatch[1] + '-' + arrowMatch[3];
             arrowLineMap[key] = lineNum;
+            // Extract arrow type from source line (e.g. -->, <-->, ---, -.->)
+            var afterSource = line.substring(line.indexOf(arrowMatch[1]) + arrowMatch[1].length);
+            var arrowTypeRegex = afterSource.match(/(<?[-=.]+>?)/);
+            arrowTypeMap[key] = arrowTypeRegex ? arrowTypeRegex[1] : '-->';
             if (arrowMatch[2]) {
-                var label = arrowMatch[2].replace(/\|/g, '');
+                // Normalize label: strip quotes, convert <br/> to space, trim
+                var label = arrowMatch[2].replace(/\|/g, '').replace(/<br\s*\/?>/g, ' ').replace(/"/g, '').trim().replace(/\s+/g, ' ');
                 edgeLabelLineMap[label] = lineNum;
             }
             // Also register the target node
@@ -279,7 +285,7 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
     }
 }
 
-function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap) {
+function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edgeLabelLineMap, arrowTypeMap) {
     // Mark flowchart nodes, sequence actors, class diagram nodes, etc.
     svg.querySelectorAll('g.node, g.cluster, g.edgeLabel, g[id^="state-"], g[id^="root-"], g.note, g.activation').forEach(function(node) {
         node.style.cursor = 'pointer';
@@ -430,12 +436,21 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         var pathId = path.id || '';
         var linkMatch = pathId.match(/^L[-_]([^-_]+)[-_]([^-_]+)[-_]/);
         var sourceLine = null;
-        if (linkMatch && arrowLineMap[linkMatch[1] + '-' + linkMatch[2]]) {
-            sourceLine = String(arrowLineMap[linkMatch[1] + '-' + linkMatch[2]]);
+        var arrowType = '-->';
+        if (linkMatch) {
+            var key = linkMatch[1] + '-' + linkMatch[2];
+            if (arrowLineMap[key]) {
+                sourceLine = String(arrowLineMap[key]);
+            }
+            if (arrowTypeMap[key]) {
+                arrowType = arrowTypeMap[key];
+            }
         }
 
-        createHitArea(path, sourceLine, 'data-hit-area-for', pathId);
+        var hitRect = createHitArea(path, sourceLine, 'data-hit-area-for', pathId);
+        if (hitRect) hitRect.setAttribute('data-arrow-type', arrowType);
         path.setAttribute('data-mermaid-node', 'true');
+        path.setAttribute('data-arrow-type', arrowType);
         if (sourceLine) path.setAttribute('data-source-line', sourceLine);
     });
 
@@ -844,4 +859,5 @@ function createHitArea(element, sourceLine, dataAttr, dataValue) {
     if (sourceLine) hitRect.setAttribute('data-source-line', sourceLine);
 
     element.parentNode.insertBefore(hitRect, element.nextSibling);
+    return hitRect;
 }

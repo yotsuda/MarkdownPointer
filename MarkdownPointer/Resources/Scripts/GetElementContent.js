@@ -85,7 +85,8 @@ function getElementContent(element) {
             var hitFor = element.getAttribute('data-hit-area-for');
             var linkMatch = hitFor.match(/^L[-_]([^-_]+)[-_]([^-_]+)[-_]/);
             if (linkMatch) {
-                nodeText = linkMatch[1] + ' -> ' + linkMatch[2];
+                var arrowType = element.getAttribute('data-arrow-type') || '-->';
+                nodeText = linkMatch[1] + ' ' + arrowType + ' ' + linkMatch[2];
             }
         }
         else if (element.hasAttribute && element.hasAttribute('data-seq-arrow-text')) {
@@ -162,7 +163,8 @@ function getElementContent(element) {
             var elemId = element.id || '';
             var linkMatch = elemId.match(/^L[-_]([^-_]+)[-_]([^-_]+)[-_]/);
             if (linkMatch) {
-                nodeText = linkMatch[1] + ' -> ' + linkMatch[2];
+                var arrowType = element.getAttribute('data-arrow-type') || '-->';
+                nodeText = linkMatch[1] + ' ' + arrowType + ' ' + linkMatch[2];
             }
         }
         else if (className.indexOf('messageLine') !== -1) {
