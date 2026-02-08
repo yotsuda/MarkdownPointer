@@ -57,7 +57,7 @@ MarkdownPointer includes an MCP server for integration with Claude Code, Claude 
 ### Claude Code (Recommended)
 
 ```bash
-claude mcp add mdp C:\Tools\MarkdownPointer\mdp-mcp.exe
+claude mcp add -s user mdp C:\Tools\MarkdownPointer\mdp-mcp.exe
 ```
 
 Example prompts:
