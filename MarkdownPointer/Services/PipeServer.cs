@@ -142,8 +142,8 @@ public class PipeServer : IDisposable
             var existingTab = windows[i].FindTabByFilePath(message.Path);
             if (existingTab != null)
             {
-                windows[i].BringToFront();
                 windows[i].SelectTab(existingTab);
+                windows[i].BringToFront();
                 if (message.Line.HasValue)
                 {
                     windows[i].ScrollToLine(existingTab, message.Line.Value);

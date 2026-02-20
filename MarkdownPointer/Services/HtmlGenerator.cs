@@ -50,7 +50,7 @@ namespace MarkdownPointer.Services
             html.AppendLine("<!DOCTYPE html>");
             html.AppendLine("<html><head>");
             html.AppendLine("<meta charset='utf-8'/>");
-            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src file: data: blob:; script-src 'nonce-{nonce}' 'unsafe-eval' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net data:;\"/>");
+            html.AppendLine($"<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src file: data: blob: https: http:; script-src 'nonce-{nonce}' 'unsafe-eval' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net data:;\"/>");
             html.AppendLine($"<base href='{baseUrl}'/>");
 
             // CSS
