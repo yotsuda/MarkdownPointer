@@ -144,14 +144,12 @@ function Show-MarkdownPointer {
     }
 
     process {
-        if (-not $Path -and -not $MyInvocation.ExpectingInput) {
-            throw "Path parameter is required. Usage: Show-MarkdownPointer <path>"
-        }
+        if (-not $Path) { return }
         foreach ($p in $Path) {
-            $resolvedPath = Resolve-Path -Path $p -ErrorAction Ignore
+            $resolved = @(Resolve-Path -Path $p -ErrorAction Ignore)
 
-            if ($resolvedPath) {
-                $filePaths.Add($resolvedPath.Path)
+            if ($resolved.Count -gt 0) {
+                foreach ($r in $resolved) { $filePaths.Add($r.Path) }
             }
             elseif ($MyInvocation.ExpectingInput) {
                 # Pipeline input that's not a valid path - treat as markdown content
@@ -165,6 +163,12 @@ function Show-MarkdownPointer {
     }
 
     end {
+        # No files or content - just bring window to front
+        if ($filePaths.Count -eq 0 -and -not $isContentMode) {
+            Send-MarkdownPointerCommand -Message @{ Command = "activate" } | Out-Null
+            return
+        }
+
         # Open collected file paths in a single pipe call
         if ($filePaths.Count -gt 0) {
             $message = @{

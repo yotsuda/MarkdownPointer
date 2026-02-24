@@ -321,9 +321,9 @@ namespace MarkdownPointer
         {
             if (FileTabControl.SelectedItem is TabItemData tab && tab.LastRenderErrors.Count > 0)
             {
-                var errorText = string.Join(Environment.NewLine + Environment.NewLine, tab.LastRenderErrors);
+                var errorText = $"[{tab.FilePath}]{Environment.NewLine}{string.Join(Environment.NewLine, tab.LastRenderErrors)}";
                 Clipboard.SetText(errorText);
-                StatusText.Text = $"✓ {tab.LastRenderErrors.Count} error(s) copied to clipboard";
+                ShowStatusMessage($"✓ {tab.LastRenderErrors.Count} error(s) copied to clipboard");
             }
         }
 

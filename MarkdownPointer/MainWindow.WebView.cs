@@ -399,7 +399,7 @@ namespace MarkdownPointer
 
             var errorCount = tab.LastRenderErrors.Count;
             ErrorIndicatorText.Text = $"⚠ {errorCount} error{(errorCount > 1 ? "s" : "")}";
-            ErrorToolTipText.Text = string.Join(Environment.NewLine + Environment.NewLine, tab.LastRenderErrors);
+            ErrorToolTipText.Text = string.Join(Environment.NewLine, tab.LastRenderErrors);
             ErrorIndicator.Visibility = Visibility.Visible;
         }
 
