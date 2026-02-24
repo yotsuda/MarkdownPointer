@@ -12,6 +12,9 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 {
     private readonly NamedPipeClient _pipeClient = pipeClient;
 
+    private static string WithVersionWarning(string response) =>
+        Program.VersionWarning != null ? response + Program.VersionWarning : response;
+
     [McpServerTool(Name = "show_markdown"), Description("Open one or more Markdown/SVG files in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors.")]
     public async Task<string> ShowMarkdown(
         [Description("Path(s) to the Markdown file(s) to open")] string[] paths,
@@ -34,9 +37,9 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
             if (fullPaths.Count == 0)
             {
-                return JsonSerializer.Serialize(
+                return WithVersionWarning(JsonSerializer.Serialize(
                     new ErrorResponse { Success = false, Error = $"File(s) not found: {string.Join(", ", notFound)}" },
-                    PipeJsonContext.Default.ErrorResponse);
+                    PipeJsonContext.Default.ErrorResponse));
             }
 
             var message = new PipeCommand { Command = "open", Paths = fullPaths.ToArray(), Line = line };
@@ -44,23 +47,23 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
             if (result == null)
             {
-                return JsonSerializer.Serialize(
+                return WithVersionWarning(JsonSerializer.Serialize(
                     new ErrorResponse
                     {
                         Success = false,
                         Error = "Failed to communicate with MarkdownPointer",
                         ViewerRunning = _pipeClient.IsViewerRunning()
                     },
-                    PipeJsonContext.Default.ErrorResponse);
+                    PipeJsonContext.Default.ErrorResponse));
             }
 
-            return result.RootElement.GetRawText();
+            return WithVersionWarning(result.RootElement.GetRawText());
         }
         catch (Exception ex)
         {
-            return JsonSerializer.Serialize(
+            return WithVersionWarning(JsonSerializer.Serialize(
                 new ErrorResponse { Success = false, Error = $"{ex.GetType().Name}: {ex.Message}" },
-                PipeJsonContext.Default.ErrorResponse);
+                PipeJsonContext.Default.ErrorResponse));
         }
     }
 
@@ -76,9 +79,9 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
             if (!File.Exists(fullPath))
             {
-                return JsonSerializer.Serialize(
+                return WithVersionWarning(JsonSerializer.Serialize(
                     new ExportResponse { Success = false, Error = $"File not found: {fullPath}" },
-                    PipeJsonContext.Default.ExportResponse);
+                    PipeJsonContext.Default.ExportResponse));
             }
 
             var outputPath = output != null ? Path.GetFullPath(output) : Path.ChangeExtension(fullPath, ".docx");
@@ -113,20 +116,20 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
             if (process.ExitCode != 0)
             {
                 var error = string.IsNullOrWhiteSpace(stderr) ? "Pandoc exited with error" : stderr.Trim();
-                return JsonSerializer.Serialize(
+                return WithVersionWarning(JsonSerializer.Serialize(
                     new ExportResponse { Success = false, Error = error },
-                    PipeJsonContext.Default.ExportResponse);
+                    PipeJsonContext.Default.ExportResponse));
             }
 
-            return JsonSerializer.Serialize(
+            return WithVersionWarning(JsonSerializer.Serialize(
                 new ExportResponse { Success = true, Output = outputPath },
-                PipeJsonContext.Default.ExportResponse);
+                PipeJsonContext.Default.ExportResponse));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return JsonSerializer.Serialize(
+            return WithVersionWarning(JsonSerializer.Serialize(
                 new ExportResponse { Success = false, Error = $"{ex.GetType().Name}: {ex.Message}" },
-                PipeJsonContext.Default.ExportResponse);
+                PipeJsonContext.Default.ExportResponse));
         }
     }
 }
