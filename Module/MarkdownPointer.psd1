@@ -1,6 +1,6 @@
 @{
     RootModule = 'MarkdownPointer.psm1'
-    ModuleVersion = '0.1.0'
+    ModuleVersion = '0.2.0'
     GUID = '4c50c9c4-d155-457d-a3a3-e3952253b51d'
     Author = 'Yoshifumi Tsuda'
     Copyright = '(c) 2025 Yoshifumi Tsuda. All rights reserved.'
