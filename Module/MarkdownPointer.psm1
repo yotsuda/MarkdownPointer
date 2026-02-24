@@ -136,38 +136,22 @@ function Show-MarkdownPointer {
         if (-not $process) {
             Start-MarkdownPointer
         }
-        
-        # Collect content for inline markdown
+
+        # Collect paths and content lines
+        $filePaths = [System.Collections.Generic.List[string]]::new()
         $contentLines = [System.Collections.Generic.List[string]]::new()
         $isContentMode = $false
     }
-    
+
     process {
         if (-not $Path -and -not $MyInvocation.ExpectingInput) {
             throw "Path parameter is required. Usage: Show-MarkdownPointer <path>"
         }
         foreach ($p in $Path) {
             $resolvedPath = Resolve-Path -Path $p -ErrorAction Ignore
-            
+
             if ($resolvedPath) {
-                # It's a file path
-                $message = @{
-                    Command = "open"
-                    Path = $resolvedPath.Path
-                }
-                
-                if ($PSBoundParameters.ContainsKey('Line')) {
-                    $message.Line = $Line
-                }
-                
-                $result = Send-MarkdownPointerCommand -Message $message
-                
-                if ($result) {
-                    if ($result.Errors) {
-                        $result.Errors | ForEach-Object { Write-Warning $_ }
-                    }
-                    "Opened: $($resolvedPath.Path)"
-                }
+                $filePaths.Add($resolvedPath.Path)
             }
             elseif ($MyInvocation.ExpectingInput) {
                 # Pipeline input that's not a valid path - treat as markdown content
@@ -175,37 +159,57 @@ function Show-MarkdownPointer {
                 $contentLines.Add($p)
             }
             else {
-                # Direct argument but file not found - error
                 Write-Error "File not found: $p" -Category ObjectNotFound -TargetObject $p
             }
         }
     }
-    
+
     end {
+        # Open collected file paths in a single pipe call
+        if ($filePaths.Count -gt 0) {
+            $message = @{
+                Command = "open"
+                Paths = [string[]]$filePaths
+            }
+
+            if ($PSBoundParameters.ContainsKey('Line')) {
+                $message.Line = $Line
+            }
+
+            $result = Send-MarkdownPointerCommand -Message $message
+
+            if ($result) {
+                if ($result.Errors) {
+                    $result.Errors | ForEach-Object { Write-Warning $_ }
+                }
+                $filePaths | ForEach-Object { "Opened: $_" }
+            }
+        }
+
+        # Handle inline markdown content
         if ($isContentMode -and $contentLines.Count -gt 0) {
-            # Create temp file with markdown content
             $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "MarkdownPointer"
             if (-not (Test-Path $tempDir)) {
                 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
             }
-            
+
             $safeTitle = $Title -replace '[\\/:*?"<>|]', '_'
             $tempFile = Join-Path $tempDir "$safeTitle.md"
-            
+
             $contentLines -join "`n" | Set-Content -Path $tempFile -Encoding UTF8
-            
+
             $message = @{
                 Command = "openTemp"
                 Path = $tempFile
                 Title = $Title
             }
-            
+
             if ($PSBoundParameters.ContainsKey('Line')) {
                 $message.Line = $Line
             }
-            
+
             $result = Send-MarkdownPointerCommand -Message $message
-            
+
             if ($result) {
                 if ($result.Errors) {
                     $result.Errors | ForEach-Object { Write-Warning $_ }

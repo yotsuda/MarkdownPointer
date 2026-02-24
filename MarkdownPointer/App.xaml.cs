@@ -18,10 +18,10 @@ namespace MarkdownPointer
 
             if (!createdNew)
             {
-                // Another instance is running - send file path and exit
+                // Another instance is running - send file paths and exit
                 if (e.Args.Length > 0)
                 {
-                    PipeServer.SendToExistingInstance(new PipeMessage { Command = "open", Path = e.Args[0] });
+                    PipeServer.SendToExistingInstance(new PipeMessage { Command = "open", Paths = e.Args });
                 }
                 else
                 {
@@ -39,9 +39,12 @@ namespace MarkdownPointer
 
             // Create main window
             var mainWindow = new MainWindow();
-            if (e.Args.Length > 0 && File.Exists(e.Args[0]))
+            foreach (var arg in e.Args)
             {
-                mainWindow.LoadMarkdownFile(e.Args[0]);
+                if (File.Exists(arg))
+                {
+                    mainWindow.LoadMarkdownFile(arg);
+                }
             }
             mainWindow.Show();
         }

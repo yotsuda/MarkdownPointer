@@ -11,7 +11,11 @@ public class PipeCommand
     
     [JsonPropertyName("Path")]
     public string? Path { get; set; }
-    
+
+    [JsonPropertyName("Paths")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string[]? Paths { get; set; }
+
     [JsonPropertyName("Line")]
     public int? Line { get; set; }
 }

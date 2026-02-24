@@ -130,7 +130,18 @@ public class PipeServer : IDisposable
 
     private async Task<PipeResponse> HandleOpenAsync(PipeMessage message, List<MainWindow> windows)
     {
-        if (string.IsNullOrEmpty(message.Path) || !File.Exists(message.Path))
+        // Collect all paths to open
+        var paths = new List<string>();
+        if (message.Paths is { Length: > 0 })
+        {
+            paths.AddRange(message.Paths);
+        }
+        else if (!string.IsNullOrEmpty(message.Path))
+        {
+            paths.Add(message.Path);
+        }
+
+        if (paths.Count == 0 || !paths.Any(File.Exists))
         {
             return new PipeResponse { Success = false, Error = "File not found" };
         }
@@ -139,36 +150,53 @@ public class PipeServer : IDisposable
         MainWindow? targetWindow = null;
         int targetWindowIndex = 0;
 
-        // Check if file is already open in any window
-        for (int i = 0; i < windows.Count; i++)
+        foreach (var path in paths)
         {
-            var existingTab = windows[i].FindTabByFilePath(message.Path);
-            if (existingTab != null)
+            if (!File.Exists(path)) continue;
+
+            TabItemData? tab = null;
+            MainWindow? win = null;
+            int winIndex = 0;
+
+            // Check if file is already open in any window
+            for (int i = 0; i < windows.Count; i++)
             {
-                windows[i].SelectTab(existingTab);
-                windows[i].BringToFront();
-                if (message.Line.HasValue)
+                var existingTab = windows[i].FindTabByFilePath(path);
+                if (existingTab != null)
                 {
-                    windows[i].ScrollToLine(existingTab, message.Line.Value);
+                    windows[i].SelectTab(existingTab);
+                    if (message.Line.HasValue)
+                    {
+                        windows[i].ScrollToLine(existingTab, message.Line.Value);
+                    }
+                    tab = existingTab;
+                    win = windows[i];
+                    winIndex = i;
+                    break;
                 }
-                openedTab = existingTab;
-                targetWindow = windows[i];
-                targetWindowIndex = i;
-                break;
+            }
+
+            // File not open - open in first window
+            if (tab == null)
+            {
+                win = windows.FirstOrDefault();
+                if (win != null)
+                {
+                    tab = win.LoadMarkdownFile(path, message.Line, message.Title);
+                    winIndex = 0;
+                }
+            }
+
+            // Track last opened tab for response
+            if (tab != null)
+            {
+                openedTab = tab;
+                targetWindow = win;
+                targetWindowIndex = winIndex;
             }
         }
 
-        // File not open - open in first window
-        if (openedTab == null)
-        {
-            targetWindow = windows.FirstOrDefault();
-            if (targetWindow != null)
-            {
-                openedTab = targetWindow.LoadMarkdownFile(message.Path, message.Line, message.Title);
-                targetWindow.BringToFront();
-                targetWindowIndex = 0;
-            }
-        }
+        targetWindow?.BringToFront();
 
         if (openedTab == null || targetWindow == null)
         {
@@ -336,6 +364,7 @@ public class PipeMessage
 {
     public string Command { get; set; } = "";
     public string? Path { get; set; }
+    public string[]? Paths { get; set; }
     public int? Line { get; set; }
     public string? Title { get; set; }
 }

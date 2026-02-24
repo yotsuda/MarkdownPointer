@@ -12,38 +12,48 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 {
     private readonly NamedPipeClient _pipeClient = pipeClient;
 
-    [McpServerTool(Name = "show_markdown"), Description("Open a Markdown or SVG file in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors.")]
+    [McpServerTool(Name = "show_markdown"), Description("Open one or more Markdown/SVG files in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors.")]
     public async Task<string> ShowMarkdown(
-        [Description("Path to the Markdown file to open")] string path,
-        [Description("Optional line number to scroll to")] int? line = null,
+        [Description("Path(s) to the Markdown file(s) to open")] string[] paths,
+        [Description("Optional line number to scroll to in the last opened file")] int? line = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var fullPath = Path.GetFullPath(path);
-            
-            if (!File.Exists(fullPath))
+            var fullPaths = new List<string>();
+            var notFound = new List<string>();
+
+            foreach (var p in paths)
+            {
+                var fullPath = Path.GetFullPath(p);
+                if (File.Exists(fullPath))
+                    fullPaths.Add(fullPath);
+                else
+                    notFound.Add(fullPath);
+            }
+
+            if (fullPaths.Count == 0)
             {
                 return JsonSerializer.Serialize(
-                    new ErrorResponse { Success = false, Error = $"File not found: {fullPath}" },
+                    new ErrorResponse { Success = false, Error = $"File(s) not found: {string.Join(", ", notFound)}" },
                     PipeJsonContext.Default.ErrorResponse);
             }
-            
-            var message = new PipeCommand { Command = "open", Path = fullPath, Line = line };
+
+            var message = new PipeCommand { Command = "open", Paths = fullPaths.ToArray(), Line = line };
             var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
-            
+
             if (result == null)
             {
                 return JsonSerializer.Serialize(
-                    new ErrorResponse 
-                    { 
-                        Success = false, 
+                    new ErrorResponse
+                    {
+                        Success = false,
                         Error = "Failed to communicate with MarkdownPointer",
                         ViewerRunning = _pipeClient.IsViewerRunning()
                     },
                     PipeJsonContext.Default.ErrorResponse);
             }
-            
+
             return result.RootElement.GetRawText();
         }
         catch (Exception ex)
