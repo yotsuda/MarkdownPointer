@@ -84,15 +84,15 @@
 
                 <!-- Recent Folders -->
                 <StackPanel x:Name="RecentFoldersPanel" Visibility="Collapsed" Margin="0,0,0,16">
-                    <TextBlock Text="RECENT FOLDERS" FontSize="10" FontWeight="SemiBold"
-                               Foreground="#8B949E" Margin="0,0,0,6"/>
-                    <ItemsControl x:Name="RecentFoldersList" Margin="12,0,0,0"/>
+                    <TextBlock Text="📁 RECENT FOLDERS" FontSize="10" FontWeight="SemiBold"
+                               FontFamily="Segoe UI Emoji" Foreground="#8B949E" Margin="0,0,0,6"/>
+                    <ItemsControl x:Name="RecentFoldersList" Margin="20,0,0,0"/>
                 </StackPanel>
 
                 <!-- Recent Files -->
                 <StackPanel x:Name="RecentFilesPanel" Visibility="Collapsed">
-                    <TextBlock Text="RECENT FILES" FontSize="10" FontWeight="SemiBold"
-                               Foreground="#8B949E" Margin="0,0,0,6"/>
+                    <TextBlock Text="📄 RECENT FILES" FontSize="10" FontWeight="SemiBold"
+                               FontFamily="Segoe UI Emoji" Foreground="#8B949E" Margin="0,0,0,6"/>
                     <ItemsControl x:Name="RecentFilesList" Margin="12,0,0,0"/>
                 </StackPanel>
             </StackPanel>
