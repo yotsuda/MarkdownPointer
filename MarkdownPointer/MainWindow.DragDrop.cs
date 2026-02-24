@@ -403,7 +403,8 @@ namespace MarkdownPointer
                     // This is the last window - show placeholder
                     FileTabControl.Visibility = Visibility.Collapsed;
                     PlaceholderPanel.Visibility = Visibility.Visible;
-                    Title = "Markdown Viewer";
+                    Title = "Markdown Pointer";
+                    RefreshRecentFiles();
                 }
             }
             else
@@ -459,7 +460,8 @@ namespace MarkdownPointer
             {
                 FileTabControl.Visibility = Visibility.Collapsed;
                 PlaceholderPanel.Visibility = Visibility.Visible;
-                Title = "Markdown Viewer";
+                Title = "Markdown Pointer";
+                RefreshRecentFiles();
             }
             else
             {

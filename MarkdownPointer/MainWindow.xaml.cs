@@ -43,6 +43,7 @@ namespace MarkdownPointer
         private readonly MarkdownPipeline _pipeline;
         private readonly HtmlGenerator _htmlGenerator;
         private readonly ClipboardService _clipboardService;
+        private readonly RecentFilesService _recentFiles = new();
         private readonly ObservableCollection<TabItemData> _tabs = new();
 
         // Zoom state
@@ -109,6 +110,11 @@ namespace MarkdownPointer
             _clipboardService = new ClipboardService(msg => StatusText.Text = msg);
 
             FileTabControl.ItemsSource = _tabs;
+
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            PlaceholderTitle.Text = $"Markdown Pointer v{version!.Major}.{version.Minor}.{version.Build}";
+
+            RefreshRecentFiles();
         }
 
         #endregion
@@ -198,15 +204,209 @@ namespace MarkdownPointer
 
         #endregion
 
+        #region Recent Files
+
+        private void RefreshRecentFiles()
+        {
+            var files = _recentFiles.GetRecentFiles();
+            RefreshSystemMenu();
+            if (files.Count > 0)
+            {
+                RecentFilesPanel.Visibility = Visibility.Visible;
+                RecentFilesList.Items.Clear();
+                foreach (var path in files)
+                {
+                    var tb = new TextBlock
+                    {
+                        Text = Path.Combine(Path.GetFileName(Path.GetDirectoryName(path)!) , Path.GetFileName(path)),
+                        ToolTip = path,
+                        FontSize = 13,
+                        Foreground = new System.Windows.Media.SolidColorBrush(
+                            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0366d6")),
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 1, 0, 1),
+                        Tag = path
+                    };
+                    tb.MouseEnter += RecentLink_MouseEnter;
+                    tb.MouseLeave += RecentLink_MouseLeave;
+                    tb.MouseLeftButtonUp += RecentFile_Click;
+                    RecentFilesList.Items.Add(tb);
+                }
+            }
+            else
+            {
+                RecentFilesPanel.Visibility = Visibility.Collapsed;
+            }
+
+            var folders = _recentFiles.GetRecentFolders();
+            if (folders.Count > 0)
+            {
+                RecentFoldersPanel.Visibility = Visibility.Visible;
+                RecentFoldersList.Items.Clear();
+                foreach (var folder in folders)
+                {
+                    var tb = new TextBlock
+                    {
+                        Text = folder,
+                        FontSize = 13,
+                        Foreground = new System.Windows.Media.SolidColorBrush(
+                            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0366d6")),
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 1, 0, 1),
+                        Tag = folder
+                    };
+                    tb.MouseEnter += RecentLink_MouseEnter;
+                    tb.MouseLeave += RecentLink_MouseLeave;
+                    tb.MouseLeftButtonUp += RecentFolder_Click;
+                    RecentFoldersList.Items.Add(tb);
+                }
+            }
+            else
+            {
+                RecentFoldersPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private const uint SysMenuRecentBase = 0x1000;
+        private const uint SysMenuFolderBase = 0x2000;
+        private readonly List<string> _sysMenuRecentFiles = new();
+        private readonly List<string> _sysMenuRecentFolders = new();
+
+        private void RefreshSystemMenu()
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+
+            // Reset system menu to default
+            NativeMethods.GetSystemMenu(hwnd, true);
+            var sysMenu = NativeMethods.GetSystemMenu(hwnd, false);
+
+            var files = _recentFiles.GetRecentFiles();
+            var folders = _recentFiles.GetRecentFolders();
+
+            _sysMenuRecentFiles.Clear();
+            _sysMenuRecentFiles.AddRange(files);
+            _sysMenuRecentFolders.Clear();
+            _sysMenuRecentFolders.AddRange(folders);
+
+            if (files.Count == 0 && folders.Count == 0) return;
+
+            var defaultCount = NativeMethods.GetMenuItemCount(sysMenu);
+
+            // Separator before our items
+            NativeMethods.InsertMenu(sysMenu, (uint)defaultCount, NativeMethods.MF_BYPOSITION | NativeMethods.MF_SEPARATOR, 0, string.Empty);
+
+            // Recent Folders
+            if (folders.Count > 0)
+            {
+                NativeMethods.InsertMenu(sysMenu, (uint)(defaultCount + 1),
+                    NativeMethods.MF_BYPOSITION | NativeMethods.MF_STRING | NativeMethods.MF_GRAYED, 0, "Recent Folders");
+                for (int i = 0; i < folders.Count; i++)
+                {
+                    NativeMethods.InsertMenu(sysMenu, (uint)(defaultCount + 2 + i),
+                        NativeMethods.MF_BYPOSITION | NativeMethods.MF_STRING, SysMenuFolderBase + (uint)i,
+                        "  " + folders[i]);
+                }
+            }
+
+            // Recent Files
+            if (files.Count > 0)
+            {
+                var offset = defaultCount + 1 + (folders.Count > 0 ? 1 + folders.Count : 0);
+                NativeMethods.InsertMenu(sysMenu, (uint)offset,
+                    NativeMethods.MF_BYPOSITION | NativeMethods.MF_STRING | NativeMethods.MF_GRAYED, 0, "Recent Files");
+                for (int i = 0; i < files.Count; i++)
+                {
+                    var display = Path.Combine(Path.GetFileName(Path.GetDirectoryName(files[i])!), Path.GetFileName(files[i]));
+                    NativeMethods.InsertMenu(sysMenu, (uint)(offset + 1 + i),
+                        NativeMethods.MF_BYPOSITION | NativeMethods.MF_STRING, SysMenuRecentBase + (uint)i,
+                        "  " + display);
+                }
+            }
+
+            // Hook WndProc if not already hooked
+            EnsureSystemMenuHook();
+        }
+
+        private bool _sysMenuHooked;
+
+        private void EnsureSystemMenuHook()
+        {
+            if (_sysMenuHooked) return;
+            var source = System.Windows.Interop.HwndSource.FromHwnd(
+                new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            source?.AddHook(WndProc);
+            _sysMenuHooked = true;
+        }
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == NativeMethods.WM_SYSCOMMAND)
+            {
+                var id = (uint)(wParam.ToInt64() & 0xFFFF);
+                if (id >= SysMenuRecentBase && id < SysMenuRecentBase + 100)
+                {
+                    var index = (int)(id - SysMenuRecentBase);
+                    if (index < _sysMenuRecentFiles.Count && File.Exists(_sysMenuRecentFiles[index]))
+                    {
+                        LoadMarkdownFile(_sysMenuRecentFiles[index]);
+                        handled = true;
+                    }
+                }
+                else if (id >= SysMenuFolderBase && id < SysMenuFolderBase + 100)
+                {
+                    var index = (int)(id - SysMenuFolderBase);
+                    if (index < _sysMenuRecentFolders.Count && Directory.Exists(_sysMenuRecentFolders[index]))
+                    {
+                        OpenFileDialog(_sysMenuRecentFolders[index]);
+                        handled = true;
+                    }
+                }
+            }
+            return IntPtr.Zero;
+        }
+
+        private void RecentLink_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is TextBlock tb)
+                tb.TextDecorations = TextDecorations.Underline;
+        }
+
+        private void RecentLink_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is TextBlock tb)
+                tb.TextDecorations = null;
+        }
+
+        private void RecentFile_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock tb && tb.Tag is string path && File.Exists(path))
+            {
+                LoadMarkdownFile(path);
+            }
+        }
+
+        private void RecentFolder_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock tb && tb.Tag is string folder && Directory.Exists(folder))
+            {
+                OpenFileDialog(folder);
+            }
+        }
+
+        #endregion
+
         #region File Dialog
 
-        private void OpenFileDialog()
+        private void OpenFileDialog(string? initialDirectory = null)
         {
             var dialog = new OpenFileDialog
             {
                 Filter = "Markdown files|*.md;*.markdown;*.txt|All files|*.*",
                 Multiselect = true
             };
+            if (initialDirectory != null)
+                dialog.InitialDirectory = initialDirectory;
 
             if (dialog.ShowDialog() == true)
             {

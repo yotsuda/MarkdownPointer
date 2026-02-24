@@ -166,6 +166,13 @@ namespace MarkdownPointer
             _tabs.Add(newTab);
             FileTabControl.SelectedItem = newTab;
 
+            // Record in recent files (skip temp files)
+            if (!isTemp)
+            {
+                _recentFiles.AddFile(filePath);
+                RefreshSystemMenu();
+            }
+
             // Hide placeholder, show tab control
             PlaceholderPanel.Visibility = Visibility.Collapsed;
             FileTabControl.Visibility = Visibility.Visible;
@@ -451,7 +458,8 @@ namespace MarkdownPointer
                     // This is the last window - show placeholder instead of closing
                     FileTabControl.Visibility = Visibility.Collapsed;
                     PlaceholderPanel.Visibility = Visibility.Visible;
-                    Title = "Markdown Viewer";
+                    Title = "Markdown Pointer";
+                    RefreshRecentFiles();
                     LinkStatusText.Text = "";
                     WatchStatusText.Text = "";
                 }
@@ -466,7 +474,7 @@ namespace MarkdownPointer
         {
             if (FileTabControl.SelectedItem is TabItemData tab)
             {
-                Title = $"{tab.Title} - Markdown Viewer";
+                Title = $"{tab.Title} - Markdown Pointer";
                 LinkStatusText.Text = "";
                 WatchStatusText.Text = "👁 Watching";
             }

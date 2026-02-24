@@ -47,6 +47,28 @@ namespace MarkdownPointer.Helpers
         public const int SW_RESTORE = 9;
         public const int SW_SHOW = 5;
 
+        // System menu APIs
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool InsertMenu(IntPtr hMenu, uint uPosition, uint uFlags, uint uIDNewItem, string lpNewItem);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool RemoveMenu(IntPtr hMenu, uint uPosition, uint uFlags);
+
+        [DllImport("user32.dll")]
+        public static extern int GetMenuItemCount(IntPtr hMenu);
+
+        public const uint MF_BYPOSITION = 0x00000400;
+        public const uint MF_SEPARATOR = 0x00000800;
+        public const uint MF_STRING = 0x00000000;
+        public const uint MF_GRAYED = 0x00000001;
+
+        public const int WM_SYSCOMMAND = 0x0112;
+
         /// <summary>
         /// Force a window to the foreground, even from another process.
         /// </summary>

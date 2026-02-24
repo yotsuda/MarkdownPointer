@@ -1,17 +1,19 @@
 @{
     RootModule = 'MarkdownPointer.psm1'
     ModuleVersion = '0.1.0'
-    GUID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+    GUID = '4c50c9c4-d155-457d-a3a3-e3952253b51d'
     Author = 'Yoshifumi Tsuda'
-    Description = 'PowerShell module for controlling MarkdownPointer'
+    Copyright = '(c) 2025 Yoshifumi Tsuda. All rights reserved.'
+    Description = 'Markdown viewer with AI-assisted pointing mode. Click any element (headings, code lines, table cells, Mermaid diagrams, KaTeX math) to copy a [filepath:line] reference for AI prompts. Includes MCP server for Claude Code / Claude Desktop integration.'
     PowerShellVersion = '5.1'
-    FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerTab')
+    FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerTab', 'Get-MarkdownPointerMCPPath')
     CmdletsToExport = @()
     VariablesToExport = @()
-    AliasesToExport = @()
+    AliasesToExport = @('mdp')
     PrivateData = @{
         PSData = @{
-            Tags = @('Markdown', 'Viewer', 'Preview')
+            Tags = @('Markdown', 'Viewer', 'Preview', 'MCP', 'Claude', 'AI', 'WPF', 'Mermaid', 'KaTeX')
+            LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
         }
     }

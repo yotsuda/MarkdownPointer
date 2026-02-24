@@ -238,4 +238,40 @@ function Get-MarkdownPointerTab {
     }
 }
 
-Export-ModuleMember -Function Show-MarkdownPointer, Get-MarkdownPointerTab
+function Get-MarkdownPointerMCPPath {
+    <#
+    .SYNOPSIS
+    Returns the path to the MarkdownPointer MCP server executable.
+
+    .DESCRIPTION
+    Returns the full path to mdp-mcp.exe bundled with this module.
+    Use this to register MarkdownPointer as an MCP server in Claude Code.
+
+    .PARAMETER Escape
+    Escape backslashes in the path (e.g. for JSON config files).
+
+    .EXAMPLE
+    claude mcp add MarkdownPointer -s user -- "$(Get-MarkdownPointerMCPPath)"
+
+    .EXAMPLE
+    Get-MarkdownPointerMCPPath -Escape
+    # Returns: C:\\program files\\powershell\\7\\Modules\\MarkdownPointer\\bin\\mdp-mcp.exe
+    #>
+    [CmdletBinding()]
+    param(
+        [switch]$Escape
+    )
+
+    $mcpPath = Join-Path (Get-Module MarkdownPointer).ModuleBase "bin\mdp-mcp.exe"
+    if (-not (Test-Path $mcpPath)) {
+        throw "mdp-mcp.exe not found at: $mcpPath"
+    }
+    if ($Escape) {
+        return $mcpPath -replace '\\', '\\'
+    }
+    return $mcpPath
+}
+
+New-Alias -Name mdp -Value Show-MarkdownPointer
+
+Export-ModuleMember -Function Show-MarkdownPointer, Get-MarkdownPointerTab, Get-MarkdownPointerMCPPath -Alias mdp

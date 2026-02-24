@@ -78,7 +78,7 @@ namespace MarkdownPointer.Services
             html.AppendLine("</script>");
 
             // Mermaid
-            html.AppendLine("<script src='https://cdn.jsdelivr.net/npm/mermaid@11.4.2/dist/mermaid.min.js'></script>");
+            html.AppendLine("<script src='https://cdn.jsdelivr.net/npm/mermaid@11.12.3/dist/mermaid.min.js'></script>");
             html.AppendLine($"<script nonce='{nonce}'>mermaid.initialize({{ startOnLoad: false, theme: 'default' }});</script>");
 
             html.AppendLine("</head><body>");
