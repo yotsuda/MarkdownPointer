@@ -165,6 +165,11 @@ namespace MarkdownPointer
 
             _tabs.Add(newTab);
             FileTabControl.SelectedItem = newTab;
+            // Ensure selection takes effect after TabControl processes the new item
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
+            {
+                FileTabControl.SelectedItem = newTab;
+            });
 
             // Record in recent files (skip temp files)
             if (!isTemp)
