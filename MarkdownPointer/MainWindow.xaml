@@ -8,7 +8,7 @@
         AllowDrop="True"
         PreviewDrop="Window_Drop"
         PreviewDragOver="Window_DragOver"
-        KeyDown="Window_KeyDown" PreviewMouseWheel="Window_PreviewMouseWheel">
+        PreviewKeyDown="Window_KeyDown" PreviewMouseWheel="Window_PreviewMouseWheel">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
@@ -17,9 +17,14 @@
 
         <!-- Tab control with drop indicator -->
         <Grid Grid.Row="0">
-            <TabControl x:Name="FileTabControl" 
+            <TabControl x:Name="FileTabControl"
                         SelectionChanged="TabControl_SelectionChanged"
                         Visibility="Collapsed">
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Width" Value="Auto"/>
+                    </Style>
+                </TabControl.ItemContainerStyle>
                 <TabControl.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal"
@@ -67,25 +72,28 @@
 
         <!-- Placeholder when no file is loaded -->
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="📝" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="400">
+                <!-- Hero -->
+                <TextBlock Text="📝" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,12"/>
                 <TextBlock x:Name="PlaceholderTitle" FontSize="24" FontWeight="SemiBold"
-                           Foreground="#24292e" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                <TextBlock Text="Drag &amp; drop a file here, or press Ctrl+O to open" FontSize="13"
-                           Foreground="#586069" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                           Foreground="#24292e" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock FontSize="13" Foreground="#586069" HorizontalAlignment="Center"
+                           TextAlignment="Center" Margin="0,0,0,24">
+                    Drag &amp; drop a file here,<LineBreak/>or press Ctrl+O to open
+                </TextBlock>
 
                 <!-- Recent Folders -->
-                <StackPanel x:Name="RecentFoldersPanel" Visibility="Collapsed" Margin="0,0,0,12">
-                    <TextBlock Text="Recent Folders" FontSize="12" FontWeight="SemiBold"
-                               Foreground="#24292e" Margin="0,0,0,4"/>
-                    <ItemsControl x:Name="RecentFoldersList"/>
+                <StackPanel x:Name="RecentFoldersPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                    <TextBlock Text="RECENT FOLDERS" FontSize="10" FontWeight="SemiBold"
+                               Foreground="#8B949E" Margin="0,0,0,6"/>
+                    <ItemsControl x:Name="RecentFoldersList" Margin="12,0,0,0"/>
                 </StackPanel>
 
                 <!-- Recent Files -->
                 <StackPanel x:Name="RecentFilesPanel" Visibility="Collapsed">
-                    <TextBlock Text="Recent Files" FontSize="12" FontWeight="SemiBold"
-                               Foreground="#24292e" Margin="0,0,0,4"/>
-                    <ItemsControl x:Name="RecentFilesList"/>
+                    <TextBlock Text="RECENT FILES" FontSize="10" FontWeight="SemiBold"
+                               Foreground="#8B949E" Margin="0,0,0,6"/>
+                    <ItemsControl x:Name="RecentFilesList" Margin="12,0,0,0"/>
                 </StackPanel>
             </StackPanel>
         </Border>

@@ -115,6 +115,8 @@ namespace MarkdownPointer
             PlaceholderTitle.Text = $"Markdown Pointer v{version!.Major}.{version.Minor}.{version.Build}";
 
             RefreshRecentFiles();
+
+            SourceInitialized += (_, _) => RefreshSystemMenu();
         }
 
         #endregion
@@ -216,6 +218,16 @@ namespace MarkdownPointer
                 RecentFilesList.Items.Clear();
                 foreach (var path in files)
                 {
+                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Cursor = Cursors.Hand, Tag = path };
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "📄 ",
+                        FontSize = 13,
+                        FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                        Foreground = new System.Windows.Media.SolidColorBrush(
+                            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#586069")),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
                     var tb = new TextBlock
                     {
                         Text = Path.Combine(Path.GetFileName(Path.GetDirectoryName(path)!) , Path.GetFileName(path)),
@@ -223,14 +235,14 @@ namespace MarkdownPointer
                         FontSize = 13,
                         Foreground = new System.Windows.Media.SolidColorBrush(
                             (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0366d6")),
-                        Cursor = Cursors.Hand,
-                        Margin = new Thickness(0, 1, 0, 1),
-                        Tag = path
+                        VerticalAlignment = VerticalAlignment.Center
                     };
-                    tb.MouseEnter += RecentLink_MouseEnter;
-                    tb.MouseLeave += RecentLink_MouseLeave;
-                    tb.MouseLeftButtonUp += RecentFile_Click;
-                    RecentFilesList.Items.Add(tb);
+                    sp.Children.Add(tb);
+                    sp.Margin = new Thickness(0, 2, 0, 2);
+                    sp.MouseEnter += RecentLink_MouseEnter;
+                    sp.MouseLeave += RecentLink_MouseLeave;
+                    sp.MouseLeftButtonUp += RecentFile_Click;
+                    RecentFilesList.Items.Add(sp);
                 }
             }
             else
@@ -245,20 +257,30 @@ namespace MarkdownPointer
                 RecentFoldersList.Items.Clear();
                 foreach (var folder in folders)
                 {
+                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Cursor = Cursors.Hand, Tag = folder };
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "📁 ",
+                        FontSize = 13,
+                        FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                        Foreground = new System.Windows.Media.SolidColorBrush(
+                            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#586069")),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
                     var tb = new TextBlock
                     {
                         Text = folder,
                         FontSize = 13,
                         Foreground = new System.Windows.Media.SolidColorBrush(
                             (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0366d6")),
-                        Cursor = Cursors.Hand,
-                        Margin = new Thickness(0, 1, 0, 1),
-                        Tag = folder
+                        VerticalAlignment = VerticalAlignment.Center
                     };
-                    tb.MouseEnter += RecentLink_MouseEnter;
-                    tb.MouseLeave += RecentLink_MouseLeave;
-                    tb.MouseLeftButtonUp += RecentFolder_Click;
-                    RecentFoldersList.Items.Add(tb);
+                    sp.Children.Add(tb);
+                    sp.Margin = new Thickness(0, 2, 0, 2);
+                    sp.MouseEnter += RecentLink_MouseEnter;
+                    sp.MouseLeave += RecentLink_MouseLeave;
+                    sp.MouseLeftButtonUp += RecentFolder_Click;
+                    RecentFoldersList.Items.Add(sp);
                 }
             }
             else
@@ -368,19 +390,25 @@ namespace MarkdownPointer
 
         private void RecentLink_MouseEnter(object sender, MouseEventArgs e)
         {
-            if (sender is TextBlock tb)
-                tb.TextDecorations = TextDecorations.Underline;
+            if (sender is FrameworkElement fe && fe is Panel sp)
+            {
+                foreach (var child in sp.Children.OfType<TextBlock>().Skip(1))
+                    child.TextDecorations = TextDecorations.Underline;
+            }
         }
 
         private void RecentLink_MouseLeave(object sender, MouseEventArgs e)
         {
-            if (sender is TextBlock tb)
-                tb.TextDecorations = null;
+            if (sender is FrameworkElement fe && fe is Panel sp)
+            {
+                foreach (var child in sp.Children.OfType<TextBlock>().Skip(1))
+                    child.TextDecorations = null;
+            }
         }
 
         private void RecentFile_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is TextBlock tb && tb.Tag is string path && File.Exists(path))
+            if (sender is FrameworkElement fe && fe.Tag is string path && File.Exists(path))
             {
                 LoadMarkdownFile(path);
             }
@@ -388,7 +416,7 @@ namespace MarkdownPointer
 
         private void RecentFolder_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is TextBlock tb && tb.Tag is string folder && Directory.Exists(folder))
+            if (sender is FrameworkElement fe && fe.Tag is string folder && Directory.Exists(folder))
             {
                 OpenFileDialog(folder);
             }
@@ -458,7 +486,7 @@ namespace MarkdownPointer
         {
             var dialog = new OpenFileDialog
             {
-                Filter = "Markdown files|*.md;*.markdown;*.txt|All files|*.*",
+                Filter = "Markdown files|*.md;*.markdown;*.txt|SVG files|*.svg|All files|*.*",
                 Multiselect = true
             };
             if (initialDirectory != null)

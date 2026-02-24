@@ -65,7 +65,8 @@ namespace MarkdownPointer
                 OpenFileDialog();
                 e.Handled = true;
             }
-            else if (e.Key == Key.W && Keyboard.Modifiers == ModifierKeys.Control)
+            else if ((e.Key == Key.W && Keyboard.Modifiers == ModifierKeys.Control) ||
+                     (e.Key == Key.F4 && Keyboard.Modifiers == ModifierKeys.Control))
             {
                 if (FileTabControl.SelectedItem is TabItemData tab)
                 {
