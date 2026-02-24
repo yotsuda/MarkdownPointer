@@ -187,6 +187,13 @@ function Show-MarkdownPointer {
                     $result.Errors | ForEach-Object { Write-Warning $_ }
                 }
                 $filePaths | ForEach-Object { "Opened: $_" }
+                foreach ($w in $result.Windows) {
+                    foreach ($t in $w.Tabs) {
+                        if ($t.Errors) {
+                            $t.Errors | ForEach-Object { Write-Warning "$($t.Path): $_" }
+                        }
+                    }
+                }
             }
         }
 
