@@ -117,6 +117,9 @@ public class PipeServer : IDisposable
             case "open":
                 return await HandleOpenAsync(message, windows);
 
+            case "openTemp":
+                return await HandleOpenTempAsync(message, windows);
+
             case "activate":
                 return HandleActivate(windows);
 
@@ -193,6 +196,47 @@ public class PipeServer : IDisposable
 
         // Build response with all window/tab info
         return BuildFullResponse(openedTab, targetWindow, targetWindowIndex, windows);
+    }
+
+    private async Task<PipeResponse> HandleOpenTempAsync(PipeMessage message, List<MainWindow> windows)
+    {
+        if (string.IsNullOrEmpty(message.Path) || !File.Exists(message.Path))
+        {
+            return new PipeResponse { Success = false, Error = "File not found" };
+        }
+
+        var targetWindow = windows.FirstOrDefault();
+        if (targetWindow == null)
+        {
+            return new PipeResponse { Success = false, Error = "No window available" };
+        }
+
+        var openedTab = targetWindow.LoadMarkdownFile(message.Path, message.Line, message.Title, isTemp: true);
+        targetWindow.BringToFront();
+
+        if (openedTab == null)
+        {
+            return new PipeResponse { Success = false, Error = "Failed to open temp file" };
+        }
+
+        // Wait for render
+        if (openedTab.RenderCompletion != null)
+        {
+            try
+            {
+                await openedTab.RenderCompletion.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            }
+            catch (TimeoutException)
+            {
+            }
+
+            if (message.Line.HasValue)
+            {
+                targetWindow.ScrollToLine(openedTab, message.Line.Value);
+            }
+        }
+
+        return BuildFullResponse(openedTab, targetWindow, 0, windows);
     }
 
     private static PipeResponse BuildFullResponse(

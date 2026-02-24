@@ -559,15 +559,13 @@ namespace MarkdownPointer
 
                 // Check if tab still exists after async operation
                 if (!_tabs.Contains(tab)) return;
+                if (markdown == null) return;
 
                 var baseDir = Path.GetDirectoryName(tab.FilePath);
-                var html = _htmlGenerator.ConvertToHtml(markdown!, baseDir!);
+                var html = _htmlGenerator.ConvertToHtml(markdown, baseDir!);
                 tab.RenderedHtml = html;  // Cache for fast window detach
                 
                 tab.WebView.NavigateToString(html);
-
-                // Bring window to front after rendering
-                BringToFront();
             }
             catch (Exception ex)
             {
