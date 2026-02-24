@@ -333,7 +333,11 @@ namespace MarkdownPointer
                 }
 
                 RenderMarkdown(tab);
-                ShowStatusMessage(wasDeleted 
+                if (FileTabControl.SelectedItem != tab)
+                {
+                    FileTabControl.SelectedItem = tab;
+                }
+                ShowStatusMessage(wasDeleted
                     ? "✓ File is back"
                     : $"✓ Source updated at {currentWriteTime:HH:mm:ss}");
             };
