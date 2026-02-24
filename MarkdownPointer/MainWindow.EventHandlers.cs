@@ -261,12 +261,22 @@ namespace MarkdownPointer
 
         private void DragOverlay_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_isDocumentScrolling && FileTabControl.SelectedItem is TabItemData tab)
+            if (FileTabControl.SelectedItem is not TabItemData tab) return;
+
+            if (_isDocumentScrolling)
             {
                 var currentPoint = e.GetPosition(DragOverlay);
                 var deltaY = _scrollStartPoint.Y - currentPoint.Y;
                 _scrollStartPoint = currentPoint;
                 tab.WebView.CoreWebView2?.ExecuteScriptAsync($"window.scrollBy(0, {deltaY})");
+            }
+            else if (tab.WebView.CoreWebView2 != null)
+            {
+                var pos = e.GetPosition(tab.WebView);
+                var x = pos.X / tab.WebView.ZoomFactor;
+                var y = pos.Y / tab.WebView.ZoomFactor;
+                tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                    $"(function(){{ var el = document.elementFromPoint({x:F0},{y:F0}); if(!el) return; var p = getPointableElement(el); if(p){{ var l = getElementLine(p); window.chrome.webview.postMessage('pointhover:'+l); }} else {{ window.chrome.webview.postMessage('pointleave:'); }} }})()");
             }
         }
 

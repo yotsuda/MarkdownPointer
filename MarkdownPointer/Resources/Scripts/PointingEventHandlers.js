@@ -1,9 +1,10 @@
 document.addEventListener('mouseover', function(e) {
-    if (!pointingModeEnabled) return;
     var pointable = getPointableElement(e.target);
     if (pointable && pointable !== currentHighlight) {
-        if (currentHighlight) currentHighlight.classList.remove('pointing-highlight');
-        pointable.classList.add('pointing-highlight');
+        if (pointingModeEnabled) {
+            if (currentHighlight) currentHighlight.classList.remove('pointing-highlight');
+            pointable.classList.add('pointing-highlight');
+        }
         currentHighlight = pointable;
         var line = getElementLine(pointable);
         window.chrome.webview.postMessage('pointhover:' + line);
@@ -11,12 +12,13 @@ document.addEventListener('mouseover', function(e) {
 });
 
 document.addEventListener('mouseout', function(e) {
-    if (!pointingModeEnabled) return;
     if (!currentHighlight) return;
     var related = e.relatedTarget;
     var relatedPointable = related ? getPointableElement(related) : null;
     if (relatedPointable !== currentHighlight) {
-        currentHighlight.classList.remove('pointing-highlight');
+        if (pointingModeEnabled) {
+            currentHighlight.classList.remove('pointing-highlight');
+        }
         currentHighlight = null;
         window.chrome.webview.postMessage('pointleave:');
     }
