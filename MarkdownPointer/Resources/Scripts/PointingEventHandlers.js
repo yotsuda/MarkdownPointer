@@ -5,6 +5,8 @@ document.addEventListener('mouseover', function(e) {
         if (currentHighlight) currentHighlight.classList.remove('pointing-highlight');
         pointable.classList.add('pointing-highlight');
         currentHighlight = pointable;
+        var line = getElementLine(pointable);
+        window.chrome.webview.postMessage('pointhover:' + line);
     }
 });
 
@@ -16,6 +18,7 @@ document.addEventListener('mouseout', function(e) {
     if (relatedPointable !== currentHighlight) {
         currentHighlight.classList.remove('pointing-highlight');
         currentHighlight = null;
+        window.chrome.webview.postMessage('pointleave:');
     }
 });
 

@@ -396,6 +396,62 @@ namespace MarkdownPointer
 
         #endregion
 
+        #region File Path Status
+
+        private void FilePathText_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is TextBlock tb)
+                tb.TextDecorations = TextDecorations.Underline;
+        }
+
+        private void FilePathText_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is TextBlock tb)
+                tb.TextDecorations = null;
+        }
+
+        private void FilePathText_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock tb && tb.Tag is string path)
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (dir != null && Directory.Exists(dir))
+                    OpenFileDialog(dir);
+            }
+        }
+
+        private void UpdateFilePathStatus()
+        {
+            if (FileTabControl.SelectedItem is TabItemData tab && !string.IsNullOrEmpty(tab.FilePath))
+            {
+                FilePathText.Text = tab.FilePath;
+                FilePathText.ToolTip = tab.FilePath;
+                FilePathText.Tag = tab.FilePath;
+            }
+            else
+            {
+                FilePathText.Text = "";
+                FilePathText.ToolTip = null;
+                FilePathText.Tag = null;
+            }
+        }
+
+        internal void UpdateFilePathVisibility()
+        {
+            if (!string.IsNullOrEmpty(LinkStatusText.Text))
+            {
+                FilePathText.Visibility = Visibility.Collapsed;
+                LinkStatusText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                FilePathText.Visibility = Visibility.Visible;
+                LinkStatusText.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        #endregion
+
         #region File Dialog
 
         private void OpenFileDialog(string? initialDirectory = null)

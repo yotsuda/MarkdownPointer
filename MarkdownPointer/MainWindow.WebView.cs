@@ -242,6 +242,7 @@ namespace MarkdownPointer
                     }
                 }
                 LinkStatusText.Text = url;
+                UpdateFilePathVisibility();
                 return;
             }
 
@@ -256,6 +257,7 @@ namespace MarkdownPointer
             if (message == "leave:")
             {
                 LinkStatusText.Text = "";
+                UpdateFilePathVisibility();
                 return;
             }
 
@@ -263,6 +265,20 @@ namespace MarkdownPointer
             if (message.StartsWith("click:", StringComparison.Ordinal))
             {
                 HandleLinkClick(message.Substring(6));
+                return;
+            }
+
+            // Handle pointing mode hover
+            if (message.StartsWith("pointhover:", StringComparison.Ordinal))
+            {
+                var line = message.Substring(11);
+                LineNumberText.Text = $"L{line}";
+                return;
+            }
+
+            if (message == "pointleave:")
+            {
+                LineNumberText.Text = "";
                 return;
             }
 

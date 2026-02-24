@@ -467,6 +467,8 @@ namespace MarkdownPointer
                     RefreshRecentFiles();
                     LinkStatusText.Text = "";
                     WatchStatusText.Text = "";
+                    UpdateFilePathStatus();
+                    UpdateFilePathVisibility();
                 }
             }
             else
@@ -481,6 +483,7 @@ namespace MarkdownPointer
             {
                 Title = $"{tab.Title} - Markdown Pointer";
                 LinkStatusText.Text = "";
+                UpdateFilePathVisibility();
                 WatchStatusText.Text = "👁 Watching";
             }
         }

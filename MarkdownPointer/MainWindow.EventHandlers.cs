@@ -27,6 +27,8 @@ namespace MarkdownPointer
             {
                 UpdateErrorIndicator(null);
             }
+            UpdateFilePathStatus();
+            UpdateFilePathVisibility();
         }
 
         private void CloseTab_Click(object sender, RoutedEventArgs e)

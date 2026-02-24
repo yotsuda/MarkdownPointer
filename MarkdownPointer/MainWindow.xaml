@@ -98,10 +98,27 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <TextBlock x:Name="LinkStatusText" 
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="FilePathText"
+                               VerticalAlignment="Center"
+                               Margin="8,0,0,0"
+                               FontSize="12"
+                               Foreground="#0366d6"
+                               Cursor="Hand"
+                               TextTrimming="CharacterEllipsis"
+                               MouseEnter="FilePathText_MouseEnter"
+                               MouseLeave="FilePathText_MouseLeave"
+                               MouseLeftButtonUp="FilePathText_MouseLeftButtonUp"/>
+                    <TextBlock x:Name="LineNumberText"
+                               VerticalAlignment="Center"
+                               Margin="6,0,0,0"
+                               FontSize="12"
+                               Foreground="#0366d6"/>
+                </StackPanel>
+                <TextBlock x:Name="LinkStatusText"
                            Grid.Column="0"
-                           VerticalAlignment="Center" 
-                           Margin="12,0" 
+                           VerticalAlignment="Center"
+                           Margin="12,0"
                            FontSize="11"
                            Foreground="#586069"
                            TextTrimming="CharacterEllipsis"/>
