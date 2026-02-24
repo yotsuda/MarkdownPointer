@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using MarkdownPointer.Models;
 using MarkdownPointer.Services;
 
@@ -366,7 +367,13 @@ namespace MarkdownPointer
             {
                 var (success, error) = await PandocService.ConvertToDocxAsync(tab.FilePath, dialog.FileName);
                 if (success)
+                {
                     ShowStatusMessage("✓ Exported .docx");
+                    var exportedPath = dialog.FileName;
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                    timer.Tick += (_, _) => { timer.Stop(); Process.Start("explorer.exe", $"/select,\"{exportedPath}\""); };
+                    timer.Start();
+                }
                 else
                     ShowStatusMessage($"✗ Export failed: {error}");
             }
