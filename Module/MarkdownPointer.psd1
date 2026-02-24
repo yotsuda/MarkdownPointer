@@ -5,7 +5,7 @@
     Author = 'Yoshifumi Tsuda'
     Copyright = '(c) 2025 Yoshifumi Tsuda. All rights reserved.'
     Description = 'Markdown viewer with AI-assisted pointing mode. Click any element (headings, code lines, table cells, Mermaid diagrams, KaTeX math) to copy a [filepath:line] reference for AI prompts. Includes MCP server for Claude Code / Claude Desktop integration.'
-    PowerShellVersion = '5.1'
+    PowerShellVersion = '7.4'
     FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerTab', 'Get-MarkdownPointerMCPPath')
     CmdletsToExport = @()
     VariablesToExport = @()
