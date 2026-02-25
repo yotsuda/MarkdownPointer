@@ -5,17 +5,12 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version for test release (e.g., 0.1.0-test)'
-        required: true
-        default: '0.0.0-test'
 
 permissions:
   contents: read
 
 jobs:
-  build-and-release:
+  build:
     runs-on: windows-latest
 
     steps:
@@ -27,14 +22,6 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build and Install
+      - name: Build
         run: .\Build-Deploy.ps1
         shell: pwsh
-
-      - name: Publish to PS Gallery
-        run: |
-          $modulePath = "$env:ProgramFiles\PowerShell\7\Modules\MarkdownPointer"
-          Publish-Module -Path $modulePath -NuGetApiKey $env:PSGALLERY_API_KEY
-        shell: pwsh
-        env:
-          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
