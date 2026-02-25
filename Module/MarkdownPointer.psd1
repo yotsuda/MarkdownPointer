@@ -7,7 +7,10 @@
     Description = @'
 Vibe editing for Markdown. Point at anything, tell AI to fix it.
 
-Renders Markdown with Mermaid diagrams, KaTeX math, and SVG. Click any element to copy a filepath:line reference for AI prompts. Includes MCP server for Claude Code / Claude Desktop.
+Click any element in the rendered preview to copy a location reference:
+  "Rewrite this: [C:\docs\notes.md:42] ## My Section"
+
+Renders Markdown with Mermaid diagrams, KaTeX math, and SVG. Includes MCP server for Claude Code / Claude Desktop.
 
 Requirements:
   .NET 8 Desktop Runtime - https://dotnet.microsoft.com/download/dotnet/8.0
@@ -40,6 +43,23 @@ Example prompts for AI:
             Tags = @('Markdown', 'Viewer', 'Preview', 'MCP', 'Claude', 'AI', 'WPF', 'Mermaid', 'KaTeX', 'Pandoc')
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
+            ReleaseNotes = @'
+Initial release on PowerShell Gallery.
+
+- ConvertTo-Docx: export Markdown to .docx via Pandoc
+- SVG file support
+- Open multiple files in a single command
+- Recent files history
+- File path and hover line number display in status bar
+- Faster startup via named pipe readiness probing
+- Auto-switch to background tab when its file is updated
+- Show render errors in console via Show-MarkdownPointer
+- Warn when MCP config references outdated module version
+- Require PowerShell 7.4+ to avoid conflicts with PowerShell.MCP
+- Fix Ctrl+W not working on consecutive presses
+- Fix WebView2 user data folder routing
+- Fix Mermaid bidirectional arrow double-encoding
+'@
         }
     }
 }
