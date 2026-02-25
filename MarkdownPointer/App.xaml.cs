@@ -52,7 +52,10 @@ namespace MarkdownPointer
             {
                 try
                 {
-                    PreCreatedWebView2Environment = await CoreWebView2Environment.CreateAsync();
+                    var userDataFolder = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "MarkdownPointer");
+                    PreCreatedWebView2Environment = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
                 }
                 catch
                 {
