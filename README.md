@@ -5,7 +5,7 @@
 MarkdownPointer renders your Markdown and lets you click any element - headings, code blocks, table cells, Mermaid diagram nodes, KaTeX math - to copy a `filepath:line` reference. Paste it into your AI prompt, and the AI knows exactly where to look.
 
 ```
-"Fix the diagram at C:\docs\report.md:42"
+Fix the diagram at [C:\docs\report.md:42] mermaid diagram: graph LR
 ```
 
 ## Features
