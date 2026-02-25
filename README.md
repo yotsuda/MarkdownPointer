@@ -1,42 +1,91 @@
 # MarkdownPointer
 
-A Markdown viewer designed for AI-assisted document review. Click any rendered element to copy its file path and line number to clipboard - perfect for pointing AI to specific locations in your documents.
+**Vibe editing for Markdown.** Point at anything, tell AI to fix it.
 
-## Key Feature: Pointing Mode
-
-When reviewing AI-generated Markdown, click any element (headings, paragraphs, code blocks, Mermaid nodes, etc.) to instantly copy a reference like:
+MarkdownPointer renders your Markdown and lets you click any element - headings, code blocks, table cells, Mermaid diagram nodes, KaTeX math - to copy a `filepath:line` reference. Paste it into your AI prompt, and the AI knows exactly where to look.
 
 ```
-C:\docs\report.md:42
+"Fix the diagram at C:\docs\report.md:42"
 ```
-
-Paste this into your AI prompt to precisely point to the location that needs revision.
 
 ## Features
 
-- **Pointing Mode** - Click any element to copy file path + line number
+- **Point & Prompt** - Click any rendered element to copy `filepath:line` to clipboard
 - **Mermaid Diagrams** - Flowchart, Sequence, Class, State, ER, Gantt, Pie, Git graph, Mindmap
-- **KaTeX Math** - Inline (`$...$`) and block (`$$...$$`) math expressions
-- **Multi-Tab Interface** - Open multiple files with drag-and-drop tab reordering
-- **File Watching** - Auto-reload on file changes
-- **MCP Server** - Integration with Claude Code, Claude Desktop and other MCP clients
+- **KaTeX Math** - Inline `$...$` and block `$$...$$`
+- **SVG** - Embedded font support
+- **Live Reload** - Auto-refresh on file changes
+- **Export** - `.docx` via Pandoc
+- **MCP Server** - Let Claude open, navigate, and export your documents
+
+## Install
+
+```powershell
+Install-PSResource MarkdownPointer
+```
+
+## Quick Start
+
+```powershell
+mdp .\README.md           # Open a file
+mdp .\docs\*.md            # Open multiple files
+Show-MarkdownPointer       # Just launch the viewer
+```
+
+## MCP Server Setup
+
+Connect MarkdownPointer to Claude Code so your AI can open and navigate documents directly.
+
+### Claude Code
+
+```powershell
+claude mcp add MarkdownPointer -s user -- "$(Get-MarkdownPointerMCPPath)"
+```
+
+Then just ask Claude:
+
+- "open README.md in mdp"
+- "show the report in mdp and scroll to line 50"
+- "export report.md to docx"
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "MarkdownPointer": {
+      "command": "C:\\Program Files\\PowerShell\\7\\Modules\\MarkdownPointer\\0.2.0\\bin\\mdp-mcp.exe"
+    }
+  }
+}
+```
+
+> Use `Get-MarkdownPointerMCPPath -Escape` to get the correct path for your environment.
+
+### MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `show_markdown` | Open files and scroll to a line |
+| `export_docx` | Convert to .docx via Pandoc |
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+O` | Open file |
+| `Ctrl+W` / `Ctrl+F4` | Close tab |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Switch tabs |
+| `Ctrl+Mouse Wheel` | Zoom |
+| `F5` | Reload |
 
 ## Requirements
 
 - Windows 10/11
-- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) (if not already installed)
-
-## Installation
-
-1. Download the latest zip from [Releases](https://github.com/yotsuda/MarkdownPointer/releases)
-2. Extract to a folder (e.g., `C:\Tools\MarkdownPointer`)
-3. Configure MCP Server for your AI client (see below)
-
-You can also open files directly from the command line:
-
-```cmd
-C:\Tools\MarkdownPointer\mdp.exe README.md
-```
+- PowerShell 7.4+
+- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
 
 <details>
 <summary>Build from Source</summary>
@@ -44,71 +93,11 @@ C:\Tools\MarkdownPointer\mdp.exe README.md
 ```powershell
 git clone https://github.com/yotsuda/MarkdownPointer.git
 cd MarkdownPointer
-.\Build-Deploy.ps1 -Platform win-x64
-# Output: dist\MarkdownPointer-win-x64.zip
+.\Build-Deploy.ps1
 ```
 
 </details>
 
-## MCP Server Setup
-
-MarkdownPointer includes an MCP server for integration with Claude Code, Claude Desktop, and other MCP clients.
-
-### Claude Code (Recommended)
-
-```bash
-claude mcp add -s user mdp C:\Tools\MarkdownPointer\mdp-mcp.exe
-```
-
-Example prompts:
-
-- "open README.md in mdp"
-- "show the report in mdp and scroll to line 50"
-
-### Other MCP Clients
-
-mdp-mcp.exe is a standard MCP server using stdio transport. Configure your MCP client to run:
-
-```
-C:\Tools\MarkdownPointer\mdp-mcp.exe
-```
-
-For Claude Desktop, add to `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "mdp": {
-      "command": "C:\\Tools\\MarkdownPointer\\mdp-mcp.exe"
-    }
-  }
-}
-```
-
-### Available MCP Tools
-
-| Tool | Description | Parameters |
-|------|-------------|------------|
-| `show_markdown` | Open a Markdown or SVG file | `path`, `line?` |
-
-## Usage
-
-### Pointing Mode
-
-1. Click the **👆** button in the toolbar to enable pointing mode
-2. Click any element in the rendered Markdown
-3. The file path and line number are copied to clipboard
-4. Paste into your AI prompt
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+O` | Open file |
-| `Ctrl+W` | Close current tab |
-| `Ctrl+Tab` | Next tab |
-| `Ctrl+Shift+Tab` | Previous tab |
-| `F5` | Reload current file |
 ## License
 
-MIT License
+MIT

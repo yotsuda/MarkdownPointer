@@ -443,11 +443,13 @@ namespace MarkdownPointer
             if (!string.IsNullOrEmpty(LinkStatusText.Text))
             {
                 FilePathText.Visibility = Visibility.Collapsed;
+                LineNumberText.Visibility = Visibility.Collapsed;
                 LinkStatusText.Visibility = Visibility.Visible;
             }
             else
             {
                 FilePathText.Visibility = Visibility.Visible;
+                LineNumberText.Visibility = Visibility.Visible;
                 LinkStatusText.Visibility = Visibility.Collapsed;
             }
         }

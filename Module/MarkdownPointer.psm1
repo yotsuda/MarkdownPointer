@@ -230,29 +230,6 @@ function Show-MarkdownPointer {
         }
     }
 }
-function Get-MarkdownPointerTab {
-    <#
-    .SYNOPSIS
-    Gets the list of open tabs in MarkdownPointer.
-    
-    .DESCRIPTION
-    Returns information about all open tabs including file path, title, and index.
-    
-    .EXAMPLE
-    Get-MarkdownTab
-    #>
-    [CmdletBinding()]
-    param()
-    
-    $result = Send-MarkdownPointerCommand -Message @{
-        Command = "getTabs"
-    }
-    
-    if ($result -and $result.Tabs) {
-        $result.Tabs
-    }
-}
-
 function Get-MarkdownPointerMCPPath {
     <#
     .SYNOPSIS
@@ -287,6 +264,80 @@ function Get-MarkdownPointerMCPPath {
     return $mcpPath
 }
 
+function ConvertTo-Docx {
+    <#
+    .SYNOPSIS
+    Convert files to .docx using Pandoc.
+
+    .DESCRIPTION
+    Converts one or more files to Word documents (.docx) using Pandoc.
+    Input format is auto-detected by Pandoc from the file extension.
+    Supports wildcards. Output files are placed alongside the source files by default.
+
+    .PARAMETER Path
+    Path(s) to Markdown files. Supports wildcards.
+
+    .PARAMETER OutputDirectory
+    Optional output directory. Defaults to each source file's directory.
+
+    .EXAMPLE
+    ConvertTo-Docx .\README.md
+
+    .EXAMPLE
+    ConvertTo-Docx .\docs\*.md
+
+    .EXAMPLE
+    ConvertTo-Docx .\docs\*.md -OutputDirectory .\out
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
+        [string[]]$Path,
+
+        [string]$OutputDirectory
+    )
+
+    begin {
+        $pandoc = Get-Command pandoc -ErrorAction SilentlyContinue
+        if (-not $pandoc) {
+            throw "Pandoc is not installed. Install from https://pandoc.org/installing.html"
+        }
+        if ($OutputDirectory) {
+            $OutputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
+            if (-not (Test-Path $OutputDirectory)) {
+                New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+            }
+        }
+    }
+
+    process {
+        foreach ($p in $Path) {
+            $resolved = @(Resolve-Path -Path $p -ErrorAction SilentlyContinue)
+            if ($resolved.Count -eq 0) {
+                Write-Warning "No files found: $p"
+                continue
+            }
+            foreach ($file in $resolved) {
+                $filePath = $file.Path
+                if ($OutputDirectory) {
+                    $outPath = Join-Path $OutputDirectory ([System.IO.Path]::ChangeExtension([System.IO.Path]::GetFileName($filePath), '.docx'))
+                } else {
+                    $outPath = [System.IO.Path]::ChangeExtension($filePath, '.docx')
+                }
+                $result = & pandoc -t docx -o $outPath $filePath 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    [PSCustomObject]@{
+                        Source = $filePath
+                        Output = $outPath
+                    }
+                } else {
+                    Write-Error "Failed to convert ${filePath}: $result"
+                }
+            }
+        }
+    }
+}
+
 New-Alias -Name mdp -Value Show-MarkdownPointer
 
-Export-ModuleMember -Function Show-MarkdownPointer, Get-MarkdownPointerTab, Get-MarkdownPointerMCPPath -Alias mdp
+Export-ModuleMember -Function Show-MarkdownPointer, Get-MarkdownPointerMCPPath, ConvertTo-Docx -Alias mdp
