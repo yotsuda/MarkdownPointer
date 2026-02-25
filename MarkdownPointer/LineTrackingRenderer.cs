@@ -93,12 +93,12 @@ namespace MarkdownPointer
             
             if (isMermaid)
             {
-                // Get mermaid source for data attribute
+                // Get raw mermaid source for data attribute (no HTML encoding)
                 var sourceWriter = new StringWriter();
                 var tempRenderer = new HtmlRenderer(sourceWriter);
-                tempRenderer.WriteLeafRawLines(obj, true, true, true);
+                tempRenderer.WriteLeafRawLines(obj, true, false, false);
                 var mermaidSource = sourceWriter.ToString().Trim();
-                var escapedSource = mermaidSource.Replace("&", "&amp;").Replace("\"", "&quot;");
+                var escapedSource = System.Web.HttpUtility.HtmlEncode(mermaidSource);
                 
                 // Mermaid needs: <pre class="mermaid" data-mermaid-source="...">content</pre>
                 renderer.Write($"<pre class=\"mermaid\" data-line=\"{obj.Line + 1}\" data-mermaid-source=\"{escapedSource}\">");

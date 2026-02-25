@@ -22,8 +22,13 @@ MCP setup for Claude Code:
   claude mcp add MarkdownPointer -s user -- "$(Get-MarkdownPointerMCPPath)"
 
 MCP setup for Claude Desktop (add to claude_desktop_config.json):
-  { "mcpServers": { "MarkdownPointer": { "command": "<path>" } } }
-  Run Get-MarkdownPointerMCPPath -Escape to get the JSON-escaped path.
+  { "mcpServers": { "MarkdownPointer": { "command": "C:\\...\\mdp-mcp.exe" } } }
+  Use Get-MarkdownPointerMCPPath -Escape to get the path with escaped backslashes.
+
+Example prompts for AI:
+  "open README.md in mdp"
+  "show the report in mdp and scroll to line 50"
+  "export report.md to docx"
 '@
     PowerShellVersion = '7.4'
     FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerMCPPath', 'ConvertTo-Docx')
