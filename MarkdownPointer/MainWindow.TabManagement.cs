@@ -582,7 +582,7 @@ namespace MarkdownPointer
                 if (markdown == null) return;
 
                 var baseDir = Path.GetDirectoryName(tab.FilePath);
-                var html = _htmlGenerator.ConvertToHtml(markdown, baseDir!);
+                var html = GetHtmlGenerator().ConvertToHtml(markdown, baseDir!);
                 tab.RenderedHtml = html;  // Cache for fast window detach
                 
                 tab.WebView.NavigateToString(html);

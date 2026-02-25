@@ -15,6 +15,9 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     
+    <!-- Pre-compile to native code for faster startup -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+
     <!-- Exclude debug and documentation files -->
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>

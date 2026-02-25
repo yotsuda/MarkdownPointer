@@ -1,7 +1,5 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -52,8 +50,8 @@ namespace MarkdownPointer
 
         #region Fields
 
-        private readonly MarkdownPipeline _pipeline;
-        private readonly HtmlGenerator _htmlGenerator;
+        private MarkdownPipeline? _pipeline;
+        private HtmlGenerator? _htmlGenerator;
         private readonly ClipboardService _clipboardService;
         private readonly RecentFilesService _recentFiles = new();
         private readonly ObservableCollection<TabItemData> _tabs = new();
@@ -96,8 +94,30 @@ namespace MarkdownPointer
         {
             InitializeComponent();
 
-            // Configure Markdig pipeline
-            // Note: UseDiagrams() is excluded - we have custom Mermaid handling in LineTrackingCodeBlockRenderer
+            _clipboardService = new ClipboardService(msg => StatusText.Text = msg);
+
+            FileTabControl.ItemsSource = _tabs;
+
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            PlaceholderTitle.Text = $"Markdown Pointer v{version!.Major}.{version.Minor}.{version.Build}";
+
+            // Defer recent files to after window is shown
+            Loaded += (_, _) => RefreshRecentFiles();
+            SourceInitialized += (_, _) => RefreshSystemMenu();
+        }
+
+        #endregion
+
+        #region Lazy Markdig Pipeline
+
+        /// <summary>
+        /// Lazily initializes the Markdig pipeline and HtmlGenerator on first use.
+        /// Saves ~70ms from constructor by deferring until a file is actually rendered.
+        /// </summary>
+        internal HtmlGenerator GetHtmlGenerator()
+        {
+            if (_htmlGenerator != null) return _htmlGenerator;
+
             _pipeline = new MarkdownPipelineBuilder()
                 .UseAbbreviations()
                 .UseAutoIdentifiers()
@@ -117,18 +137,8 @@ namespace MarkdownPointer
                 .UseAutoLinks()
                 .UseGenericAttributes()
                 .Build();
-
             _htmlGenerator = new HtmlGenerator(_pipeline);
-            _clipboardService = new ClipboardService(msg => StatusText.Text = msg);
-
-            FileTabControl.ItemsSource = _tabs;
-
-            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            PlaceholderTitle.Text = $"Markdown Pointer v{version!.Major}.{version.Minor}.{version.Build}";
-
-            RefreshRecentFiles();
-
-            SourceInitialized += (_, _) => RefreshSystemMenu();
+            return _htmlGenerator;
         }
 
         #endregion

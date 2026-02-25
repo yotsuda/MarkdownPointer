@@ -110,8 +110,10 @@ public class PipeServer : IDisposable
 
     private async Task<PipeResponse> HandleMessageAsync(PipeMessage message)
     {
+        // Ensure at least one window exists (may be first command after lazy startup)
+        ((App)Application.Current).EnsureMainWindow();
         var windows = Application.Current.Windows.OfType<MainWindow>().ToList();
-        
+
         switch (message.Command)
         {
             case "open":

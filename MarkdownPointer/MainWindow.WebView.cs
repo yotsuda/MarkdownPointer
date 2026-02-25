@@ -20,7 +20,7 @@ namespace MarkdownPointer
             tab.WebView.PreviewDragOver += WebView_PreviewDragOver;
             tab.WebView.PreviewDrop += WebView_PreviewDrop;
 
-            await tab.WebView.EnsureCoreWebView2Async(null);
+            await tab.WebView.EnsureCoreWebView2Async(App.PreCreatedWebView2Environment);
 
             // Check if tab still exists
             if (!_tabs.Contains(tab)) return;
