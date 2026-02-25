@@ -107,33 +107,37 @@ public class NamedPipeClient
         {
             return;
         }
-        
+
         if (_viewerExePath == null)
         {
             throw new FileNotFoundException("mdp.exe not found in the same directory as mdp-mcp.exe");
         }
-        
+
         var startInfo = new ProcessStartInfo
         {
             FileName = _viewerExePath,
             UseShellExecute = false,
             CreateNoWindow = false
         };
-        
+
         Process.Start(startInfo);
-        
-        // Wait for the viewer to initialize the Named Pipe
-        for (int i = 0; i < 50; i++) // Max 5 seconds
+
+        // Wait for the Named Pipe to become available
+        for (int i = 0; i < 100; i++) // Max 10 seconds
         {
             await Task.Delay(100);
-            if (IsViewerRunning())
+            try
             {
-                // Additional wait for pipe initialization
-                await Task.Delay(500);
-                return;
+                using var probe = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
+                await probe.ConnectAsync(200);
+                return; // Pipe is ready
+            }
+            catch
+            {
+                // Pipe not ready yet, retry
             }
         }
-        
-        throw new TimeoutException("MarkdownPointer failed to start within 5 seconds");
+
+        throw new TimeoutException("MarkdownPointer pipe failed to become available within 10 seconds");
     }
 }
