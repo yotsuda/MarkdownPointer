@@ -478,6 +478,9 @@ namespace MarkdownPointer
             else
             {
                 UpdateWindowTitle();
+                // WebView2 of the newly active tab steals keyboard focus after tab change.
+                // Redirect focus back to the window so Ctrl+W can be pressed again immediately.
+                Dispatcher.InvokeAsync(Focus, System.Windows.Threading.DispatcherPriority.Input);
             }
         }
 
