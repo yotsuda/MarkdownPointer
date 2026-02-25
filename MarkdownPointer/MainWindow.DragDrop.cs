@@ -578,8 +578,8 @@ namespace MarkdownPointer
 
         private static bool IsSupportedFile(string filePath)
         {
-            var ext = Path.GetExtension(filePath).ToLowerInvariant();
-            return Array.Exists(SupportedExtensions, e => e == ext);
+            var ext = Path.GetExtension(filePath);
+            return !BinaryExtensions.Contains(ext);
         }
 
         #endregion

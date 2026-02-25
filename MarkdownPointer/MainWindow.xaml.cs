@@ -34,7 +34,19 @@ namespace MarkdownPointer
         private const double ScrollbarWidth = 20.0;
         private const double MinWindowWidth = 400.0;
 
-        private static readonly string[] SupportedExtensions = { ".md", ".markdown", ".txt", ".svg" };
+        private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".exe", ".dll", ".pdb", ".obj", ".lib", ".bin", ".dat",
+            ".zip", ".gz", ".tar", ".7z", ".rar", ".bz2", ".xz",
+            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".tiff", ".webp",
+            ".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv", ".wav", ".ogg",
+            ".pdf", ".docx", ".xlsx", ".pptx",
+            ".msi", ".cab", ".iso",
+            ".woff", ".woff2", ".ttf", ".otf", ".eot",
+            ".class", ".pyc", ".o", ".so", ".dylib",
+            ".db", ".sqlite", ".mdb",
+            ".nupkg",
+        };
 
         #endregion
 
@@ -470,10 +482,16 @@ namespace MarkdownPointer
 
             if (dialog.ShowDialog() == true)
             {
+                var skipped = new List<string>();
                 foreach (var file in dialog.FileNames)
                 {
-                    LoadMarkdownFile(file);
+                    if (IsSupportedFile(file))
+                        LoadMarkdownFile(file);
+                    else
+                        skipped.Add(Path.GetFileName(file));
                 }
+                if (skipped.Count > 0)
+                    ShowStatusMessage($"Skipped binary: {string.Join(", ", skipped)}");
             }
         }
 
