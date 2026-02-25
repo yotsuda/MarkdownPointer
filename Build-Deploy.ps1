@@ -94,7 +94,7 @@ if (-not (Test-Path $InstallBinDir)) {
 # Module files
 Copy-Item "$ModuleDir\MarkdownPointer.psd1" $InstallDir -Force
 Copy-Item "$ModuleDir\MarkdownPointer.psm1" $InstallDir -Force
-Copy-Item "$ModuleDir\LICENSE" $InstallDir -Force -ErrorAction SilentlyContinue
+Copy-Item "$PSScriptRoot\LICENSE" $InstallDir -Force -ErrorAction SilentlyContinue
 
 # App binary
 Copy-Item "$BuildDir\app\mdp.exe" $InstallBinDir -Force
