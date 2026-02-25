@@ -19,6 +19,18 @@ namespace MarkdownPointer
         /// </summary>
         internal static CoreWebView2Environment? PreCreatedWebView2Environment { get; private set; }
 
+        internal static string WebView2UserDataFolder =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MarkdownPointer");
+
+        internal static async Task<CoreWebView2Environment> GetOrCreateWebView2EnvironmentAsync()
+        {
+            if (PreCreatedWebView2Environment != null)
+                return PreCreatedWebView2Environment;
+            var env = await CoreWebView2Environment.CreateAsync(null, WebView2UserDataFolder);
+            PreCreatedWebView2Environment ??= env;
+            return PreCreatedWebView2Environment;
+        }
+
         protected override void OnStartup(StartupEventArgs e)
         {
             // Try to acquire mutex for single instance
