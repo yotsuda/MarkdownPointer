@@ -39,7 +39,7 @@ Connect MarkdownPointer to Claude Code so your AI can open and navigate document
 ### Claude Code
 
 ```powershell
-claude mcp add MarkdownPointer -s user -- "$(Get-MarkdownPointerMCPPath)"
+claude mcp add mdp -s user -- "$(Get-MarkdownPointerMCPPath)"
 ```
 
 Then just ask Claude:
