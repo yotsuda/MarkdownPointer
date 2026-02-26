@@ -27,7 +27,7 @@ Install-PSResource MarkdownPointer
 ## Quick Start
 
 ```powershell
-mdp .\README.md           # Open a file
+mdp .\README.md            # Open a file
 mdp .\docs\*.md            # Open multiple files
 Show-MarkdownPointer       # Just launch the viewer
 ```
