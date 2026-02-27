@@ -40,6 +40,10 @@ namespace MarkdownPointer.Services
             // Inline SVG images to enable embedded fonts
             htmlContent = InlineSvgImages(htmlContent, baseDir);
 
+            // Inline local images as base64 data URIs
+            // (NavigateToString loads from about:blank, which blocks file:// access)
+            htmlContent = InlineLocalImages(htmlContent, baseDir);
+
             // Convert path for file:// URL
             var baseUrl = new Uri(baseDir + Path.DirectorySeparatorChar).AbsoluteUri;
 
@@ -100,6 +104,60 @@ namespace MarkdownPointer.Services
         private static string GetDomContentLoadedScript()
         {
             return JsResources.DomContentLoadedHandler + JsResources.MermaidNodeProcessing;
+        }
+
+        /// <summary>
+        /// Inlines local images as base64 data URIs.
+        /// NavigateToString() loads from about:blank, which blocks file:// access.
+        /// </summary>
+        private static string InlineLocalImages(string html, string baseDir)
+        {
+            var imgPattern = new Regex(
+                @"(<img\s+[^>]*?src\s*=\s*[""'])([^""']+?)([""'][^>]*?/?>)",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+            return imgPattern.Replace(html, match =>
+            {
+                var prefix = match.Groups[1].Value;
+                var src = match.Groups[2].Value;
+                var suffix = match.Groups[3].Value;
+
+                // Skip absolute URLs and data URIs
+                if (src.Contains("://") || src.StartsWith("data:"))
+                    return match.Value;
+
+                try
+                {
+                    var fullPath = Path.IsPathRooted(src)
+                        ? src
+                        : Path.GetFullPath(Path.Combine(baseDir, src));
+
+                    if (!File.Exists(fullPath))
+                        return match.Value;
+
+                    var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+                    var mime = ext switch
+                    {
+                        ".png" => "image/png",
+                        ".jpg" or ".jpeg" => "image/jpeg",
+                        ".gif" => "image/gif",
+                        ".webp" => "image/webp",
+                        ".bmp" => "image/bmp",
+                        ".ico" => "image/x-icon",
+                        _ => null
+                    };
+                    if (mime is null)
+                        return match.Value;
+
+                    var bytes = File.ReadAllBytes(fullPath);
+                    var base64 = Convert.ToBase64String(bytes);
+                    return prefix + $"data:{mime};base64,{base64}" + suffix;
+                }
+                catch
+                {
+                    return match.Value;
+                }
+            });
         }
 
         /// <summary>

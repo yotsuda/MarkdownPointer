@@ -21,6 +21,9 @@
     <!-- Exclude debug and documentation files -->
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+
+    <!-- Application icon -->
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,6 +33,10 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\Scripts\*.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\app.ico" />
   </ItemGroup>
 
   <!-- Clean up publish output -->
