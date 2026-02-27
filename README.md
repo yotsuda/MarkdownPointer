@@ -55,7 +55,7 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "MarkdownPointer": {
+    "mdp": {
       "command": "C:\\Program Files\\PowerShell\\7\\Modules\\MarkdownPointer\\0.2.0\\bin\\mdp-mcp.exe"
     }
   }
