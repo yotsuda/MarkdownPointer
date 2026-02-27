@@ -1,6 +1,6 @@
 @{
     RootModule = 'MarkdownPointer.psm1'
-    ModuleVersion = '0.2.0'
+    ModuleVersion = '0.2.1'
     GUID = '4c50c9c4-d155-457d-a3a3-e3952253b51d'
     Author = 'Yoshifumi Tsuda'
     Copyright = '(c) 2025-2026 Yoshifumi Tsuda. All rights reserved.'
@@ -22,10 +22,10 @@ Quick start:
   ConvertTo-Docx .\*.md     # Convert to .docx via Pandoc
 
 MCP setup for Claude Code:
-  claude mcp add MarkdownPointer -s user -- "$(Get-MarkdownPointerMCPPath)"
+  claude mcp add mdp -s user -- "$(Get-MarkdownPointerMCPPath)"
 
 MCP setup for Claude Desktop (add to claude_desktop_config.json):
-  { "mcpServers": { "MarkdownPointer": { "command": "C:\\...\\mdp-mcp.exe" } } }
+  { "mcpServers": { "mdp": { "command": "C:\\...\\mdp-mcp.exe" } } }
   Use Get-MarkdownPointerMCPPath -Escape to get the path with escaped backslashes.
 
 Example prompts for AI:
@@ -44,6 +44,10 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.2.1
+- Fix MCP server name in setup instructions (MarkdownPointer -> mdp)
+
+0.2.0
 Initial release on PowerShell Gallery.
 
 - ConvertTo-Docx: export Markdown to .docx via Pandoc
