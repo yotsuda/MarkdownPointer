@@ -48,12 +48,19 @@ namespace MarkdownPointer
             {
                 if (tab.IsInitialized)
                 {
+                    // Switch from placeholder to tab control on first render
+                    if (PlaceholderPanel.Visibility == Visibility.Visible)
+                    {
+                        PlaceholderPanel.Visibility = Visibility.Collapsed;
+                        FileTabControl.Visibility = Visibility.Visible;
+                    }
+
                     tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
-                    
+
                     // Also update text selection style
                     var userSelect = _isDragMoveMode ? "none" : (_isPointingMode ? "none" : "");
                     tab.WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
-                    
+
                     // Restore saved scroll position
                     if (tab.SavedScrollPosition > 0)
                     {

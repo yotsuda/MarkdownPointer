@@ -178,8 +178,9 @@ namespace MarkdownPointer
                 RefreshSystemMenu();
             }
 
-            // Hide placeholder, show tab control
-            PlaceholderPanel.Visibility = Visibility.Collapsed;
+            // Make tab control visible so WebView2 can initialize and render.
+            // PlaceholderPanel overlays it in the same grid cell, so the user
+            // sees the splash until NavigationCompleted hides the overlay.
             FileTabControl.Visibility = Visibility.Visible;
 
             UpdateWindowTitle();

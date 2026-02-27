@@ -371,18 +371,18 @@ namespace MarkdownPointer
                 if (id >= SysMenuRecentBase && id < SysMenuRecentBase + 100)
                 {
                     var index = (int)(id - SysMenuRecentBase);
-                    if (index < _sysMenuRecentFiles.Count && File.Exists(_sysMenuRecentFiles[index]))
+                    if (index < _sysMenuRecentFiles.Count)
                     {
-                        LoadMarkdownFile(_sysMenuRecentFiles[index]);
+                        OpenRecentFile(_sysMenuRecentFiles[index]);
                         handled = true;
                     }
                 }
                 else if (id >= SysMenuFolderBase && id < SysMenuFolderBase + 100)
                 {
                     var index = (int)(id - SysMenuFolderBase);
-                    if (index < _sysMenuRecentFolders.Count && Directory.Exists(_sysMenuRecentFolders[index]))
+                    if (index < _sysMenuRecentFolders.Count)
                     {
-                        OpenFileDialog(_sysMenuRecentFolders[index]);
+                        OpenRecentFolder(_sysMenuRecentFolders[index]);
                         handled = true;
                     }
                 }
@@ -402,20 +402,32 @@ namespace MarkdownPointer
                 tb.TextDecorations = null;
         }
 
+        private void OpenRecentFile(string path)
+        {
+            if (File.Exists(path))
+                LoadMarkdownFile(path);
+            else
+                ShowStatusMessage($"✗ File not found: {path}");
+        }
+
+        private void OpenRecentFolder(string folder)
+        {
+            if (Directory.Exists(folder))
+                OpenFileDialog(folder);
+            else
+                ShowStatusMessage($"✗ Folder not found: {folder}");
+        }
+
         private void RecentFile_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is TextBlock tb && tb.Tag is string path && File.Exists(path))
-            {
-                LoadMarkdownFile(path);
-            }
+            if (sender is TextBlock tb && tb.Tag is string path)
+                OpenRecentFile(path);
         }
 
         private void RecentFolder_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is TextBlock tb && tb.Tag is string folder && Directory.Exists(folder))
-            {
-                OpenFileDialog(folder);
-            }
+            if (sender is TextBlock tb && tb.Tag is string folder)
+                OpenRecentFolder(folder);
         }
 
         #endregion

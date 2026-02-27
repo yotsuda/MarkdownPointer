@@ -1,6 +1,6 @@
 @{
     RootModule = 'MarkdownPointer.psm1'
-    ModuleVersion = '0.2.1'
+    ModuleVersion = '0.3.0'
     GUID = '4c50c9c4-d155-457d-a3a3-e3952253b51d'
     Author = 'Yoshifumi Tsuda'
     Copyright = '(c) 2025-2026 Yoshifumi Tsuda. All rights reserved.'
@@ -44,6 +44,12 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.3.0
+- Add app icon (Emerald green face motif with transparent cutouts)
+- Fix local images not displaying in rendered preview (base64 data URI inlining)
+- Faster startup: show window immediately with splash placeholder
+- Show error in status bar when opening a missing recent file or folder
+
 0.2.1
 - Fix MCP server name in setup instructions (MarkdownPointer -> mdp)
 

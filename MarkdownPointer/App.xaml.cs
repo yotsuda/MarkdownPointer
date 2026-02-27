@@ -1,7 +1,6 @@
 using System.IO;
 using System.Threading;
 using System.Windows;
-using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
 using MarkdownPointer.Services;
 
@@ -75,23 +74,14 @@ namespace MarkdownPointer
                 }
             });
 
-            // Defer MainWindow creation by 300ms to give MCP commands
-            // a chance to arrive first (MCP probe takes ~100-200ms).
-            // If an MCP command arrives, EnsureMainWindow() in the pipe handler
-            // creates the window immediately, and the timer becomes a no-op.
-            var args = e.Args;
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
-            timer.Tick += (_, _) =>
+            // Show window immediately so the placeholder acts as a splash screen.
+            // MCP commands arrive via PipeServer and reuse this window.
+            var window = EnsureMainWindow();
+            foreach (var arg in e.Args)
             {
-                timer.Stop();
-                var window = EnsureMainWindow();
-                foreach (var arg in args)
-                {
-                    if (File.Exists(arg))
-                        window.LoadMarkdownFile(arg);
-                }
-            };
-            timer.Start();
+                if (File.Exists(arg))
+                    window.LoadMarkdownFile(arg);
+            }
         }
 
         /// <summary>
