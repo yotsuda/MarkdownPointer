@@ -19,7 +19,7 @@ Fix the diagram at [C:\docs\report.md:42] mermaid diagram: graph LR
 - **MCP Server** - Let Claude open, navigate, and export your documents
 
 ## Install
-
+In a PowerShell 7 console:
 ```powershell
 Install-PSResource MarkdownPointer
 ```
