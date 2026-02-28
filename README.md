@@ -27,9 +27,9 @@ Install-PSResource MarkdownPointer
 ## Quick Start
 
 ```powershell
-mdp .\README.md            # Open a file
-mdp .\docs\*.md            # Open multiple files
-Show-MarkdownPointer       # Just launch the viewer
+mdp .\README.md    # Open a file
+mdp .\docs\*.md    # Open multiple files
+mdp                # Just launch the viewer
 ```
 
 ## MCP Server Setup
@@ -84,7 +84,7 @@ Add to `claude_desktop_config.json`:
 ## Requirements
 
 - Windows 10/11
-- PowerShell 7.4+
+- [PowerShell 7.4+](https://learn.microsoft.com/powershell/scripting/install/install-powershell-on-windows)
 - [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
 
 <details>
