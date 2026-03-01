@@ -44,6 +44,9 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.4.0
+- Support non-filesystem PowerShell provider paths via Get-Content fallback
+
 0.3.0
 - Add app icon (Emerald green face motif with transparent cutouts)
 - Fix local images not displaying in rendered preview (base64 data URI inlining)
