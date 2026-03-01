@@ -77,6 +77,27 @@ function Start-MarkdownPointer {
     }
     throw "MarkdownPointer failed to start within $timeout seconds"
 }
+function _WriteTempFromProvider {
+    # Read content from a non-filesystem provider path via Get-Content and write to a temp file.
+    param([string]$ProviderPath)
+    try {
+        $content = (Get-Content -LiteralPath $ProviderPath -ErrorAction Stop) -join "`n"
+        $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "MarkdownPointer"
+        if (-not (Test-Path $tempDir)) {
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+        }
+        $fileName = [System.IO.Path]::GetFileName($ProviderPath)
+        if (-not $fileName) { $fileName = "provider_content.md" }
+        $tempFile = Join-Path $tempDir $fileName
+        Set-Content -Path $tempFile -Value $content -Encoding UTF8 -NoNewline
+        return $tempFile
+    }
+    catch {
+        Write-Error "Failed to read from provider path: $ProviderPath — $_" -Category ReadError -TargetObject $ProviderPath
+        return $null
+    }
+}
+
 function Show-MarkdownPointer {
     <#
     .SYNOPSIS
@@ -149,7 +170,16 @@ function Show-MarkdownPointer {
             $resolved = @(Resolve-Path -Path $p -ErrorAction Ignore)
 
             if ($resolved.Count -gt 0) {
-                foreach ($r in $resolved) { $filePaths.Add($r.Path) }
+                if ($resolved[0].Provider.Name -eq 'FileSystem') {
+                    foreach ($r in $resolved) { $filePaths.Add($r.Path) }
+                }
+                else {
+                    # Non-filesystem provider path: read via Get-Content → temp file
+                    foreach ($r in $resolved) {
+                        $tempPath = _WriteTempFromProvider $r.Path
+                        if ($tempPath) { $filePaths.Add($tempPath) }
+                    }
+                }
             }
             elseif ($MyInvocation.ExpectingInput) {
                 # Pipeline input that's not a valid path - treat as markdown content
