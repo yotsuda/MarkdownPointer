@@ -2,6 +2,7 @@ using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using MarkdownPointer.Mcp.Services;
 
@@ -12,8 +13,14 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 {
     private readonly NamedPipeClient _pipeClient = pipeClient;
 
-    private static string WithVersionWarning(string response) =>
-        Program.VersionWarning != null ? response + Program.VersionWarning : response;
+    private static string WithVersionWarning(string response)
+    {
+        if (Program.VersionWarning == null) return response;
+        var node = JsonNode.Parse(response)!.AsObject();
+        node["success"] = false;
+        node["error"] = Program.VersionWarning;
+        return node.ToJsonString();
+    }
 
     [McpServerTool(Name = "show_markdown"), Description("Open one or more Markdown/SVG files in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors.")]
     public async Task<string> ShowMarkdown(

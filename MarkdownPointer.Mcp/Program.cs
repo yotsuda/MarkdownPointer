@@ -54,8 +54,8 @@ public class Program
                 {
                     var newExePath = Path.Combine(dir, "bin", "mdp-mcp.exe");
                     VersionWarning =
-                        $"\n\n⚠ MarkdownPointer v{v} is installed but MCP config still references v{myVersionStr}. " +
-                        $"Please update your MCP server config to: {newExePath}";
+                        $"Tell the user: MCP config is outdated (v{myVersionStr} → v{v}). " +
+                        $"Update path to: {newExePath}";
                     return;
                 }
             }
