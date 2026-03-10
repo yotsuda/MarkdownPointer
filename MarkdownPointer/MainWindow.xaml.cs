@@ -58,7 +58,7 @@ namespace MarkdownPointer
 
         // Zoom state
         private DispatcherTimer? _zoomAnimationTimer;
-        private double _lastZoomFactor = 1.0;
+        private double _currentZoomFactor = 1.0;
         private double _targetZoomFactor = 1.0;
 
         // Mode toggles
@@ -230,6 +230,13 @@ namespace MarkdownPointer
 
         #region Recent Files
 
+        private static readonly System.Windows.Media.SolidColorBrush LinkBrush = new(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0366d6"));
+        private static readonly System.Windows.Media.SolidColorBrush PinBrush = new(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#8B949E"));
+        private static readonly System.Windows.Media.SolidColorBrush PinActiveBrush = new(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#D29922"));
+
         private void RefreshRecentFiles()
         {
             var files = _recentFiles.GetRecentFiles();
@@ -238,23 +245,51 @@ namespace MarkdownPointer
             {
                 RecentFilesPanel.Visibility = Visibility.Visible;
                 RecentFilesList.Items.Clear();
-                foreach (var path in files)
+                foreach (var entry in files)
                 {
+                    var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                    var pin = new TextBlock
+                    {
+                        Text = "📌",
+                        FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                        FontSize = 11,
+                        Foreground = entry.Pinned ? PinActiveBrush : PinBrush,
+                        Opacity = entry.Pinned ? 1.0 : 0.4,
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Tag = entry.Path,
+                        ToolTip = entry.Pinned ? "Unpin" : "Pin"
+                    };
+                    pin.MouseLeftButtonUp += PinFile_Click;
+                    pin.MouseEnter += (s, _) => { if (s is TextBlock t) t.Opacity = 1.0; };
+                    pin.MouseLeave += (s, _) =>
+                    {
+                        if (s is TextBlock t)
+                        {
+                            var isPinned = _recentFiles.GetRecentFiles()
+                                .Any(e => string.Equals(e.Path, (string)t.Tag, StringComparison.OrdinalIgnoreCase) && e.Pinned);
+                            t.Opacity = isPinned ? 1.0 : 0.4;
+                        }
+                    };
+
                     var tb = new TextBlock
                     {
-                        Text = Path.Combine(Path.GetFileName(Path.GetDirectoryName(path)!) , Path.GetFileName(path)),
-                        ToolTip = path,
+                        Text = Path.Combine(Path.GetFileName(Path.GetDirectoryName(entry.Path)!), Path.GetFileName(entry.Path)),
+                        ToolTip = entry.Path,
                         FontSize = 13,
-                        Foreground = new System.Windows.Media.SolidColorBrush(
-                            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0366d6")),
+                        Foreground = LinkBrush,
                         Cursor = Cursors.Hand,
-                        Margin = new Thickness(0, 2, 0, 2),
-                        Tag = path
+                        Tag = entry.Path
                     };
                     tb.MouseEnter += RecentLink_MouseEnter;
                     tb.MouseLeave += RecentLink_MouseLeave;
                     tb.MouseLeftButtonUp += RecentFile_Click;
-                    RecentFilesList.Items.Add(tb);
+
+                    panel.Children.Add(pin);
+                    panel.Children.Add(tb);
+                    RecentFilesList.Items.Add(panel);
                 }
             }
             else
@@ -267,22 +302,50 @@ namespace MarkdownPointer
             {
                 RecentFoldersPanel.Visibility = Visibility.Visible;
                 RecentFoldersList.Items.Clear();
-                foreach (var folder in folders)
+                foreach (var (folder, pinned) in folders)
                 {
+                    var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+
+                    var pin = new TextBlock
+                    {
+                        Text = "📌",
+                        FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                        FontSize = 11,
+                        Foreground = pinned ? PinActiveBrush : PinBrush,
+                        Opacity = pinned ? 1.0 : 0.4,
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 6, 0),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Tag = folder,
+                        ToolTip = pinned ? "Unpin" : "Pin"
+                    };
+                    pin.MouseLeftButtonUp += PinFolder_Click;
+                    pin.MouseEnter += (s, _) => { if (s is TextBlock t) t.Opacity = 1.0; };
+                    pin.MouseLeave += (s, _) =>
+                    {
+                        if (s is TextBlock t)
+                        {
+                            var isPinned = _recentFiles.GetRecentFolders()
+                                .Any(f => string.Equals(f.Path, (string)t.Tag, StringComparison.OrdinalIgnoreCase) && f.Pinned);
+                            t.Opacity = isPinned ? 1.0 : 0.4;
+                        }
+                    };
+
                     var tb = new TextBlock
                     {
                         Text = folder,
                         FontSize = 13,
-                        Foreground = new System.Windows.Media.SolidColorBrush(
-                            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0366d6")),
+                        Foreground = LinkBrush,
                         Cursor = Cursors.Hand,
-                        Margin = new Thickness(0, 2, 0, 2),
                         Tag = folder
                     };
                     tb.MouseEnter += RecentLink_MouseEnter;
                     tb.MouseLeave += RecentLink_MouseLeave;
                     tb.MouseLeftButtonUp += RecentFolder_Click;
-                    RecentFoldersList.Items.Add(tb);
+
+                    panel.Children.Add(pin);
+                    panel.Children.Add(tb);
+                    RecentFoldersList.Items.Add(panel);
                 }
             }
             else
@@ -309,9 +372,9 @@ namespace MarkdownPointer
             var folders = _recentFiles.GetRecentFolders();
 
             _sysMenuRecentFiles.Clear();
-            _sysMenuRecentFiles.AddRange(files);
+            _sysMenuRecentFiles.AddRange(files.Select(e => e.Path));
             _sysMenuRecentFolders.Clear();
-            _sysMenuRecentFolders.AddRange(folders);
+            _sysMenuRecentFolders.AddRange(folders.Select(f => f.Path));
 
             if (files.Count == 0 && folders.Count == 0) return;
 
@@ -327,9 +390,10 @@ namespace MarkdownPointer
                     NativeMethods.MF_BYPOSITION | NativeMethods.MF_STRING | NativeMethods.MF_GRAYED, 0, "Recent Folders");
                 for (int i = 0; i < folders.Count; i++)
                 {
+                    var prefix = folders[i].Pinned ? "  * " : "  ";
                     NativeMethods.InsertMenu(sysMenu, (uint)(defaultCount + 2 + i),
                         NativeMethods.MF_BYPOSITION | NativeMethods.MF_STRING, SysMenuFolderBase + (uint)i,
-                        "  " + folders[i]);
+                        prefix + folders[i].Path);
                 }
             }
 
@@ -341,10 +405,11 @@ namespace MarkdownPointer
                     NativeMethods.MF_BYPOSITION | NativeMethods.MF_STRING | NativeMethods.MF_GRAYED, 0, "Recent Files");
                 for (int i = 0; i < files.Count; i++)
                 {
-                    var display = Path.Combine(Path.GetFileName(Path.GetDirectoryName(files[i])!), Path.GetFileName(files[i]));
+                    var display = Path.Combine(Path.GetFileName(Path.GetDirectoryName(files[i].Path)!), Path.GetFileName(files[i].Path));
+                    var prefix = files[i].Pinned ? "  * " : "  ";
                     NativeMethods.InsertMenu(sysMenu, (uint)(offset + 1 + i),
                         NativeMethods.MF_BYPOSITION | NativeMethods.MF_STRING, SysMenuRecentBase + (uint)i,
-                        "  " + display);
+                        prefix + display);
                 }
             }
 
@@ -428,6 +493,24 @@ namespace MarkdownPointer
         {
             if (sender is TextBlock tb && tb.Tag is string folder)
                 OpenRecentFolder(folder);
+        }
+
+        private void PinFile_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock tb && tb.Tag is string path)
+            {
+                _recentFiles.ToggleFilePin(path);
+                RefreshRecentFiles();
+            }
+        }
+
+        private void PinFolder_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock tb && tb.Tag is string folder)
+            {
+                _recentFiles.ToggleFolderPin(folder);
+                RefreshRecentFiles();
+            }
         }
 
         #endregion
