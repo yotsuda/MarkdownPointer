@@ -133,6 +133,9 @@ g.pointing-highlight:has(polygon) {
     0% { box-shadow: inset 0 0 0 100px rgba(0, 120, 212, 0.4); }
     100% { box-shadow: inset 0 0 0 100px transparent; }
 }
+@media print {
+    body { zoom: 1 !important; }
+}
 ";
     }
 }
