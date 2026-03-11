@@ -327,17 +327,17 @@ namespace MarkdownPointer
             {
                 var contextMenu = new ContextMenu();
 
-                var savePngItem = new MenuItem { Header = "Save diagram as PNG..." };
+                var savePngItem = new MenuItem { Header = "Save as Image..." };
                 savePngItem.Click += async (s, args) => await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
                 contextMenu.Items.Add(savePngItem);
 
                 contextMenu.Items.Add(new Separator());
 
-                var copyPngItem = new MenuItem { Header = "Copy diagram as PNG" };
+                var copyPngItem = new MenuItem { Header = "Copy as Image" };
                 copyPngItem.Click += async (s, args) => await _clipboardService.CopyElementAsPngAsync(tab.WebView, _contextMenuPosition, "mermaid");
                 contextMenu.Items.Add(copyPngItem);
 
-                var copySvgItem = new MenuItem { Header = "Copy diagram as SVG" };
+                var copySvgItem = new MenuItem { Header = "Copy as SVG" };
                 copySvgItem.Click += async (s, args) => await _clipboardService.CopyMermaidSvgAsync(tab.WebView, _contextMenuPosition);
                 contextMenu.Items.Add(copySvgItem);
 

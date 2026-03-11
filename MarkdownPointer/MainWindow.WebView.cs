@@ -188,54 +188,46 @@ namespace MarkdownPointer
                 var result = await tab.WebView.CoreWebView2.ExecuteScriptAsync(checkScript);
                 var elementType = result.Trim('"');
 
-                var menuItems = e.MenuItems;
-                menuItems.Clear();
+                // Suppress WebView2's context menu and show WPF ContextMenu instead
+                e.MenuItems.Clear();
+                e.Handled = true;
 
                 if (elementType == "mermaid" || elementType == "math")
                 {
-                    var copyPngItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
-                        "Copy as Image", null,
-                        Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
-                    copyPngItem.CustomItemSelected += async (sender, args) =>
-                    {
-                        await _clipboardService.CopyElementAsPngAsync(tab.WebView, _contextMenuPosition, elementType);
-                    };
-                    if (elementType == "mermaid")
-                    {
-                        var savePngItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
-                            "Save as Image...", null,
-                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
-                        savePngItem.CustomItemSelected += async (sender, args) =>
-                        {
-                            await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
-                        };
-                        menuItems.Add(savePngItem);
-
-                        var separator = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
-                            "", null,
-                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Separator);
-                        menuItems.Add(separator);
-                    }
-
-                    menuItems.Add(copyPngItem);
-
-                    if (elementType == "mermaid")
-                    {
-                        var copySvgItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
-                            "Copy as SVG", null,
-                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
-                        copySvgItem.CustomItemSelected += async (sender, args) =>
-                        {
-                            await _clipboardService.CopyMermaidSvgAsync(tab.WebView, _contextMenuPosition);
-                        };
-                        menuItems.Add(copySvgItem);
-                    }
+                    ShowDiagramContextMenu(tab, elementType);
                 }
             }
             finally
             {
                 deferral.Complete();
             }
+        }
+
+        private void ShowDiagramContextMenu(TabItemData tab, string elementType)
+        {
+            var contextMenu = new System.Windows.Controls.ContextMenu();
+
+            if (elementType == "mermaid")
+            {
+                var savePngItem = new System.Windows.Controls.MenuItem { Header = "Save as Image..." };
+                savePngItem.Click += async (s, args) => await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
+                contextMenu.Items.Add(savePngItem);
+
+                contextMenu.Items.Add(new System.Windows.Controls.Separator());
+            }
+
+            var copyPngItem = new System.Windows.Controls.MenuItem { Header = "Copy as Image" };
+            copyPngItem.Click += async (s, args) => await _clipboardService.CopyElementAsPngAsync(tab.WebView, _contextMenuPosition, elementType);
+            contextMenu.Items.Add(copyPngItem);
+
+            if (elementType == "mermaid")
+            {
+                var copySvgItem = new System.Windows.Controls.MenuItem { Header = "Copy as SVG" };
+                copySvgItem.Click += async (s, args) => await _clipboardService.CopyMermaidSvgAsync(tab.WebView, _contextMenuPosition);
+                contextMenu.Items.Add(copySvgItem);
+            }
+
+            contextMenu.IsOpen = true;
         }
 
         private void HandleWebMessageReceived(TabItemData tab, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
