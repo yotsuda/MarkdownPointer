@@ -327,19 +327,19 @@ namespace MarkdownPointer
             {
                 var contextMenu = new ContextMenu();
 
-                var copySvgItem = new MenuItem { Header = "Copy diagram as SVG" };
-                copySvgItem.Click += async (s, args) => await _clipboardService.CopyMermaidSvgAsync(tab.WebView, _contextMenuPosition);
-                contextMenu.Items.Add(copySvgItem);
+                var savePngItem = new MenuItem { Header = "Save diagram as PNG..." };
+                savePngItem.Click += async (s, args) => await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
+                contextMenu.Items.Add(savePngItem);
+
+                contextMenu.Items.Add(new Separator());
 
                 var copyPngItem = new MenuItem { Header = "Copy diagram as PNG" };
                 copyPngItem.Click += async (s, args) => await _clipboardService.CopyElementAsPngAsync(tab.WebView, _contextMenuPosition, "mermaid");
                 contextMenu.Items.Add(copyPngItem);
 
-                contextMenu.Items.Add(new Separator());
-
-                var savePngItem = new MenuItem { Header = "Save diagram as PNG..." };
-                savePngItem.Click += async (s, args) => await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
-                contextMenu.Items.Add(savePngItem);
+                var copySvgItem = new MenuItem { Header = "Copy diagram as SVG" };
+                copySvgItem.Click += async (s, args) => await _clipboardService.CopyMermaidSvgAsync(tab.WebView, _contextMenuPosition);
+                contextMenu.Items.Add(copySvgItem);
 
                 contextMenu.IsOpen = true;
             }

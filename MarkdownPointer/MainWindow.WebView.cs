@@ -200,6 +200,23 @@ namespace MarkdownPointer
                     {
                         await _clipboardService.CopyElementAsPngAsync(tab.WebView, _contextMenuPosition, elementType);
                     };
+                    if (elementType == "mermaid")
+                    {
+                        var savePngItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
+                            "Save as Image...", null,
+                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
+                        savePngItem.CustomItemSelected += async (sender, args) =>
+                        {
+                            await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
+                        };
+                        menuItems.Add(savePngItem);
+
+                        var separator = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
+                            "", null,
+                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Separator);
+                        menuItems.Add(separator);
+                    }
+
                     menuItems.Add(copyPngItem);
 
                     if (elementType == "mermaid")
@@ -212,20 +229,6 @@ namespace MarkdownPointer
                             await _clipboardService.CopyMermaidSvgAsync(tab.WebView, _contextMenuPosition);
                         };
                         menuItems.Add(copySvgItem);
-
-                        var separator = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
-                            "", null,
-                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Separator);
-                        menuItems.Add(separator);
-
-                        var savePngItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
-                            "Save as Image...", null,
-                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
-                        savePngItem.CustomItemSelected += async (sender, args) =>
-                        {
-                            await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
-                        };
-                        menuItems.Add(savePngItem);
                     }
                 }
             }

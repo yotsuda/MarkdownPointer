@@ -284,11 +284,25 @@ namespace MarkdownPointer.Services
                     var svg = mermaidDiv.querySelector('svg');
                     if (!svg) {{ window.chrome.webview.postMessage('PNG:'); return; }}
 
-                    var bbox = svg.getBoundingClientRect();
-                    var width = Math.ceil(bbox.width);
-                    var height = Math.ceil(bbox.height);
+                    // Use viewBox for consistent size regardless of zoom
+                    var vb = svg.getAttribute('viewBox');
+                    var width, height;
+                    if (vb) {{
+                        var parts = vb.split(/[\s,]+/);
+                        width = Math.ceil(parseFloat(parts[2]));
+                        height = Math.ceil(parseFloat(parts[3]));
+                    }} else {{
+                        var bbox = svg.getBoundingClientRect();
+                        width = Math.ceil(bbox.width);
+                        height = Math.ceil(bbox.height);
+                    }}
 
                     var clonedSvg = svg.cloneNode(true);
+                    // Clear inline styles from zoom so attributes take effect
+                    clonedSvg.style.width = '';
+                    clonedSvg.style.height = '';
+                    clonedSvg.style.minWidth = '';
+                    clonedSvg.style.maxWidth = '';
                     clonedSvg.setAttribute('width', width);
                     clonedSvg.setAttribute('height', height);
                     clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
