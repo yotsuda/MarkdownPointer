@@ -44,6 +44,14 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.5.0
+- Pin support for recent files and folders
+- Ctrl+P to print via system print dialog
+- Unified context menu style across pointing and pan modes
+- Save Mermaid diagrams as PNG (Save as Image... context menu)
+- Per-diagram Ctrl+wheel zoom for Mermaid diagrams with scroll container
+- CSS zoom for page-level zoom (replaced WebView2 ZoomFactor)
+
 0.4.0
 - Support non-filesystem PowerShell provider paths via Get-Content fallback
 
