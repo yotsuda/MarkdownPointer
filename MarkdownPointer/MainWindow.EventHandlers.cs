@@ -74,6 +74,14 @@ namespace MarkdownPointer
                 }
                 e.Handled = true;
             }
+            else if (e.Key == Key.P && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (FileTabControl.SelectedItem is TabItemData tab && tab.WebView.CoreWebView2 != null)
+                {
+                    tab.WebView.CoreWebView2.ShowPrintUI();
+                }
+                e.Handled = true;
+            }
             else if (e.Key == Key.Tab && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift))
             {
                 // Ctrl+Shift+Tab: Previous tab
