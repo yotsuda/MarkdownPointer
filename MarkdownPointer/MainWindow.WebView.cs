@@ -66,6 +66,12 @@ namespace MarkdownPointer
                     {
                         tab.WebView.CoreWebView2.ExecuteScriptAsync($"window.scrollTo(0, {tab.SavedScrollPosition})");
                     }
+
+                    // Restore CSS zoom
+                    if (Math.Abs(tab.CssZoomFactor - 1.0) > 0.001)
+                    {
+                        ApplyCssZoom(tab, tab.CssZoomFactor);
+                    }
                 }
             };
 
@@ -206,6 +212,20 @@ namespace MarkdownPointer
                             await _clipboardService.CopyMermaidSvgAsync(tab.WebView, _contextMenuPosition);
                         };
                         menuItems.Add(copySvgItem);
+
+                        var separator = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
+                            "", null,
+                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Separator);
+                        menuItems.Add(separator);
+
+                        var savePngItem = tab.WebView.CoreWebView2.Environment.CreateContextMenuItem(
+                            "Save as Image...", null,
+                            Microsoft.Web.WebView2.Core.CoreWebView2ContextMenuItemKind.Command);
+                        savePngItem.CustomItemSelected += async (sender, args) =>
+                        {
+                            await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
+                        };
+                        menuItems.Add(savePngItem);
                     }
                 }
             }

@@ -88,6 +88,11 @@ namespace MarkdownPointer.Models
         public double SavedScrollPosition { get; set; }
 
         /// <summary>
+        /// Current CSS zoom factor for this tab.
+        /// </summary>
+        public double CssZoomFactor { get; set; } = 1.0;
+
+        /// <summary>
         /// Task completion source for waiting on render completion.
         /// </summary>
         public TaskCompletionSource<List<string>>? RenderCompletion { get; set; }

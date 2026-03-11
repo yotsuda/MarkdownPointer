@@ -249,6 +249,104 @@ namespace MarkdownPointer.Services
             }
         }
 
+        /// <summary>
+        /// Saves a Mermaid diagram as PNG to a file.
+        /// </summary>
+        public async Task SaveMermaidPngAsync(WebView2 webView, Point position)
+        {
+            var tcs = new TaskCompletionSource<string>();
+
+            void handler(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+            {
+                var msg = e.TryGetWebMessageAsString();
+                if (msg != null && msg.StartsWith("PNG:"))
+                {
+                    webView.CoreWebView2.WebMessageReceived -= handler;
+                    tcs.TrySetResult(msg.Substring(4));
+                }
+            }
+
+            webView.CoreWebView2.WebMessageReceived += handler;
+
+            var script = $@"
+                (async function() {{
+                    var x = {position.X};
+                    var y = {position.Y};
+                    var element = document.elementFromPoint(x, y);
+                    var mermaidDiv = element ? element.closest('.mermaid') : null;
+                    if (!mermaidDiv) {{ window.chrome.webview.postMessage('PNG:'); return; }}
+
+                    var svg = mermaidDiv.querySelector('svg');
+                    if (!svg) {{ window.chrome.webview.postMessage('PNG:'); return; }}
+
+                    var bbox = svg.getBoundingClientRect();
+                    var width = Math.ceil(bbox.width);
+                    var height = Math.ceil(bbox.height);
+
+                    var clonedSvg = svg.cloneNode(true);
+                    clonedSvg.setAttribute('width', width);
+                    clonedSvg.setAttribute('height', height);
+
+                    var serializer = new XMLSerializer();
+                    var svgStr = serializer.serializeToString(clonedSvg);
+
+                    var svgBase64 = btoa(unescape(encodeURIComponent(svgStr)));
+                    var dataUrl = 'data:image/svg+xml;base64,' + svgBase64;
+
+                    var canvas = document.createElement('canvas');
+                    canvas.width = width * 2;
+                    canvas.height = height * 2;
+                    var ctx = canvas.getContext('2d');
+                    ctx.scale(2, 2);
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, width, height);
+
+                    var img = new Image();
+                    img.onload = function() {{
+                        ctx.drawImage(img, 0, 0);
+                        window.chrome.webview.postMessage('PNG:' + canvas.toDataURL('image/png'));
+                    }};
+                    img.onerror = function() {{
+                        window.chrome.webview.postMessage('PNG:error');
+                    }};
+                    img.src = dataUrl;
+                }})()";
+
+            await webView.CoreWebView2.ExecuteScriptAsync(script);
+
+            var timeoutTask = Task.Delay(5000);
+            var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+
+            if (completedTask == timeoutTask)
+            {
+                webView.CoreWebView2.WebMessageReceived -= handler;
+                _setStatusText("✗ PNG save timeout");
+                return;
+            }
+
+            var dataUrl = await tcs.Task;
+            if (!string.IsNullOrEmpty(dataUrl) && dataUrl.StartsWith("data:image/png;base64,"))
+            {
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "PNG Image|*.png",
+                    DefaultExt = ".png",
+                    FileName = "diagram.png"
+                };
+                if (dialog.ShowDialog() == true)
+                {
+                    var base64 = dataUrl.Substring("data:image/png;base64,".Length);
+                    var bytes = Convert.FromBase64String(base64);
+                    System.IO.File.WriteAllBytes(dialog.FileName, bytes);
+                    _setStatusText($"✓ Saved to {System.IO.Path.GetFileName(dialog.FileName)}");
+                }
+            }
+            else
+            {
+                _setStatusText("No diagram found");
+            }
+        }
+
         private Task SetImageFromDataUrlAsync(string dataUrl, string imageType)
         {
             if (!string.IsNullOrEmpty(dataUrl) && dataUrl.StartsWith("data:image/png;base64,"))

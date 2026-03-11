@@ -61,6 +61,13 @@ if ($processes.Count -gt 0) {
 if (-not $SkipBuild) {
     Write-Host "`n[2/4] Building projects..." -ForegroundColor Yellow
 
+    # Always clean before build to ensure embedded resources are up to date
+    Write-Host "      Cleaning..." -ForegroundColor DarkGray
+    dotnet clean $AppProject -c Release -v q --nologo 2>&1 | Out-Null
+    if (-not $AppOnly) {
+        dotnet clean $McpProject -c Release -v q --nologo 2>&1 | Out-Null
+    }
+
     Write-Host "      Building MarkdownPointer.App..." -ForegroundColor DarkGray
     dotnet publish $AppProject -c Release -r win-x64 --no-self-contained -o "$BuildDir\app"
     if ($LASTEXITCODE -ne 0) { throw "App build failed" }

@@ -63,6 +63,26 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         }
 
+        // Wrap Mermaid diagrams in scrollable containers and fix SVG widths
+        document.querySelectorAll('.mermaid').forEach(function(elem) {
+            var svg = elem.querySelector('svg');
+            if (!svg) return;
+            var vb = svg.getAttribute('viewBox');
+            if (vb) {
+                var parts = vb.split(/[\s,]+/);
+                var vbWidth = parseFloat(parts[2]);
+                if (vbWidth > 0) {
+                    svg.style.minWidth = vbWidth + 'px';
+                    svg.style.maxWidth = 'none';
+                }
+            }
+            // Wrap in scrollable container
+            var wrapper = document.createElement('div');
+            wrapper.className = 'mermaid-scroll-container';
+            elem.parentNode.insertBefore(wrapper, elem);
+            wrapper.appendChild(elem);
+        });
+
         // Process Mermaid nodes for click handling
         processMermaidNodes();
     }

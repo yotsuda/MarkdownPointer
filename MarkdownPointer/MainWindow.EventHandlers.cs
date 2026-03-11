@@ -20,8 +20,8 @@ namespace MarkdownPointer
             {
                 UpdateWindowTitle();
                 UpdateErrorIndicator(tab);
-                _targetZoomFactor = tab.WebView.ZoomFactor;
-                _lastZoomFactor = tab.WebView.ZoomFactor;
+                _targetZoomFactor = tab.CssZoomFactor;
+                _currentZoomFactor = tab.CssZoomFactor;
                 UpdatePointingModeAvailability(tab);
             }
             else
@@ -266,15 +266,16 @@ namespace MarkdownPointer
             if (_isDocumentScrolling)
             {
                 var currentPoint = e.GetPosition(DragOverlay);
+                var deltaX = _scrollStartPoint.X - currentPoint.X;
                 var deltaY = _scrollStartPoint.Y - currentPoint.Y;
                 _scrollStartPoint = currentPoint;
-                tab.WebView.CoreWebView2?.ExecuteScriptAsync($"window.scrollBy(0, {deltaY})");
+                tab.WebView.CoreWebView2?.ExecuteScriptAsync($"window.scrollBy({deltaX}, {deltaY})");
             }
             else if (tab.WebView.CoreWebView2 != null)
             {
                 var pos = e.GetPosition(tab.WebView);
-                var x = pos.X / tab.WebView.ZoomFactor;
-                var y = pos.Y / tab.WebView.ZoomFactor;
+                var x = pos.X / tab.CssZoomFactor;
+                var y = pos.Y / tab.CssZoomFactor;
                 tab.WebView.CoreWebView2.ExecuteScriptAsync(
                     $"(function(){{ var el = document.elementFromPoint({x:F0},{y:F0}); if(!el) return; var p = getPointableElement(el); if(p){{ var l = getElementLine(p); window.chrome.webview.postMessage('pointhover:'+l); }} else {{ window.chrome.webview.postMessage('pointleave:'); }} }})()");
             }
@@ -293,13 +294,18 @@ namespace MarkdownPointer
             {
                 if (Keyboard.Modifiers == ModifierKeys.Control)
                 {
-                    // Ctrl+Wheel: Zoom
+                    // Ctrl+Wheel: Zoom (Mermaid diagram or page)
                     e.Handled = true;
-                    ApplyZoomDelta(e.Delta);
+                    var pos = e.GetPosition(tab.WebView);
+                    var x = pos.X / tab.CssZoomFactor;
+                    var y = pos.Y / tab.CssZoomFactor;
+                    var direction = e.Delta > 0 ? "in" : "out";
+                    tab.WebView.CoreWebView2?.ExecuteScriptAsync(
+                        $"(function(){{ var el = document.elementFromPoint({x:F0},{y:F0}); while(el && !el.classList.contains('mermaid-scroll-container')) el = el.parentElement; if(el) {{ zoomMermaidDiagram(el, '{direction}'); }} else {{ window.chrome.webview.postMessage('zoom:{direction}'); }} }})()");
                 }
                 else
                 {
-                    // Normal wheel: Scroll
+                    // Normal wheel: Scroll page
                     e.Handled = true;
                     var scrollAmount = -e.Delta;
                     tab.WebView.CoreWebView2?.ExecuteScriptAsync($"window.scrollBy(0, {scrollAmount})");
@@ -320,6 +326,12 @@ namespace MarkdownPointer
                 var copyPngItem = new MenuItem { Header = "Copy diagram as PNG" };
                 copyPngItem.Click += async (s, args) => await _clipboardService.CopyElementAsPngAsync(tab.WebView, _contextMenuPosition, "mermaid");
                 contextMenu.Items.Add(copyPngItem);
+
+                contextMenu.Items.Add(new Separator());
+
+                var savePngItem = new MenuItem { Header = "Save diagram as PNG..." };
+                savePngItem.Click += async (s, args) => await _clipboardService.SaveMermaidPngAsync(tab.WebView, _contextMenuPosition);
+                contextMenu.Items.Add(savePngItem);
 
                 contextMenu.IsOpen = true;
             }

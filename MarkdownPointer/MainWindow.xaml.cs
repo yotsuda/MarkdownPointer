@@ -236,6 +236,7 @@ namespace MarkdownPointer
             (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#8B949E"));
         private static readonly System.Windows.Media.SolidColorBrush PinActiveBrush = new(
             (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#D29922"));
+        private static readonly System.Windows.Media.FontFamily EmojiFont = new("Segoe UI Emoji");
 
         private void RefreshRecentFiles()
         {
@@ -249,30 +250,23 @@ namespace MarkdownPointer
                 {
                     var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
 
+                    var pinned = entry.Pinned;
                     var pin = new TextBlock
                     {
                         Text = "📌",
-                        FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                        FontFamily = EmojiFont,
                         FontSize = 11,
-                        Foreground = entry.Pinned ? PinActiveBrush : PinBrush,
-                        Opacity = entry.Pinned ? 1.0 : 0.4,
+                        Foreground = pinned ? PinActiveBrush : PinBrush,
+                        Opacity = pinned ? 1.0 : 0.4,
                         Cursor = Cursors.Hand,
                         Margin = new Thickness(0, 0, 6, 0),
                         VerticalAlignment = VerticalAlignment.Center,
                         Tag = entry.Path,
-                        ToolTip = entry.Pinned ? "Unpin" : "Pin"
+                        ToolTip = pinned ? "Unpin" : "Pin"
                     };
                     pin.MouseLeftButtonUp += PinFile_Click;
                     pin.MouseEnter += (s, _) => { if (s is TextBlock t) t.Opacity = 1.0; };
-                    pin.MouseLeave += (s, _) =>
-                    {
-                        if (s is TextBlock t)
-                        {
-                            var isPinned = _recentFiles.GetRecentFiles()
-                                .Any(e => string.Equals(e.Path, (string)t.Tag, StringComparison.OrdinalIgnoreCase) && e.Pinned);
-                            t.Opacity = isPinned ? 1.0 : 0.4;
-                        }
-                    };
+                    pin.MouseLeave += (s, _) => { if (s is TextBlock t) t.Opacity = pinned ? 1.0 : 0.4; };
 
                     var tb = new TextBlock
                     {
@@ -309,7 +303,7 @@ namespace MarkdownPointer
                     var pin = new TextBlock
                     {
                         Text = "📌",
-                        FontFamily = new System.Windows.Media.FontFamily("Segoe UI Emoji"),
+                        FontFamily = EmojiFont,
                         FontSize = 11,
                         Foreground = pinned ? PinActiveBrush : PinBrush,
                         Opacity = pinned ? 1.0 : 0.4,
@@ -321,15 +315,7 @@ namespace MarkdownPointer
                     };
                     pin.MouseLeftButtonUp += PinFolder_Click;
                     pin.MouseEnter += (s, _) => { if (s is TextBlock t) t.Opacity = 1.0; };
-                    pin.MouseLeave += (s, _) =>
-                    {
-                        if (s is TextBlock t)
-                        {
-                            var isPinned = _recentFiles.GetRecentFolders()
-                                .Any(f => string.Equals(f.Path, (string)t.Tag, StringComparison.OrdinalIgnoreCase) && f.Pinned);
-                            t.Opacity = isPinned ? 1.0 : 0.4;
-                        }
-                    };
+                    pin.MouseLeave += (s, _) => { if (s is TextBlock t) t.Opacity = pinned ? 1.0 : 0.4; };
 
                     var tb = new TextBlock
                     {

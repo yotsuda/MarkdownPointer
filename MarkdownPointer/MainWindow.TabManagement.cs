@@ -194,19 +194,6 @@ namespace MarkdownPointer
 
         private void SetupZoomForTab(TabItemData tab)
         {
-            tab.WebView.ZoomFactorChanged += (s, e) =>
-            {
-                if (FileTabControl.SelectedItem == tab)
-                {
-                    var currentZoom = tab.WebView.ZoomFactor;
-                    if (Math.Abs(currentZoom - _lastZoomFactor) > 0.001)
-                    {
-                        _lastZoomFactor = currentZoom;
-                        AdjustWindowSizeForZoom(currentZoom);
-                    }
-                }
-            };
-
             // Animation timer (shared across window)
             if (_zoomAnimationTimer == null)
             {
@@ -219,44 +206,39 @@ namespace MarkdownPointer
                 {
                     if (FileTabControl.SelectedItem is TabItemData currentTab)
                     {
-                        var currentZoom = currentTab.WebView.ZoomFactor;
-                        var diff = _targetZoomFactor - currentZoom;
+                        var diff = _targetZoomFactor - _currentZoomFactor;
 
                         if (Math.Abs(diff) < 0.005)
                         {
-                            currentTab.WebView.ZoomFactor = _targetZoomFactor;
+                            _currentZoomFactor = _targetZoomFactor;
+                            ApplyCssZoom(currentTab, _targetZoomFactor);
                             _zoomAnimationTimer.Stop();
-                            AdjustWindowSizeForZoom(_targetZoomFactor);
                             return;
                         }
 
                         var step = diff * 0.3;
-                        var newZoom = currentZoom + step;
-                        currentTab.WebView.ZoomFactor = newZoom;
-
-                        // Call directly in drag move mode as ZoomFactorChanged does not fire
-                        if (_isDragMoveMode)
-                        {
-                            AdjustWindowSizeForZoom(newZoom);
-                        }
+                        _currentZoomFactor += step;
+                        ApplyCssZoom(currentTab, _currentZoomFactor);
                     }
                 };
             }
 
-            // Mouse wheel handling
+            // Block WebView2's built-in Ctrl+wheel zoom.
+            // Actual zoom is handled by JavaScript (CoreEventHandlers.js).
             tab.WebView.PreviewMouseWheel += (s, e) =>
             {
                 if (Keyboard.Modifiers == ModifierKeys.Control)
                 {
                     e.Handled = true;
-                    ApplyZoomDelta(e.Delta);
                 }
             };
         }
 
-        private void AdjustWindowSizeForZoom(double zoomFactor)
+        private void ApplyCssZoom(TabItemData tab, double zoomFactor)
         {
-            // Window size is now fixed - zoom only affects content
+            tab.CssZoomFactor = zoomFactor;
+            var zoomStr = zoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            tab.WebView.CoreWebView2?.ExecuteScriptAsync($"document.body.style.zoom = '{zoomStr}'");
         }
 
         private void ApplyZoomDelta(int delta)

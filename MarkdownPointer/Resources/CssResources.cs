@@ -96,6 +96,11 @@ hr {
 p {
     margin-bottom: 16px;
 }
+.mermaid-scroll-container {
+    overflow: auto;
+    margin-bottom: 16px;
+    padding: 4px;
+}
 .pointing-highlight {
     outline: 2px solid #0078d4 !important;
     outline-offset: 2px;

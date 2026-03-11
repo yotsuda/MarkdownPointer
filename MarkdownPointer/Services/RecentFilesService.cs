@@ -64,7 +64,7 @@ namespace MarkdownPointer.Services
 
         public IReadOnlyList<RecentFileEntry> GetRecentFiles()
         {
-            return _data.Files;
+            return _data.Files.ToList();
         }
 
         /// <summary>
@@ -121,9 +121,13 @@ namespace MarkdownPointer.Services
             var index = _data.PinnedFolders.FindIndex(
                 f => string.Equals(f, folder, StringComparison.OrdinalIgnoreCase));
             if (index >= 0)
+            {
                 _data.PinnedFolders.RemoveAt(index);
+            }
             else
+            {
                 _data.PinnedFolders.Add(folder);
+            }
             Save();
         }
 
