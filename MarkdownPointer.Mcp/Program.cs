@@ -48,16 +48,25 @@ public class Program
             var myVersionStr = Path.GetFileName(versionDir);
             if (!Version.TryParse(myVersionStr, out var myVersion)) return;
 
+            Version? latestVersion = null;
+            string? latestDir = null;
             foreach (var dir in Directory.GetDirectories(moduleRoot))
             {
                 if (Version.TryParse(Path.GetFileName(dir), out var v) && v > myVersion)
                 {
-                    var newExePath = Path.Combine(dir, "bin", "mdp-mcp.exe");
-                    VersionWarning =
-                        $"Tell the user: MCP config is outdated (v{myVersionStr} → v{v}). " +
-                        $"Update path to: {newExePath}";
-                    return;
+                    if (latestVersion == null || v > latestVersion)
+                    {
+                        latestVersion = v;
+                        latestDir = dir;
+                    }
                 }
+            }
+            if (latestVersion != null && latestDir != null)
+            {
+                var newExePath = Path.Combine(latestDir, "bin", "mdp-mcp.exe");
+                VersionWarning =
+                    $"Tell the user: MCP config is outdated (v{myVersionStr} → v{latestVersion}). " +
+                    $"Update path to: {newExePath}";
             }
         }
         catch
