@@ -78,8 +78,15 @@
                 <TextBlock x:Name="PlaceholderTitle" FontSize="24" FontWeight="SemiBold"
                            Foreground="#24292e" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                 <TextBlock FontSize="13" Foreground="#586069" HorizontalAlignment="Center"
-                           TextAlignment="Center" Margin="0,0,0,24">
-                    Drag &amp; drop a file here,<LineBreak/>or press Ctrl+O to open
+                           TextAlignment="Center" Margin="0,0,0,16">
+                    Drag &amp; drop a file here, or use a shortcut below
+                </TextBlock>
+                <TextBlock FontSize="12" Foreground="#8B949E" HorizontalAlignment="Center"
+                           TextAlignment="Left" Margin="0,0,0,24" FontFamily="Consolas">
+                    Ctrl+O  Open file<LineBreak/>
+                    Ctrl+F  Find in page<LineBreak/>
+                    Ctrl+G  Go to line<LineBreak/>
+                    Ctrl+P  Print
                 </TextBlock>
 
                 <!-- Recent Folders -->
