@@ -44,14 +44,10 @@ Desktop.ini
 .idea/
 *.sln.iml
 
-# Debug output
+# Scratch / test / draft files
+scratch/
 debug_output.html
-
-# Test files
-test_*.md
-
-# Test files
-test_er_svg*.html
+node_modules/
 
 # Build scripts (local)
 env_filter.sh
@@ -77,5 +73,3 @@ Deploy-Local.ps1
 bug_*.md
 svg-font-fix-proposal.md
 
-# Test SVG files
-test-*.svg
