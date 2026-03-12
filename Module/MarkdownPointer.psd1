@@ -44,6 +44,13 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.6.0
+- Ctrl+G to jump to a specific line number (Go to Line dialog)
+- Status bar file path click reveals file in Explorer instead of opening file dialog
+- Show error in status bar when Mermaid/KaTeX libraries fail to load offline
+- Keyboard shortcut list on welcome screen (Ctrl+O, Ctrl+F, Ctrl+G, Ctrl+P)
+- Fix version mismatch check to report the latest installed version
+
 0.5.0
 - Pin support for recent files and folders
 - Ctrl+P to print via system print dialog
