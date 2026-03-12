@@ -517,11 +517,9 @@ namespace MarkdownPointer
 
         private void FilePathText_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (sender is TextBlock tb && tb.Tag is string path)
+            if (sender is TextBlock tb && tb.Tag is string path && File.Exists(path))
             {
-                var dir = Path.GetDirectoryName(path);
-                if (dir != null && Directory.Exists(dir))
-                    OpenFileDialog(dir);
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
             }
         }
 
@@ -530,7 +528,7 @@ namespace MarkdownPointer
             if (FileTabControl.SelectedItem is TabItemData tab && !string.IsNullOrEmpty(tab.FilePath))
             {
                 FilePathText.Text = tab.FilePath;
-                FilePathText.ToolTip = tab.FilePath;
+                FilePathText.ToolTip = "Click to reveal in Explorer";
                 FilePathText.Tag = tab.FilePath;
             }
             else

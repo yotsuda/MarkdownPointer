@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     var renderErrors = [];
 
     // KaTeX rendering with error collection
+    var hasMathContent = document.querySelector('.math') !== null;
     if (typeof renderMathInElement !== 'undefined') {
         renderMathInElement(document.body, {
             delimiters: [
@@ -45,9 +46,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                 parent = parent.parentElement;
             }
         });
+    } else if (hasMathContent) {
+        renderErrors.push('[KaTeX] Failed to load library (check your network connection)');
     }
 
     // Mermaid rendering
+    var hasMermaidContent = document.querySelectorAll('.mermaid').length > 0;
     if (typeof mermaid !== 'undefined') {
         var mermaidElements = document.querySelectorAll('.mermaid');
         for (var elem of mermaidElements) {
@@ -76,6 +80,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         // Process Mermaid nodes for click handling
         processMermaidNodes();
+    } else if (hasMermaidContent) {
+        renderErrors.push('[Mermaid] Failed to load library (check your network connection)');
     }
 
     window.chrome.webview.postMessage('render-complete:' + JSON.stringify(renderErrors));
