@@ -35,6 +35,8 @@ namespace MarkdownPointer.Services
         public void AddFile(string path)
         {
             var fullPath = System.IO.Path.GetFullPath(path);
+            var dir = System.IO.Path.GetDirectoryName(fullPath);
+            if (dir != null) _hiddenFolders.Remove(dir);
             var existing = _data.Files.FirstOrDefault(
                 e => string.Equals(e.Path, fullPath, StringComparison.OrdinalIgnoreCase));
 
@@ -88,7 +90,8 @@ namespace MarkdownPointer.Services
                 .Select(e => System.IO.Path.GetDirectoryName(e.Path))
                 .Where(d => d != null && !existing.Contains(d))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(MaxFolders - result.Count);
+                .Take(MaxFolders - result.Count)
+                .Where(d => !_hiddenFolders.Contains(d!));
 
             foreach (var folder in derived)
             {
@@ -97,6 +100,35 @@ namespace MarkdownPointer.Services
 
             return result;
         }
+
+        public void RemoveFile(string path)
+        {
+            var entry = _data.Files.FirstOrDefault(
+                e => string.Equals(e.Path, path, StringComparison.OrdinalIgnoreCase));
+            if (entry != null)
+            {
+                _data.Files.Remove(entry);
+                Save();
+            }
+        }
+
+        public void RemoveFolder(string folder)
+        {
+            // Remove pinned folder
+            var index = _data.PinnedFolders.FindIndex(
+                f => string.Equals(f, folder, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                _data.PinnedFolders.RemoveAt(index);
+                Save();
+                return;
+            }
+
+            // For derived folders, hide from folder list without removing files
+            _hiddenFolders.Add(folder);
+        }
+
+        private readonly HashSet<string> _hiddenFolders = new(StringComparer.OrdinalIgnoreCase);
 
         public void ToggleFilePin(string path)
         {

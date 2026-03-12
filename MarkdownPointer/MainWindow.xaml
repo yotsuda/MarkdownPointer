@@ -72,7 +72,7 @@
 
         <!-- Placeholder when no file is loaded -->
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="400">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40,0">
                 <!-- Hero -->
                 <TextBlock Text="📝" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,12"/>
                 <TextBlock x:Name="PlaceholderTitle" FontSize="24" FontWeight="SemiBold"

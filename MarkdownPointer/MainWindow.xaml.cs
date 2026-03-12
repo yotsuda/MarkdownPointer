@@ -281,8 +281,26 @@ namespace MarkdownPointer
                     tb.MouseLeave += RecentLink_MouseLeave;
                     tb.MouseLeftButtonUp += RecentFile_Click;
 
+                    var close = new TextBlock
+                    {
+                        Text = "✕",
+                        FontSize = 11,
+                        Foreground = PinBrush,
+                        Opacity = 0,
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(6, 0, 0, 0),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Tag = entry.Path,
+                        ToolTip = "Remove from recent"
+                    };
+                    close.MouseLeftButtonUp += RemoveRecentFile_Click;
+
+                    panel.MouseEnter += (s, _) => close.Opacity = 1.0;
+                    panel.MouseLeave += (s, _) => close.Opacity = 0;
+
                     panel.Children.Add(pin);
                     panel.Children.Add(tb);
+                    panel.Children.Add(close);
                     RecentFilesList.Items.Add(panel);
                 }
             }
@@ -329,8 +347,26 @@ namespace MarkdownPointer
                     tb.MouseLeave += RecentLink_MouseLeave;
                     tb.MouseLeftButtonUp += RecentFolder_Click;
 
+                    var close = new TextBlock
+                    {
+                        Text = "✕",
+                        FontSize = 11,
+                        Foreground = PinBrush,
+                        Opacity = 0,
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(6, 0, 0, 0),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Tag = folder,
+                        ToolTip = "Remove from recent"
+                    };
+                    close.MouseLeftButtonUp += RemoveRecentFolder_Click;
+
+                    panel.MouseEnter += (s, _) => close.Opacity = 1.0;
+                    panel.MouseLeave += (s, _) => close.Opacity = 0;
+
                     panel.Children.Add(pin);
                     panel.Children.Add(tb);
+                    panel.Children.Add(close);
                     RecentFoldersList.Items.Add(panel);
                 }
             }
@@ -495,6 +531,24 @@ namespace MarkdownPointer
             if (sender is TextBlock tb && tb.Tag is string folder)
             {
                 _recentFiles.ToggleFolderPin(folder);
+                RefreshRecentFiles();
+            }
+        }
+
+        private void RemoveRecentFile_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock tb && tb.Tag is string path)
+            {
+                _recentFiles.RemoveFile(path);
+                RefreshRecentFiles();
+            }
+        }
+
+        private void RemoveRecentFolder_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock tb && tb.Tag is string folder)
+            {
+                _recentFiles.RemoveFolder(folder);
                 RefreshRecentFiles();
             }
         }
