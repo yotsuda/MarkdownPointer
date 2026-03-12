@@ -98,6 +98,7 @@
             </StackPanel>
         </Border>
 
+
         <!-- Status bar -->
         <Border Grid.Row="1" Background="#F8F9FA" BorderBrush="#E1E4E8" BorderThickness="0,1,0,0">
             <Grid Height="24">

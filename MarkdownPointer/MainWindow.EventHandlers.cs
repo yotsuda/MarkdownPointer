@@ -102,6 +102,100 @@ namespace MarkdownPointer
                 }
                 e.Handled = true;
             }
+            else if (e.Key == Key.G && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                ShowGoToLineBox();
+                e.Handled = true;
+            }
+        }
+
+        private Window? _goToLineWindow;
+
+        private void ShowGoToLineBox()
+        {
+            if (FileTabControl.SelectedItem is not TabItemData)
+                return;
+
+            if (_goToLineWindow != null)
+                return;
+
+            var dlg = new Window
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                WindowStyle = WindowStyle.None,
+                ResizeMode = ResizeMode.NoResize,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                Background = System.Windows.Media.Brushes.White,
+                ShowInTaskbar = false,
+            };
+            _goToLineWindow = dlg;
+
+            var border = new Border
+            {
+                BorderBrush = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0366d6")),
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16, 12, 16, 12),
+            };
+
+            var panel = new StackPanel { Orientation = Orientation.Horizontal };
+            panel.Children.Add(new TextBlock
+            {
+                Text = "Go to Line:",
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0),
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+            });
+
+            var input = new TextBox { Width = 120, FontSize = 14, Padding = new Thickness(4, 2, 4, 2) };
+            input.PreviewTextInput += (s, ev) => { ev.Handled = !ev.Text.All(char.IsDigit); };
+            DataObject.AddPastingHandler(input, (s, ev) =>
+            {
+                if (ev.DataObject.GetDataPresent(typeof(string)))
+                {
+                    if (!((string)ev.DataObject.GetData(typeof(string))).All(char.IsDigit))
+                        ev.CancelCommand();
+                }
+                else ev.CancelCommand();
+            });
+            panel.Children.Add(input);
+            border.Child = panel;
+            dlg.Content = border;
+
+            void CloseDialog()
+            {
+                if (_goToLineWindow == null) return;
+                _goToLineWindow = null;
+                dlg.Close();
+            }
+
+            input.KeyDown += (s, ev) =>
+            {
+                if (ev.Key == Key.Enter)
+                {
+                    if (int.TryParse(input.Text.Trim(), out int line) && line > 0 &&
+                        FileTabControl.SelectedItem is TabItemData tab &&
+                        tab.WebView?.CoreWebView2 != null)
+                    {
+                        tab.WebView.CoreWebView2.ExecuteScriptAsync($"scrollToLine({line})");
+                    }
+                    CloseDialog();
+                    ev.Handled = true;
+                }
+                else if (ev.Key == Key.Escape)
+                {
+                    CloseDialog();
+                    ev.Handled = true;
+                }
+            };
+
+            dlg.Deactivated += (s, ev) => CloseDialog();
+            dlg.Closed += (s, ev) => _goToLineWindow = null;
+            dlg.ContentRendered += (s, ev) => input.Focus();
+            dlg.Show();
         }
 
         private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
