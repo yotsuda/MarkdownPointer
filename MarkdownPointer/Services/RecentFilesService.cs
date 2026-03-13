@@ -51,12 +51,11 @@ namespace MarkdownPointer.Services
                 _data.Files.Insert(0, new RecentFileEntry { Path = fullPath });
             }
 
-            // Trim only unpinned items beyond max
-            while (_data.Files.Count > MaxFiles && _data.Files.Any(e => !e.Pinned))
+            // Trim oldest unpinned items beyond max
+            for (var i = _data.Files.Count - 1; i >= 0 && _data.Files.Count > MaxFiles; i--)
             {
-                var lastUnpinned = _data.Files.LastOrDefault(e => !e.Pinned);
-                if (lastUnpinned != null) _data.Files.Remove(lastUnpinned);
-                else break;
+                if (!_data.Files[i].Pinned)
+                    _data.Files.RemoveAt(i);
             }
             Save();
         }
@@ -88,10 +87,9 @@ namespace MarkdownPointer.Services
 
             var derived = _data.Files
                 .Select(e => System.IO.Path.GetDirectoryName(e.Path))
-                .Where(d => d != null && !existing.Contains(d))
+                .Where(d => d != null && !existing.Contains(d) && !_hiddenFolders.Contains(d!))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(MaxFolders - result.Count)
-                .Where(d => !_hiddenFolders.Contains(d!));
+                .Take(MaxFolders - result.Count);
 
             foreach (var folder in derived)
             {
