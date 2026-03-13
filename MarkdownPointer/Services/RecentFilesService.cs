@@ -42,16 +42,13 @@ namespace MarkdownPointer.Services
 
             if (existing != null)
             {
-                // Move to top of its group (pinned stay pinned)
+                // Move to top (most recent)
                 _data.Files.Remove(existing);
-                var insertIndex = existing.Pinned ? 0 : _data.Files.Count(e => e.Pinned);
-                _data.Files.Insert(insertIndex, existing);
+                _data.Files.Insert(0, existing);
             }
             else
             {
-                // Insert after pinned items
-                var insertIndex = _data.Files.Count(e => e.Pinned);
-                _data.Files.Insert(insertIndex, new RecentFileEntry { Path = fullPath });
+                _data.Files.Insert(0, new RecentFileEntry { Path = fullPath });
             }
 
             // Trim only unpinned items beyond max
@@ -66,7 +63,10 @@ namespace MarkdownPointer.Services
 
         public IReadOnlyList<RecentFileEntry> GetRecentFiles()
         {
-            return _data.Files.ToList();
+            // Pinned first, then unpinned, preserving relative order within each group
+            return _data.Files.Where(e => e.Pinned)
+                .Concat(_data.Files.Where(e => !e.Pinned))
+                .ToList();
         }
 
         /// <summary>
@@ -137,14 +137,6 @@ namespace MarkdownPointer.Services
             if (entry == null) return;
 
             entry.Pinned = !entry.Pinned;
-
-            // Reorder: pinned first, then unpinned
-            _data.Files.Remove(entry);
-            if (entry.Pinned)
-                _data.Files.Insert(0, entry);
-            else
-                _data.Files.Insert(_data.Files.Count(e => e.Pinned), entry);
-
             Save();
         }
 
