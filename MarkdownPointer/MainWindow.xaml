@@ -23,6 +23,7 @@
                 <TabControl.ItemContainerStyle>
                     <Style TargetType="TabItem">
                         <Setter Property="Width" Value="Auto"/>
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                     </Style>
                 </TabControl.ItemContainerStyle>
                 <TabControl.ItemTemplate>
