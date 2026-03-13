@@ -55,6 +55,7 @@ namespace MarkdownPointer
         private readonly ClipboardService _clipboardService;
         private readonly RecentFilesService _recentFiles = new();
         private readonly ObservableCollection<TabItemData> _tabs = new();
+        private bool _suppressCtrlTab;
 
         // Zoom state
         private DispatcherTimer? _zoomAnimationTimer;

@@ -81,13 +81,23 @@
                            TextAlignment="Center" Margin="0,0,0,16">
                     Drag &amp; drop a file here, or use a shortcut below
                 </TextBlock>
-                <TextBlock FontSize="12" Foreground="#8B949E" HorizontalAlignment="Center"
-                           TextAlignment="Left" Margin="0,0,0,24" FontFamily="Consolas">
-                    Ctrl+O  Open file<LineBreak/>
-                    Ctrl+F  Find in page<LineBreak/>
-                    Ctrl+G  Go to line<LineBreak/>
-                    Ctrl+P  Print
-                </TextBlock>
+                <Grid HorizontalAlignment="Center" Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="32"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#8B949E" FontFamily="Consolas" TextAlignment="Left">
+                        Ctrl+O    Open file<LineBreak/>
+                        Ctrl+F    Find in page<LineBreak/>
+                        Ctrl+G    Go to line
+                    </TextBlock>
+                    <TextBlock Grid.Column="2" FontSize="12" Foreground="#8B949E" FontFamily="Consolas" TextAlignment="Left">
+                        Ctrl+P    Print<LineBreak/>
+                        Ctrl+W    Close tab<LineBreak/>
+                        Ctrl+Tab  Next tab
+                    </TextBlock>
+                </Grid>
 
                 <!-- Recent Folders -->
                 <StackPanel x:Name="RecentFoldersPanel" Visibility="Collapsed" Margin="0,0,0,16">

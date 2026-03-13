@@ -23,6 +23,7 @@ namespace MarkdownPointer
                 _targetZoomFactor = tab.CssZoomFactor;
                 _currentZoomFactor = tab.CssZoomFactor;
                 UpdatePointingModeAvailability(tab);
+
             }
             else
             {
@@ -82,23 +83,32 @@ namespace MarkdownPointer
                 }
                 e.Handled = true;
             }
-            else if (e.Key == Key.Tab && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift))
+            else if (e.Key == Key.Tab && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
-                // Ctrl+Shift+Tab: Previous tab
-                if (_tabs.Count > 1)
+                // Ctrl+Tab / Ctrl+Shift+Tab: Switch tab
+                // Guard: WebView2 re-dispatches the same keystroke after tab switch
+                if (_suppressCtrlTab)
                 {
-                    var currentIndex = FileTabControl.SelectedIndex;
-                    FileTabControl.SelectedIndex = (currentIndex - 1 + _tabs.Count) % _tabs.Count;
+                    e.Handled = true;
+                    return;
                 }
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Tab && Keyboard.Modifiers == ModifierKeys.Control)
-            {
-                // Ctrl+Tab: Next tab
+
                 if (_tabs.Count > 1)
                 {
+                    // Move focus away from WebView2 BEFORE switching tab,
+                    // otherwise TabControl reverts selection to the focused tab.
+                    Focus();
+
                     var currentIndex = FileTabControl.SelectedIndex;
-                    FileTabControl.SelectedIndex = (currentIndex + 1) % _tabs.Count;
+                    if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+                        FileTabControl.SelectedIndex = (currentIndex - 1 + _tabs.Count) % _tabs.Count;
+                    else
+                        FileTabControl.SelectedIndex = (currentIndex + 1) % _tabs.Count;
+
+                    // Suppress duplicate events from WebView2 re-dispatching the keystroke
+                    _suppressCtrlTab = true;
+                    Dispatcher.InvokeAsync(() => _suppressCtrlTab = false,
+                        System.Windows.Threading.DispatcherPriority.Input);
                 }
                 e.Handled = true;
             }
