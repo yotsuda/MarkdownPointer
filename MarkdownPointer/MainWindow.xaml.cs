@@ -575,6 +575,7 @@ namespace MarkdownPointer
             if (sender is TextBlock tb && tb.Tag is string path && File.Exists(path))
             {
                 System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+                ShowStatusMessage("📂 Opened in Explorer");
             }
         }
 
