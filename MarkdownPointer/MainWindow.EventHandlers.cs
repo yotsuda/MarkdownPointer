@@ -23,7 +23,6 @@ namespace MarkdownPointer
                 _targetZoomFactor = tab.CssZoomFactor;
                 _currentZoomFactor = tab.CssZoomFactor;
                 UpdatePointingModeAvailability(tab);
-
             }
             else
             {

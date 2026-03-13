@@ -188,11 +188,13 @@ namespace MarkdownPointer.Services
             }
         }
 
+        private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
+
         private void Save()
         {
             try
             {
-                var json = JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(_data, _jsonOptions);
                 File.WriteAllText(_filePath, json);
             }
             catch
