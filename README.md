@@ -17,7 +17,7 @@ MarkdownPointer renders your Markdown and lets you click any element - headings,
 **Click the node, paste the reference into your prompt, and ask the AI — the node gets highlighted.**
 
 ```
-Highlight this node [architecture.md:6] mermaid node: mdp.exe
+Highlight this node [c:\docs\architecture.md:6] mermaid node: mdp.exe
 ```
 
 ## Features
