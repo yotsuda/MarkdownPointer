@@ -31,16 +31,18 @@ Color this node orange [c:\docs\architecture.md:6] mermaid node: mdp.exe
 
 ## Features
 
-- **Point & Prompt** - Click any rendered element to copy `filepath:line` to clipboard
-- **Mermaid Diagrams** - Flowchart, Sequence, Class, State, ER, Gantt, Pie, Git graph, Mindmap
-- **KaTeX Math** - Inline `$...$` and block `$$...$$`
-- **SVG** - Embedded font support
-- **Recent Files** - Quick access with pin support
-- **Tab Dock/Undock** - Drag tabs between windows or detach to a new window
-- **Always on Top** - Pin the window above other apps for reference
-- **Live Reload** - Auto-refresh on file changes
-- **Export** - `.docx` via Pandoc
-- **MCP Server** - Let Claude open, navigate, and export your documents
+| Feature | Description |
+|---------|-------------|
+| Point & Prompt | Click any rendered element to copy `filepath:line` to clipboard |
+| Mermaid Diagrams | Flowchart, Sequence, Class, State, ER, Gantt, Pie, Git graph, Mindmap |
+| KaTeX Math | Inline `$...$` and block `$$...$$` |
+| SVG | Embedded font support |
+| Recent Files | Quick access with pin support |
+| Tab Dock/Undock | Drag tabs between windows or detach to a new window |
+| Always on Top | Pin the window above other apps for reference |
+| Live Reload | Auto-refresh on file changes |
+| Export | `.docx` via Pandoc |
+| MCP Server | Let Claude open, navigate, and export your documents |
 
 ## Install
 In a [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/install-powershell-on-windows) console:
