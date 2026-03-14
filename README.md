@@ -20,6 +20,15 @@ MarkdownPointer renders your Markdown and lets you click any element - headings,
 Highlight this node [c:\docs\architecture.md:6] mermaid node: mdp.exe
 ```
 
+More prompt examples:
+- Verify this section for technical accuracy [ref]
+- Swap these two sections [ref] [ref]
+- Delete this [ref]
+- Simplify this paragraph [ref]
+- Add a code example after this section [ref]
+- Fix the grammar here [ref]
+- Translate this section to Japanese [ref]
+
 ## Features
 
 - **Point & Prompt** - Click any rendered element to copy `filepath:line` to clipboard
