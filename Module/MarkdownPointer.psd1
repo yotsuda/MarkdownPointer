@@ -44,6 +44,16 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.7.0
+- Ctrl+W and Ctrl+Tab shortcuts shown on welcome screen (two-column layout)
+- Fix Ctrl+Tab not working when WebView2 has focus
+- Fix file unpin restoring to wrong position (now matches folder behavior)
+- Fix hidden folders consuming display slots in recent folders list
+- Show status message when revealing file in Explorer
+- Use consistent status message (not MessageBox) for missing link targets
+- Larger close button on tabs matching recent list style
+- Hide focus visual on tab items
+
 0.6.0
 - Ctrl+G to jump to a specific line number (Go to Line dialog)
 - Status bar file path click reveals file in Explorer instead of opening file dialog
