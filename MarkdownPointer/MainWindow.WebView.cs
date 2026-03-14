@@ -336,37 +336,20 @@ namespace MarkdownPointer
                 {
                     var fileUri = new Uri(uri);
                     var path = Uri.UnescapeDataString(fileUri.LocalPath);
+                    if (!File.Exists(path))
+                    {
+                        ShowStatusMessage($"✗ File not found: {path}");
+                        return;
+                    }
+
                     if (IsSupportedFile(path))
-                    {
-                        // Open Markdown files in new tab
-                        if (File.Exists(path))
-                        {
-                            LoadMarkdownFile(path);
-                        }
-                        else
-                        {
-                            MessageBox.Show($"File not found: {path}", "Error",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-                        }
-                    }
+                        LoadMarkdownFile(path);
                     else
-                    {
-                        // Open other files with default app
-                        if (File.Exists(path))
-                        {
-                            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-                        }
-                        else
-                        {
-                            MessageBox.Show($"File not found: {path}", "Error",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-                        }
-                    }
+                        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Failed to open file: {ex.Message}", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    ShowStatusMessage($"✗ Failed to open file: {ex.Message}");
                 }
             }
         }
