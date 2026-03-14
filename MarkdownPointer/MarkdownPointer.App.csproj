@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AssemblyName>mdp</AssemblyName>
-    <Version>0.6.0</Version>
+    <Version>0.7.0</Version>
     
     <!-- Single file publish settings -->
     <PublishSingleFile>true</PublishSingleFile>
