@@ -4,8 +4,20 @@
 
 MarkdownPointer renders your Markdown and lets you click any element - headings, code blocks, table cells, Mermaid diagram nodes, KaTeX math - to copy a `filepath:line` reference. Paste it into your AI prompt, and the AI knows exactly where to look.
 
+**To highlight a node:**
+
+<p align="center">
+  <img width="40%" valign="middle" alt="Image" src="https://github.com/user-attachments/assets/af06577f-4f7c-40cd-b76e-e3426fd36699" />
+  &nbsp;&nbsp;&nbsp;
+  <img width="8%" valign="middle" alt="Image" src="https://github.com/user-attachments/assets/16b7d1ab-3799-421a-8d21-9ecdbc1ae66c" />
+  &nbsp;&nbsp;&nbsp;
+  <img width="40%" valign="middle" alt="Image" src="https://github.com/user-attachments/assets/daea5945-af62-47f7-8f02-a0206611d8e7" />
+</p>
+
+**Click the node, paste the reference into your prompt, and ask the AI — the node gets highlighted.**
+
 ```
-Fix the diagram at [C:\docs\report.md:42] mermaid diagram: graph LR
+Highlight this node [architecture.md:6] mermaid node: mdp.exe
 ```
 
 ## Features
@@ -23,6 +35,7 @@ In a [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/ins
 ```powershell
 Install-PSResource MarkdownPointer
 ```
+
 
 ## Quick Start
 
