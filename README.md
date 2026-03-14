@@ -52,17 +52,23 @@ Then just ask Claude:
 
 Add to `claude_desktop_config.json`:
 
+Run this in PowerShell to get the path for your environment:
+
+```powershell
+Get-MarkdownPointerMCPPath -Escape
+```
+
+Then add to `claude_desktop_config.json`:
+
 ```json
 {
   "mcpServers": {
     "mdp": {
-      "command": "C:\\Program Files\\PowerShell\\7\\Modules\\MarkdownPointer\\0.2.0\\bin\\mdp-mcp.exe"
+      "command": "<paste the output here>"
     }
   }
 }
 ```
-
-> Use `Get-MarkdownPointerMCPPath -Escape` to get the correct path for your environment.
 
 ### MCP Tools
 
@@ -76,6 +82,9 @@ Add to `claude_desktop_config.json`:
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+O` | Open file |
+| `Ctrl+F` | Find in page |
+| `Ctrl+G` | Go to line |
+| `Ctrl+P` | Print |
 | `Ctrl+W` / `Ctrl+F4` | Close tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Switch tabs |
 | `Ctrl+Mouse Wheel` | Zoom |
