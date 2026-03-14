@@ -4,7 +4,7 @@
 
 MarkdownPointer renders your Markdown and lets you click any element - headings, code blocks, table cells, Mermaid diagram nodes, KaTeX math - to copy a `filepath:line` reference. Paste it into your AI prompt, and the AI knows exactly where to look.
 
-**To highlight a node:**
+**To change a node's color:**
 
 <p align="center">
   <img width="40%" valign="middle" alt="Image" src="https://github.com/user-attachments/assets/af06577f-4f7c-40cd-b76e-e3426fd36699" />
@@ -14,10 +14,10 @@ MarkdownPointer renders your Markdown and lets you click any element - headings,
   <img width="40%" valign="middle" alt="Image" src="https://github.com/user-attachments/assets/daea5945-af62-47f7-8f02-a0206611d8e7" />
 </p>
 
-**Click the node, paste the reference into your prompt, and ask the AI — the node gets highlighted.**
+**Click the node, paste the reference into your prompt, and ask the AI — done.**
 
 ```
-Highlight this node [c:\docs\architecture.md:6] mermaid node: mdp.exe
+Color this node orange [c:\docs\architecture.md:6] mermaid node: mdp.exe
 ```
 
 More prompt examples:
@@ -45,7 +45,6 @@ In a [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/ins
 Install-PSResource MarkdownPointer
 ```
 
-
 ## Quick Start
 
 ```powershell
@@ -71,8 +70,6 @@ Then just ask Claude:
 - "export report.md to docx"
 
 ### Claude Desktop
-
-Add to `claude_desktop_config.json`:
 
 Run this in PowerShell to get the path for your environment:
 
