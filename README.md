@@ -20,7 +20,7 @@ MarkdownPointer renders your Markdown and lets you click any element - headings,
 Color this node orange [c:\docs\architecture.md:6] mermaid node: mdp.exe
 ```
 
-More prompt examples:
+**More prompt examples:**
 - Verify this section for technical accuracy [ref]
 - Swap these two sections [ref] [ref]
 - Delete this [ref]
@@ -35,6 +35,9 @@ More prompt examples:
 - **Mermaid Diagrams** - Flowchart, Sequence, Class, State, ER, Gantt, Pie, Git graph, Mindmap
 - **KaTeX Math** - Inline `$...$` and block `$$...$$`
 - **SVG** - Embedded font support
+- **Recent Files** - Quick access with pin support
+- **Tab Dock/Undock** - Drag tabs between windows or detach to a new window
+- **Always on Top** - Pin the window above other apps for reference
 - **Live Reload** - Auto-refresh on file changes
 - **Export** - `.docx` via Pandoc
 - **MCP Server** - Let Claude open, navigate, and export your documents
