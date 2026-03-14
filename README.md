@@ -109,7 +109,7 @@ Then add to `claude_desktop_config.json`:
 | `Ctrl+P` | Print |
 | `Ctrl+W` / `Ctrl+F4` | Close tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Switch tabs |
-| `Ctrl+Mouse` | Scroll |
+| `Mouse Wheel` | Scroll |
 | `Ctrl+Mouse Wheel` | Zoom |
 | `F5` | Reload |
 
