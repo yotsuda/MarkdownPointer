@@ -121,7 +121,7 @@ namespace MarkdownPointer
 
             _pipeline = new MarkdownPipelineBuilder()
                 .UseAbbreviations()
-                .UseAutoIdentifiers()
+                .UseAutoIdentifiers(Markdig.Extensions.AutoIdentifiers.AutoIdentifierOptions.GitHub)
                 .UseCitations()
                 .UseCustomContainers()
                 .UseDefinitionLists()
