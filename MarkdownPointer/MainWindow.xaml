@@ -222,8 +222,9 @@
                                   BorderThickness="1"/>
                     <ToggleButton x:Name="SlideViewToggle" FontFamily="Segoe UI Emoji"
                                   Content="🎞"
-                                  ToolTip="Slide view"
+                                  ToolTip="Slide view (right-click: theme)"
                                   Click="SlideViewToggle_Click"
+                                  MouseRightButtonUp="SlideViewToggle_RightClick"
                                   Width="24" Height="20"
                                   FontSize="10"
                                   Margin="4,0,0,0"

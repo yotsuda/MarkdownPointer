@@ -244,6 +244,38 @@ namespace MarkdownPointer
             SlideViewToggle.IsChecked = tab.IsSlideView;
         }
 
+        private static readonly string[] SlideThemes =
+            ["black", "white", "league", "beige", "sky", "night", "serif", "simple", "solarized", "moon", "blood", "dracula"];
+
+        private void SlideViewToggle_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            var menu = new ContextMenu();
+            foreach (var theme in SlideThemes)
+            {
+                var item = new MenuItem
+                {
+                    Header = theme,
+                    Icon = theme == _slideTheme
+                        ? new System.Windows.Controls.TextBlock { Text = "✓", FontWeight = FontWeights.Bold }
+                        : null
+                };
+                var t = theme;
+                item.Click += (_, _) =>
+                {
+                    _slideTheme = t;
+                    if (FileTabControl.SelectedItem is TabItemData tab && tab.IsSlideView)
+                    {
+                        tab.CachedSlideHtml = null;
+                        StartSpinner($"Applying theme: {t}");
+                        RenderMarkdown(tab);
+                    }
+                };
+                menu.Items.Add(item);
+            }
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
         private void PointingModeToggle_Click(object sender, RoutedEventArgs e)
         {
             _isPointingMode = PointingModeToggle.IsChecked == true;

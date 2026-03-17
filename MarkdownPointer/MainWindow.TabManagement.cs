@@ -622,7 +622,7 @@ namespace MarkdownPointer
                 {
                     StartSpinner("Rendering slides");
 
-                    var slideHtml = await SlideService.RenderSlidesAsync(tab.FilePath, markdown);
+                    var slideHtml = await SlideService.RenderSlidesAsync(tab.FilePath, markdown, _slideTheme);
 
                     StopSpinner();
 

@@ -14,9 +14,9 @@ namespace MarkdownPointer.Services
         /// <summary>
         /// Renders markdown as reveal.js slides for preview in WebView2.
         /// </summary>
-        public static async Task<string?> RenderSlidesAsync(string markdownPath, string markdown)
+        public static async Task<string?> RenderSlidesAsync(string markdownPath, string markdown, string theme = "black")
         {
-            var html = await PandocToRevealJsAsync(markdownPath);
+            var html = await PandocToRevealJsAsync(markdownPath, theme);
             if (html == null) return null;
 
             html = AddLineTracking(html, markdown);
@@ -68,33 +68,39 @@ namespace MarkdownPointer.Services
         /// <summary>
         /// Converts markdown to reveal.js HTML using Pandoc.
         /// </summary>
-        private static async Task<string?> PandocToRevealJsAsync(string markdownPath)
+        private static async Task<string?> PandocToRevealJsAsync(string markdownPath, string theme = "black")
         {
             var outputPath = Path.Combine(Path.GetTempPath(), $"slides_{Guid.NewGuid():N}.html");
             try
             {
-                var psi = new ProcessStartInfo
+                var result = await Task.Run(async () =>
                 {
-                    FileName = "pandoc",
-                    Arguments = $"-f markdown -t revealjs -s " +
-                                $"--variable revealjs-url=https://cdn.jsdelivr.net/npm/reveal.js@5.2.1 " +
-                                $"-o \"{outputPath}\" \"{markdownPath}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "pandoc",
+                        Arguments = $"-f markdown -t revealjs -s " +
+                                    $"--variable revealjs-url=https://cdn.jsdelivr.net/npm/reveal.js@5.2.1 " +
+                                    $"--variable theme={theme} " +
+                                    $"-o \"{outputPath}\" \"{markdownPath}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
 
-                using var process = Process.Start(psi);
-                if (process == null) return null;
+                    using var process = Process.Start(psi);
+                    if (process == null) return (string?)null;
 
-                var stderr = await process.StandardError.ReadToEndAsync();
-                await process.WaitForExitAsync();
+                    await process.StandardError.ReadToEndAsync();
+                    await process.WaitForExitAsync();
 
-                if (process.ExitCode != 0 || !File.Exists(outputPath))
-                    return null;
+                    if (process.ExitCode != 0 || !File.Exists(outputPath))
+                        return null;
 
-                return await File.ReadAllTextAsync(outputPath, Encoding.UTF8);
+                    return await File.ReadAllTextAsync(outputPath, Encoding.UTF8);
+                });
+
+                return result;
             }
             finally
             {

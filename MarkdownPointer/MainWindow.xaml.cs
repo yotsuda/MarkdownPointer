@@ -65,6 +65,7 @@ namespace MarkdownPointer
         // Mode toggles
         private bool _isPointingMode = true;
         private bool _pointingModeBeforeSvg = true;
+        private string _slideTheme = "black";
 
         // UI state
         private DispatcherTimer? _statusMessageTimer;
