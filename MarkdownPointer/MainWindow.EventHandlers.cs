@@ -459,28 +459,62 @@ namespace MarkdownPointer
                 return;
             }
 
+            var defaultExt = tab.IsSlideView ? ".pptx" : ".docx";
             var filter = "Word Document (*.docx)|*.docx|PowerPoint (*.pptx)|*.pptx";
-            var fileName = Path.GetFileNameWithoutExtension(tab.FilePath) + ".docx";
+            var filterIndex = tab.IsSlideView ? 2 : 1;
+            var fileName = Path.GetFileNameWithoutExtension(tab.FilePath) + defaultExt;
 
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
                 FileName = fileName,
-                DefaultExt = ".docx",
+                DefaultExt = defaultExt,
                 Filter = filter,
-                FilterIndex = 1,
+                FilterIndex = filterIndex,
                 InitialDirectory = Path.GetDirectoryName(tab.FilePath)
             };
 
             if (dialog.ShowDialog() == true)
             {
                 var ext = Path.GetExtension(dialog.FileName).ToLowerInvariant();
+
+                // Ask if user wants to apply a template
+                string? templatePath = null;
+                if (ext == ".pptx" || ext == ".docx")
+                {
+                    var applyTemplate = MessageBox.Show(
+                        $"Apply a {(ext == ".pptx" ? "PowerPoint" : "Word")} template?",
+                        "Template",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (applyTemplate == MessageBoxResult.Yes)
+                    {
+                        var templateFilter = ext == ".pptx"
+                            ? "PowerPoint (*.pptx)|*.pptx"
+                            : "Word Document (*.docx)|*.docx";
+                        var templateDialog = new Microsoft.Win32.OpenFileDialog
+                        {
+                            Title = "Select template",
+                            Filter = templateFilter
+                        };
+                        if (templateDialog.ShowDialog() == true)
+                        {
+                            templatePath = templateDialog.FileName;
+                        }
+                        else
+                        {
+                            return; // User cancelled template selection
+                        }
+                    }
+                }
+
                 StartSpinner($"Exporting {ext}");
 
                 (bool success, string? error) result;
                 if (ext == ".pptx")
-                    result = await SlideService.ExportPptxAsync(tab.FilePath, dialog.FileName);
+                    result = await SlideService.ExportPptxAsync(tab.FilePath, dialog.FileName, templatePath);
                 else
-                    result = await PandocService.ConvertAsync(tab.FilePath, dialog.FileName);
+                    result = await PandocService.ConvertAsync(tab.FilePath, dialog.FileName, templatePath);
 
                 StopSpinner();
 

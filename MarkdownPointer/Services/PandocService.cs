@@ -29,7 +29,7 @@ namespace MarkdownPointer.Services
         }
 
         public static async Task<(bool Success, string? Error)> ConvertAsync(
-            string markdownPath, string outputPath)
+            string markdownPath, string outputPath, string? templatePath = null)
         {
             var ext = Path.GetExtension(outputPath).ToLowerInvariant();
             var format = ext switch
@@ -39,6 +39,10 @@ namespace MarkdownPointer.Services
                 _ => "docx"
             };
 
+            var refDoc = !string.IsNullOrEmpty(templatePath) && File.Exists(templatePath)
+                ? $"--reference-doc=\"{templatePath}\" "
+                : "";
+
             try
             {
                 using var process = new Process
@@ -46,7 +50,7 @@ namespace MarkdownPointer.Services
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "pandoc",
-                        Arguments = $"-f markdown -t {format} -o \"{outputPath}\" \"{markdownPath}\"",
+                        Arguments = $"-f markdown -t {format} {refDoc}-o \"{outputPath}\" \"{markdownPath}\"",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardError = true
