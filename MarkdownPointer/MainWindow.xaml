@@ -242,7 +242,7 @@
                                   BorderThickness="1"/>
                     <ToggleButton x:Name="PointingModeToggle" FontFamily="Segoe UI Emoji" IsChecked="True"
                                   Content="👆"
-                                  ToolTip="Pointing mode (click to copy element reference)"
+                                  ToolTip="Pointing mode"
                                   Click="PointingModeToggle_Click"
                                   Width="24" Height="20"
                                   FontSize="10"

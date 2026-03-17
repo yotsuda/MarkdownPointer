@@ -119,8 +119,10 @@ namespace MarkdownPointer.Services
             int slideIndex = 0;
             html = Regex.Replace(html, @"<section\b([^>]*?)>", match =>
             {
-                // Skip sections that already have data-line or are nested (reveal.js vertical slides)
                 var attrs = match.Groups[1].Value;
+                // Skip auto-generated title slide from frontmatter
+                if (attrs.Contains("id=\"title-slide\"")) return match.Value;
+                // Skip sections that already have data-line
                 if (attrs.Contains("data-line")) return match.Value;
 
                 if (slideIndex < slideStartLines.Count)
@@ -263,7 +265,11 @@ namespace MarkdownPointer.Services
             if (blocks.Count == 0) return html;
 
             var sectionPattern = new Regex(@"<section\b[^>]*>", RegexOptions.IgnoreCase);
-            var sectionMatches = sectionPattern.Matches(html);
+            // Filter out the auto-generated title slide from frontmatter
+            var allMatches = sectionPattern.Matches(html);
+            var sectionMatches = allMatches.Cast<Match>()
+                .Where(m => !m.Value.Contains("id=\"title-slide\""))
+                .ToList();
             if (sectionIndex >= sectionMatches.Count) return html;
 
             var sectionStart = sectionMatches[sectionIndex].Index + sectionMatches[sectionIndex].Length;
