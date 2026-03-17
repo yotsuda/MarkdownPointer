@@ -108,6 +108,23 @@ namespace MarkdownPointer.Models
         public string? RenderedHtml { get; set; }
 
         /// <summary>
+        /// Whether to render as slides (true) or as a normal document (false).
+        /// </summary>
+        public bool IsSlideView { get; set; }
+
+        /// <summary>
+        /// Cached slide HTML (Pandoc reveal.js) for instant toggle.
+        /// Invalidated when file changes.
+        /// </summary>
+        public string? CachedSlideHtml { get; set; }
+
+        /// <summary>
+        /// Cached Markdig document HTML for instant toggle.
+        /// Invalidated when file changes.
+        /// </summary>
+        public string? CachedDocHtml { get; set; }
+
+        /// <summary>
         /// INotifyPropertyChanged implementation.
         /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;

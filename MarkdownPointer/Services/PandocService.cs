@@ -28,9 +28,17 @@ namespace MarkdownPointer.Services
             }
         }
 
-        public static async Task<(bool Success, string? Error)> ConvertToDocxAsync(
+        public static async Task<(bool Success, string? Error)> ConvertAsync(
             string markdownPath, string outputPath)
         {
+            var ext = Path.GetExtension(outputPath).ToLowerInvariant();
+            var format = ext switch
+            {
+                ".docx" => "docx",
+                ".pdf" => "pdf",
+                _ => "docx"
+            };
+
             try
             {
                 using var process = new Process
@@ -38,7 +46,7 @@ namespace MarkdownPointer.Services
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "pandoc",
-                        Arguments = $"-f markdown -t docx -o \"{outputPath}\" \"{markdownPath}\"",
+                        Arguments = $"-f markdown -t {format} -o \"{outputPath}\" \"{markdownPath}\"",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardError = true
@@ -63,5 +71,12 @@ namespace MarkdownPointer.Services
                 return (false, ex.Message);
             }
         }
+
+        /// <summary>
+        /// Legacy wrapper for backward compatibility (MCP server uses this).
+        /// </summary>
+        public static Task<(bool Success, string? Error)> ConvertToDocxAsync(
+            string markdownPath, string outputPath)
+            => ConvertAsync(markdownPath, outputPath);
     }
 }

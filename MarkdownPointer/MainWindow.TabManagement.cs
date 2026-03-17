@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Wpf;
 using MarkdownPointer.Models;
+using MarkdownPointer.Services;
 
 namespace MarkdownPointer
 {
@@ -478,9 +479,40 @@ namespace MarkdownPointer
             }
         }
 
+        private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+        private void StartSpinner(string label)
+        {
+            _statusMessageTimer?.Stop();
+            _statusBlinkTimer?.Stop();
+            StatusText.BeginAnimation(OpacityProperty, null);
+            StatusText.Opacity = 1.0;
+            StatusText.Visibility = Visibility.Visible;
+            _spinnerFrame = 0;
+            StatusText.Text = $"{SpinnerFrames[0]} {label}";
+
+            _spinnerTimer?.Stop();
+            _spinnerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
+            _spinnerTimer.Tick += (_, _) =>
+            {
+                _spinnerFrame = (_spinnerFrame + 1) % SpinnerFrames.Length;
+                StatusText.Text = $"{SpinnerFrames[_spinnerFrame]} {label}";
+            };
+            _spinnerTimer.Start();
+        }
+
+        private void StopSpinner()
+        {
+            _spinnerTimer?.Stop();
+            _spinnerTimer = null;
+            StatusText.Text = "";
+        }
+
         private void ShowStatusMessage(string message, double seconds = 3.0)
         {
             // Stop existing timers first
+            _spinnerTimer?.Stop();
+            _spinnerTimer = null;
             _statusMessageTimer?.Stop();
             _statusBlinkTimer?.Stop();
             StatusText.BeginAnimation(OpacityProperty, null); // Cancel any running animation
@@ -526,7 +558,7 @@ namespace MarkdownPointer
             _statusBlinkTimer.Start();
         }
 
-        private async void RenderMarkdown(TabItemData tab)
+        private async void RenderMarkdown(TabItemData tab, bool viewToggle = false)
         {
             try
             {
@@ -547,6 +579,18 @@ namespace MarkdownPointer
                     }
                 }
 
+                // Fast path: view toggle with cached HTML
+                if (viewToggle)
+                {
+                    var cached = tab.IsSlideView ? tab.CachedSlideHtml : tab.CachedDocHtml;
+                    if (cached != null)
+                    {
+                        tab.RenderedHtml = cached;
+                        tab.WebView.NavigateToString(cached);
+                        return;
+                    }
+                }
+
                 // Read file asynchronously with retry for locked files
                 string? markdown = null;
                 for (int i = 0; i < 3; i++)
@@ -562,15 +606,61 @@ namespace MarkdownPointer
                     }
                 }
 
-
                 // Check if tab still exists after async operation
                 if (!_tabs.Contains(tab)) return;
                 if (markdown == null) return;
 
-                var baseDir = Path.GetDirectoryName(tab.FilePath);
-                var html = GetHtmlGenerator().ConvertToHtml(markdown, baseDir!);
+                // Invalidate caches on file change (not on view toggle)
+                if (!viewToggle)
+                {
+                    tab.CachedSlideHtml = null;
+                    tab.CachedDocHtml = null;
+                }
+
+                string html;
+                if (tab.IsSlideView)
+                {
+                    StartSpinner("Rendering slides");
+
+                    var slideHtml = await SlideService.RenderSlidesAsync(tab.FilePath, markdown);
+
+                    StopSpinner();
+
+                    if (slideHtml == null)
+                    {
+                        // Fallback to document view if Pandoc fails
+                        ShowStatusMessage("⚠ Slide rendering failed, falling back to document view");
+                        tab.IsSlideView = false;
+                        Dispatcher.Invoke(() => UpdateSlideViewButton(tab));
+                        var baseDir2 = Path.GetDirectoryName(tab.FilePath);
+                        html = GetHtmlGenerator().ConvertToHtml(markdown, baseDir2!);
+                        tab.CachedDocHtml = html;
+                    }
+                    else
+                    {
+                        html = slideHtml;
+                        tab.CachedSlideHtml = html;
+                    }
+
+                    // Pre-cache document view
+                    if (tab.CachedDocHtml == null)
+                    {
+                        var baseDir = Path.GetDirectoryName(tab.FilePath);
+                        tab.CachedDocHtml = GetHtmlGenerator().ConvertToHtml(markdown, baseDir!);
+                    }
+                }
+                else
+                {
+                    var baseDir = Path.GetDirectoryName(tab.FilePath);
+                    html = GetHtmlGenerator().ConvertToHtml(markdown, baseDir!);
+                    tab.CachedDocHtml = html;
+                }
+
+                // Check if tab still exists after async rendering
+                if (!_tabs.Contains(tab)) return;
+
                 tab.RenderedHtml = html;  // Cache for fast window detach
-                
+
                 tab.WebView.NavigateToString(html);
             }
             catch (Exception ex)

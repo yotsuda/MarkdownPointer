@@ -58,7 +58,7 @@ namespace MarkdownPointer
                     tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
 
                     // Also update text selection style
-                    var userSelect = _isDragMoveMode ? "none" : (_isPointingMode ? "none" : "");
+                    var userSelect = _isPointingMode ? "none" : "";
                     tab.WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
 
                     // Restore saved scroll position

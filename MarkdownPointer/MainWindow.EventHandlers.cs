@@ -23,6 +23,7 @@ namespace MarkdownPointer
                 _targetZoomFactor = tab.CssZoomFactor;
                 _currentZoomFactor = tab.CssZoomFactor;
                 UpdatePointingModeAvailability(tab);
+                UpdateSlideViewButton(tab);
             }
             else
             {
@@ -225,59 +226,28 @@ namespace MarkdownPointer
             Topmost = TopmostToggle.IsChecked == true;
         }
 
-        private void DragMoveToggle_Click(object sender, RoutedEventArgs e)
+        private void SlideViewToggle_Click(object sender, RoutedEventArgs e)
         {
-            _isDragMoveMode = DragMoveToggle.IsChecked == true;
-            DragOverlay.Visibility = _isDragMoveMode ? Visibility.Visible : Visibility.Collapsed;
-            DragOverlay.Cursor = Cursors.SizeAll;
+            if (FileTabControl.SelectedItem is TabItemData tab)
+            {
+                tab.IsSlideView = SlideViewToggle.IsChecked == true;
+                RenderMarkdown(tab, viewToggle: true);
+                ShowStatusMessage(tab.IsSlideView ? "🎞 Slide view" : "📄 Document view");
+            }
+        }
 
-            // Disable pointing mode if enabling drag mode
-            if (_isDragMoveMode)
-            {
-                _pointingModeBeforeSvg = false;
-            }
-            if (_isDragMoveMode && _isPointingMode)
-            {
-                PointingModeToggle.IsChecked = false;
-                _isPointingMode = false;
-                foreach (var tab in _tabs)
-                {
-                    if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
-                    {
-                        tab.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(false)");
-                    }
-                }
-            }
-
-            // Enable/disable WebView and text selection for all tabs
-            foreach (var tab in _tabs)
-            {
-                tab.WebView.IsEnabled = !_isDragMoveMode;
-                if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
-                {
-                    // Disable text selection in pan mode (like pointing mode)
-                    var userSelect = _isDragMoveMode ? "none" : (_isPointingMode ? "none" : "");
-                    tab.WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
-                }
-            }
+        /// <summary>
+        /// Syncs the slide view toggle button state with the current tab.
+        /// </summary>
+        internal void UpdateSlideViewButton(TabItemData tab)
+        {
+            SlideViewToggle.IsChecked = tab.IsSlideView;
         }
 
         private void PointingModeToggle_Click(object sender, RoutedEventArgs e)
         {
             _isPointingMode = PointingModeToggle.IsChecked == true;
             _pointingModeBeforeSvg = _isPointingMode;
-
-            // Disable drag mode if enabling pointing mode
-            if (_isPointingMode && _isDragMoveMode)
-            {
-                DragMoveToggle.IsChecked = false;
-                _isDragMoveMode = false;
-                DragOverlay.Visibility = Visibility.Collapsed;
-                foreach (var tab in _tabs)
-                {
-                    tab.WebView.IsEnabled = true;
-                }
-            }
 
             foreach (var tab in _tabs)
             {
@@ -468,7 +438,7 @@ namespace MarkdownPointer
 
         #region Export
 
-        private async void ExportDocxButton_Click(object sender, RoutedEventArgs e)
+        private async void ExportButton_Click(object sender, RoutedEventArgs e)
         {
             if (FileTabControl.SelectedItem is not TabItemData tab || string.IsNullOrEmpty(tab.FilePath))
                 return;
@@ -476,7 +446,7 @@ namespace MarkdownPointer
             if (!PandocService.IsPandocInstalled())
             {
                 var result = MessageBox.Show(
-                    "Pandoc is required to export .docx files.\nWould you like to open the Pandoc download page?",
+                    "Pandoc is required for export.\nWould you like to open the Pandoc download page?",
                     "Pandoc not found",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Information);
@@ -489,27 +459,43 @@ namespace MarkdownPointer
                 return;
             }
 
+            var filter = "Word Document (*.docx)|*.docx|PowerPoint (*.pptx)|*.pptx";
+            var fileName = Path.GetFileNameWithoutExtension(tab.FilePath) + ".docx";
+
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
-                FileName = Path.GetFileNameWithoutExtension(tab.FilePath) + ".docx",
+                FileName = fileName,
                 DefaultExt = ".docx",
-                Filter = "Word Document (*.docx)|*.docx",
+                Filter = filter,
+                FilterIndex = 1,
                 InitialDirectory = Path.GetDirectoryName(tab.FilePath)
             };
 
             if (dialog.ShowDialog() == true)
             {
-                var (success, error) = await PandocService.ConvertToDocxAsync(tab.FilePath, dialog.FileName);
-                if (success)
+                var ext = Path.GetExtension(dialog.FileName).ToLowerInvariant();
+                StartSpinner($"Exporting {ext}");
+
+                (bool success, string? error) result;
+                if (ext == ".pptx")
+                    result = await SlideService.ExportPptxAsync(tab.FilePath, dialog.FileName);
+                else
+                    result = await PandocService.ConvertAsync(tab.FilePath, dialog.FileName);
+
+                StopSpinner();
+
+                if (result.success)
                 {
-                    ShowStatusMessage("✓ Exported .docx");
+                    ShowStatusMessage($"✓ Exported {ext}");
                     var exportedPath = dialog.FileName;
                     var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
                     timer.Tick += (_, _) => { timer.Stop(); Process.Start("explorer.exe", $"/select,\"{exportedPath}\""); };
                     timer.Start();
                 }
                 else
-                    ShowStatusMessage($"✗ Export failed: {error}");
+                {
+                    ShowStatusMessage($"✗ Export failed: {result.error}");
+                }
             }
         }
 

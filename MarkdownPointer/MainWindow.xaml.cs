@@ -63,13 +63,14 @@ namespace MarkdownPointer
         private double _targetZoomFactor = 1.0;
 
         // Mode toggles
-        private bool _isDragMoveMode = false;
         private bool _isPointingMode = true;
         private bool _pointingModeBeforeSvg = true;
 
         // UI state
         private DispatcherTimer? _statusMessageTimer;
         private DispatcherTimer? _statusBlinkTimer;
+        private DispatcherTimer? _spinnerTimer;
+        private int _spinnerFrame;
         private Point _contextMenuPosition;
 
         // Document scroll state (for drag mode)
