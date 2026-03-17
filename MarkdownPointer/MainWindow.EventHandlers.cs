@@ -263,9 +263,12 @@ namespace MarkdownPointer
                 item.Click += (_, _) =>
                 {
                     _slideTheme = t;
+                    // Invalidate slide cache for all tabs
+                    foreach (var openTab in _tabs)
+                        openTab.CachedSlideHtml = null;
+
                     if (FileTabControl.SelectedItem is TabItemData tab && tab.IsSlideView)
                     {
-                        tab.CachedSlideHtml = null;
                         StartSpinner($"Applying theme: {t}");
                         RenderMarkdown(tab);
                     }

@@ -587,6 +587,8 @@ namespace MarkdownPointer
                     {
                         tab.RenderedHtml = cached;
                         tab.WebView.NavigateToString(cached);
+                        if (tab.IsSlideView)
+                            ShowStatusMessage($"🎞 Slide view ({_slideTheme})");
                         return;
                     }
                 }
@@ -640,6 +642,7 @@ namespace MarkdownPointer
                     {
                         html = slideHtml;
                         tab.CachedSlideHtml = html;
+                        ShowStatusMessage($"🎞 Slide view ({_slideTheme})");
                     }
 
                     // Pre-cache document view
