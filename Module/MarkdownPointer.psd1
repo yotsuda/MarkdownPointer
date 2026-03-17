@@ -44,7 +44,12 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
-0.7.1
+0.8.0
+- Slide view: toggle with 🎞 button to preview Markdown as reveal.js slides (Pandoc)
+- Slide themes: right-click 🎞 to choose from 12 reveal.js themes
+- Unified Export button: .docx and .pptx via Pandoc, with optional template (--reference-doc)
+- Spinner animation in status bar during slide rendering and export
+- Remove pan/scroll mode (✋) — mouse wheel suffices
 - Use GitHub-compatible AutoIdentifiers for heading anchors
 
 0.7.0
