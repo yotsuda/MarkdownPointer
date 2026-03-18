@@ -326,6 +326,7 @@ public class PipeServer : IDisposable
                     Title = tab.Title,
                     Path = tab.FilePath,
                     IsSelected = isSelected,
+                    IsSlideView = tab.IsSlideView,
                     Errors = errors
                 });
 
