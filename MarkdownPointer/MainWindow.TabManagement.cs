@@ -664,8 +664,8 @@ namespace MarkdownPointer
                         ShowStatusMessage("⚠ Slide rendering failed, falling back to document view");
                         tab.IsSlideView = false;
                         Dispatcher.Invoke(() => UpdateSlideViewButton(tab));
-                        var baseDir2 = Path.GetDirectoryName(tab.FilePath);
-                        html = GetHtmlGenerator().ConvertToHtml(markdown, baseDir2!);
+                        var baseDir2 = Path.GetDirectoryName(tab.FilePath) ?? ".";
+                        html = GetHtmlGenerator().ConvertToHtml(markdown, baseDir2);
                         tab.CachedDocHtml = html;
                     }
                     else
@@ -684,8 +684,8 @@ namespace MarkdownPointer
                 }
                 else
                 {
-                    var baseDir = Path.GetDirectoryName(tab.FilePath);
-                    html = GetHtmlGenerator().ConvertToHtml(markdown, baseDir!);
+                    var baseDir = Path.GetDirectoryName(tab.FilePath) ?? ".";
+                    html = GetHtmlGenerator().ConvertToHtml(markdown, baseDir);
                     tab.CachedDocHtml = html;
                 }
 

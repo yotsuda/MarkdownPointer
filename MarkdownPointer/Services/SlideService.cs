@@ -11,6 +11,18 @@ namespace MarkdownPointer.Services
     /// </summary>
     public static class SlideService
     {
+        // Pre-compiled regex patterns
+        private static readonly Regex SectionTagPattern = new(@"<section\b([^>]*?)>", RegexOptions.Compiled);
+        private static readonly Regex SlideBreakPattern = new(@"^(-{3,}|\*{3,}|_{3,})$", RegexOptions.Compiled);
+        private static readonly Regex HeadingSlidePattern = new(@"^#{1,2}\s", RegexOptions.Compiled);
+        private static readonly Regex HeadingPattern = new(@"^(#{1,6})\s", RegexOptions.Compiled);
+        private static readonly Regex UnorderedListPattern = new(@"^[-*+]\s", RegexOptions.Compiled);
+        private static readonly Regex OrderedListPattern = new(@"^\d+\.\s", RegexOptions.Compiled);
+        private static readonly Regex TableSeparatorPattern = new(@"^\|[\s\-:]+\|", RegexOptions.Compiled);
+        private static readonly Regex CspMetaPattern = new(
+            @"<meta\s+http-equiv=['""]Content-Security-Policy['""][^>]*/?>",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         /// <summary>
         /// Renders markdown as reveal.js slides for preview in WebView2.
         /// </summary>
@@ -117,7 +129,7 @@ namespace MarkdownPointer.Services
             var slideStartLines = FindSlideStartLines(lines);
 
             int slideIndex = 0;
-            html = Regex.Replace(html, @"<section\b([^>]*?)>", match =>
+            html = SectionTagPattern.Replace(html, match =>
             {
                 var attrs = match.Groups[1].Value;
                 // Skip auto-generated title slide from frontmatter
@@ -171,7 +183,7 @@ namespace MarkdownPointer.Services
                 var trimmed = lines[i].TrimEnd();
 
                 // Horizontal rule (slide separator): ---, ***, ___
-                if (Regex.IsMatch(trimmed, @"^(-{3,}|\*{3,}|_{3,})$"))
+                if (SlideBreakPattern.IsMatch(trimmed))
                 {
                     // Next non-empty line starts a new slide
                     int j = i + 1;
@@ -186,7 +198,7 @@ namespace MarkdownPointer.Services
                 }
 
                 // Headings start new slides (Pandoc default behavior)
-                if (!lastWasSlideStart && Regex.IsMatch(trimmed, @"^#{1,2}\s"))
+                if (!lastWasSlideStart && HeadingSlidePattern.IsMatch(trimmed))
                 {
                     result.Add(i + 1);
                     lastWasSlideStart = true;
@@ -233,19 +245,19 @@ namespace MarkdownPointer.Services
                     if (inCodeBlock) continue;
                     if (string.IsNullOrWhiteSpace(lines[i])) continue;
 
-                    var headingMatch = Regex.Match(trimmed, @"^(#{1,6})\s");
+                    var headingMatch = HeadingPattern.Match(trimmed);
                     if (headingMatch.Success)
                     {
                         blocks.Add((i + 1, $"h{headingMatch.Groups[1].Value.Length}"));
                         continue;
                     }
-                    if (Regex.IsMatch(trimmed, @"^[-*+]\s") || Regex.IsMatch(trimmed, @"^\d+\.\s"))
+                    if (UnorderedListPattern.IsMatch(trimmed) || OrderedListPattern.IsMatch(trimmed))
                     {
                         blocks.Add((i + 1, "li"));
                         continue;
                     }
                     if (trimmed.StartsWith(">")) { blocks.Add((i + 1, "blockquote")); continue; }
-                    if (trimmed.StartsWith("|") && !Regex.IsMatch(trimmed, @"^\|[\s\-:]+\|"))
+                    if (trimmed.StartsWith("|") && !TableSeparatorPattern.IsMatch(trimmed))
                     {
                         blocks.Add((i + 1, "tr"));
                         continue;
@@ -312,8 +324,7 @@ namespace MarkdownPointer.Services
         private static string InjectPointingScripts(string html)
         {
             // Remove CSP if present
-            html = Regex.Replace(html, @"<meta\s+http-equiv=['""]Content-Security-Policy['""][^>]*/?>", "",
-                RegexOptions.IgnoreCase);
+            html = CspMetaPattern.Replace(html, "");
 
             var pointingCss = @"
 <style>

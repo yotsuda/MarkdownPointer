@@ -149,6 +149,10 @@ namespace MarkdownPointer.Services
                     if (!File.Exists(fullPath))
                         return match.Value;
 
+                    // Prevent path traversal outside baseDir
+                    if (!fullPath.StartsWith(Path.GetFullPath(baseDir), StringComparison.OrdinalIgnoreCase))
+                        return match.Value;
+
                     var ext = Path.GetExtension(fullPath).ToLowerInvariant();
                     var mime = ext switch
                     {
@@ -202,6 +206,10 @@ namespace MarkdownPointer.Services
                     {
                         return match.Value; // Keep original if file not found
                     }
+
+                    // Prevent path traversal outside baseDir
+                    if (!fullPath.StartsWith(Path.GetFullPath(baseDir), StringComparison.OrdinalIgnoreCase))
+                        return match.Value;
 
                     var svgContent = File.ReadAllText(fullPath);
 
