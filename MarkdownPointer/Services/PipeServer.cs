@@ -133,6 +133,9 @@ public class PipeServer : IDisposable
             case "activate":
                 return HandleActivate(windows);
 
+            case "slideControl":
+                return await HandleSlideControlAsync(message, windows);
+
             default:
                 return new PipeResponse { Success = false, Error = "Unknown command" };
         }
@@ -213,6 +216,12 @@ public class PipeServer : IDisposable
             return new PipeResponse { Success = false, Error = "No window available" };
         }
 
+        // Switch to slide view if requested
+        if (message.SlideView == true && !openedTab.IsSlideView)
+        {
+            targetWindow.SetSlideView(openedTab, true);
+        }
+
         // Wait for render if it's a new tab
         if (openedTab.RenderCompletion != null)
         {
@@ -224,7 +233,7 @@ public class PipeServer : IDisposable
             {
                 // Timeout is recorded in LastRenderErrors
             }
-            
+
             // Scroll to line after render completes
             if (message.Line.HasValue)
             {
@@ -233,7 +242,15 @@ public class PipeServer : IDisposable
         }
 
         // Build response with all window/tab info
-        return BuildFullResponse(openedTab, targetWindow, targetWindowIndex, windows);
+        var response = BuildFullResponse(openedTab, targetWindow, targetWindowIndex, windows);
+
+        // Include slide state if in slide view
+        if (openedTab.IsSlideView)
+        {
+            response.SlideState = await targetWindow.GetSlideStateAsync(openedTab);
+        }
+
+        return response;
     }
 
     private async Task<PipeResponse> HandleOpenTempAsync(PipeMessage message, List<MainWindow> windows)
@@ -336,6 +353,59 @@ public class PipeServer : IDisposable
         };
     }
 
+    private static async Task<PipeResponse> HandleSlideControlAsync(PipeMessage message, List<MainWindow> windows)
+    {
+        var action = message.SlideAction;
+        if (string.IsNullOrEmpty(action))
+        {
+            return new PipeResponse { Success = false, Error = "SlideAction is required" };
+        }
+
+        // Find the active tab in slide view
+        MainWindow? targetWindow = null;
+        TabItemData? activeTab = null;
+        foreach (var win in windows)
+        {
+            if (win.FileTabControl.SelectedItem is TabItemData tab && tab.IsSlideView)
+            {
+                targetWindow = win;
+                activeTab = tab;
+                break;
+            }
+        }
+
+        if (targetWindow == null || activeTab == null)
+        {
+            return new PipeResponse { Success = false, Error = "No slide view is active" };
+        }
+
+        // Execute slide action via reveal.js
+        var jsAction = action switch
+        {
+            "next" => "Reveal.next()",
+            "prev" => "Reveal.prev()",
+            "goto" => $"Reveal.slide({message.SlideIndex ?? 0})",
+            "first" => "Reveal.slide(0)",
+            "last" => "Reveal.slide(Reveal.getTotalSlides() - 1)",
+            _ => null
+        };
+
+        if (jsAction == null)
+        {
+            return new PipeResponse { Success = false, Error = $"Unknown slide action: {action}" };
+        }
+
+        if (activeTab.IsInitialized && activeTab.WebView.CoreWebView2 != null)
+        {
+            await activeTab.WebView.CoreWebView2.ExecuteScriptAsync(jsAction);
+            // Small delay for reveal.js to update state
+            await Task.Delay(100);
+        }
+
+        var slideState = await targetWindow.GetSlideStateAsync(activeTab);
+        return new PipeResponse { Success = true, SlideState = slideState };
+    }
+
     private static PipeResponse HandleActivate(List<MainWindow> windows)
     {
         var mainWindow = windows.FirstOrDefault();
@@ -382,6 +452,9 @@ public class PipeMessage
     public string[]? Paths { get; set; }
     public int? Line { get; set; }
     public string? Title { get; set; }
+    public bool? SlideView { get; set; }
+    public string? SlideAction { get; set; }
+    public int? SlideIndex { get; set; }
 }
 
 public class PipeResponse
@@ -390,6 +463,15 @@ public class PipeResponse
     public string? Error { get; set; }
     public OpenedTabInfo? OpenedTab { get; set; }
     public WindowInfo[]? Windows { get; set; }
+    public SlideStateInfo? SlideState { get; set; }
+}
+
+public class SlideStateInfo
+{
+    public int CurrentIndex { get; set; }
+    public int TotalSlides { get; set; }
+    public string CurrentContent { get; set; } = "";
+    public string? NextContent { get; set; }
 }
 
 public class OpenedTabInfo

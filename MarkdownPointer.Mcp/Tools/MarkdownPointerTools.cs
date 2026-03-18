@@ -22,10 +22,11 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
         return node.ToJsonString();
     }
 
-    [McpServerTool(Name = "show_markdown"), Description("Open one or more Markdown/SVG files in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors.")]
+    [McpServerTool(Name = "show_markdown"), Description("Open one or more Markdown/SVG files in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors. When slideView is true, opens in reveal.js slide mode and returns slide state.")]
     public async Task<string> ShowMarkdown(
         [Description("Path(s) to the Markdown file(s) to open")] string[] paths,
         [Description("Optional line number to scroll to in the last opened file")] int? line = null,
+        [Description("Open in slide view mode (reveal.js). Enables slide_control navigation.")] bool? slideView = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -49,7 +50,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
                     PipeJsonContext.Default.ErrorResponse));
             }
 
-            var message = new PipeCommand { Command = "open", Paths = fullPaths.ToArray(), Line = line };
+            var message = new PipeCommand { Command = "open", Paths = fullPaths.ToArray(), Line = line, SlideView = slideView };
             var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
 
             if (result == null)
@@ -71,6 +72,66 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
             return WithVersionWarning(JsonSerializer.Serialize(
                 new ErrorResponse { Success = false, Error = $"{ex.GetType().Name}: {ex.Message}" },
                 PipeJsonContext.Default.ErrorResponse));
+        }
+    }
+
+    [McpServerTool(Name = "slide_control"), Description("Control slide navigation in MarkdownPointer. Requires a file to be open in slide view (use show_markdown with slideView=true first). Returns current slide content and next slide content for presentation narration.")]
+    public async Task<string> SlideControl(
+        [Description("Slide action: 'next', 'prev', 'first', 'last', or 'goto'")] string action,
+        [Description("Slide index for 'goto' action (0-based)")] int? index = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var message = new PipeCommand
+            {
+                Command = "slideControl",
+                SlideAction = action,
+                SlideIndex = index
+            };
+            var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
+
+            if (result == null)
+            {
+                return WithVersionWarning(JsonSerializer.Serialize(
+                    new SlideControlResponse { Success = false, Error = "Failed to communicate with MarkdownPointer" },
+                    PipeJsonContext.Default.SlideControlResponse));
+            }
+
+            // Extract slide state from pipe response
+            var root = result.RootElement;
+            var success = root.GetProperty("success").GetBoolean();
+
+            if (!success)
+            {
+                var error = root.TryGetProperty("error", out var errProp) ? errProp.GetString() : "Unknown error";
+                return WithVersionWarning(JsonSerializer.Serialize(
+                    new SlideControlResponse { Success = false, Error = error },
+                    PipeJsonContext.Default.SlideControlResponse));
+            }
+
+            if (root.TryGetProperty("slideState", out var stateProp) && stateProp.ValueKind != JsonValueKind.Null)
+            {
+                var response = new SlideControlResponse
+                {
+                    Success = true,
+                    CurrentIndex = stateProp.TryGetProperty("currentIndex", out var ci) ? ci.GetInt32() : 0,
+                    TotalSlides = stateProp.TryGetProperty("totalSlides", out var ts) ? ts.GetInt32() : 0,
+                    CurrentContent = stateProp.TryGetProperty("currentContent", out var cc) ? cc.GetString() ?? "" : "",
+                    NextContent = stateProp.TryGetProperty("nextContent", out var nc) && nc.ValueKind != JsonValueKind.Null ? nc.GetString() : null
+                };
+                return WithVersionWarning(JsonSerializer.Serialize(response, PipeJsonContext.Default.SlideControlResponse));
+            }
+
+            return WithVersionWarning(JsonSerializer.Serialize(
+                new SlideControlResponse { Success = false, Error = "No slide state returned" },
+                PipeJsonContext.Default.SlideControlResponse));
+        }
+        catch (Exception ex)
+        {
+            return WithVersionWarning(JsonSerializer.Serialize(
+                new SlideControlResponse { Success = false, Error = $"{ex.GetType().Name}: {ex.Message}" },
+                PipeJsonContext.Default.SlideControlResponse));
         }
     }
 

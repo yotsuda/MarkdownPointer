@@ -67,6 +67,36 @@ namespace MarkdownPointer
             }
         }
 
+        public void SetSlideView(TabItemData tab, bool slideView)
+        {
+            if (tab.IsSlideView == slideView) return;
+            tab.IsSlideView = slideView;
+            UpdateSlideViewButton(tab);
+            SlideViewToggle.IsChecked = slideView;
+            RenderMarkdown(tab, viewToggle: true);
+        }
+
+        public async Task<SlideStateInfo?> GetSlideStateAsync(TabItemData tab)
+        {
+            if (!tab.IsInitialized || tab.WebView.CoreWebView2 == null || !tab.IsSlideView)
+                return null;
+
+            try
+            {
+                var json = await tab.WebView.CoreWebView2.ExecuteScriptAsync("getSlideState()");
+                if (json == "null" || string.IsNullOrEmpty(json))
+                    return null;
+
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var state = System.Text.Json.JsonSerializer.Deserialize<SlideStateInfo>(json, options);
+                return state;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         #endregion
 
         #region Tab Lifecycle

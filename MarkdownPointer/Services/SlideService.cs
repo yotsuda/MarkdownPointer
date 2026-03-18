@@ -376,6 +376,29 @@ document.addEventListener('DOMContentLoaded', function() {{
     }});
 }});
 
+// Slide state query for MCP control
+// Returns a plain object (ExecuteScriptAsync will JSON-serialize it)
+function getSlideState() {{
+    if (typeof Reveal === 'undefined' || !Reveal.isReady()) return null;
+    var total = Reveal.getTotalSlides();
+    var current = Reveal.getCurrentSlide();
+    var currentText = current ? current.textContent.trim().substring(0, 500) : '';
+
+    var nextText = null;
+    var slides = Reveal.getSlides();
+    var currentIdx = slides.indexOf(current);
+    if (currentIdx >= 0 && currentIdx + 1 < slides.length) {{
+        nextText = slides[currentIdx + 1].textContent.trim().substring(0, 500);
+    }}
+
+    return {{
+        currentIndex: currentIdx,
+        totalSlides: total,
+        currentContent: currentText,
+        nextContent: nextText
+    }};
+}}
+
 // Signal render completion
 window.addEventListener('load', function() {{
     window.chrome.webview.postMessage('render-complete:[]');
