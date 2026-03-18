@@ -13,6 +13,13 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 {
     private readonly NamedPipeClient _pipeClient = pipeClient;
 
+    private static readonly JsonSerializerOptions Utf8JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
     private static string WithVersionWarning(string response)
     {
         if (Program.VersionWarning == null) return response;
@@ -95,7 +102,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
             {
                 return WithVersionWarning(JsonSerializer.Serialize(
                     new SlideControlResponse { Success = false, Error = "Failed to communicate with MarkdownPointer" },
-                    PipeJsonContext.Default.SlideControlResponse));
+                    Utf8JsonOptions));
             }
 
             // Extract slide state from pipe response
@@ -107,7 +114,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
                 var error = root.TryGetProperty("error", out var errProp) ? errProp.GetString() : "Unknown error";
                 return WithVersionWarning(JsonSerializer.Serialize(
                     new SlideControlResponse { Success = false, Error = error },
-                    PipeJsonContext.Default.SlideControlResponse));
+                    Utf8JsonOptions));
             }
 
             if (root.TryGetProperty("slideState", out var stateProp) && stateProp.ValueKind != JsonValueKind.Null)
@@ -120,18 +127,18 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
                     CurrentContent = stateProp.TryGetProperty("currentContent", out var cc) ? cc.GetString() ?? "" : "",
                     NextContent = stateProp.TryGetProperty("nextContent", out var nc) && nc.ValueKind != JsonValueKind.Null ? nc.GetString() : null
                 };
-                return WithVersionWarning(JsonSerializer.Serialize(response, PipeJsonContext.Default.SlideControlResponse));
+                return WithVersionWarning(JsonSerializer.Serialize(response, Utf8JsonOptions));
             }
 
             return WithVersionWarning(JsonSerializer.Serialize(
                 new SlideControlResponse { Success = false, Error = "No slide state returned" },
-                PipeJsonContext.Default.SlideControlResponse));
+                Utf8JsonOptions));
         }
         catch (Exception ex)
         {
             return WithVersionWarning(JsonSerializer.Serialize(
                 new SlideControlResponse { Success = false, Error = $"{ex.GetType().Name}: {ex.Message}" },
-                PipeJsonContext.Default.SlideControlResponse));
+                Utf8JsonOptions));
         }
     }
 
