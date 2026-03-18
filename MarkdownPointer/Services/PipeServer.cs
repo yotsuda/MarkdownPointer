@@ -425,7 +425,7 @@ public class PipeServer : IDisposable
             for (int tabIdx = 0; tabIdx < tabs.Count; tabIdx++)
             {
                 var tab = tabs[tabIdx];
-                tabInfos.Add(new TabInfo
+                var tabInfo = new TabInfo
                 {
                     Index = tabIdx,
                     Title = tab.Title,
@@ -433,13 +433,33 @@ public class PipeServer : IDisposable
                     IsSelected = tabIdx == selectedIndex,
                     IsSlideView = tab.IsSlideView,
                     Errors = tab.LastRenderErrors.Count > 0 ? tab.LastRenderErrors.ToArray() : null
-                });
+                };
 
-                // Get slide state for the active slide tab
-                if (tabIdx == selectedIndex && tab.IsSlideView)
+                if (tabIdx == selectedIndex)
                 {
-                    slideState = await window.GetSlideStateAsync(tab);
+                    // Get current visible line for the selected tab
+                    if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+                    {
+                        try
+                        {
+                            var lineJs = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                                "(function(){var els=document.querySelectorAll('[data-line]');" +
+                                "for(var i=0;i<els.length;i++){var r=els[i].getBoundingClientRect();" +
+                                "if(r.bottom>0&&r.top<window.innerHeight)return parseInt(els[i].getAttribute('data-line'));}" +
+                                "return null;})()");
+                            if (lineJs != "null" && int.TryParse(lineJs, out var line))
+                                tabInfo.CurrentLine = line;
+                        }
+                        catch { }
+                    }
+
+                    if (tab.IsSlideView)
+                    {
+                        slideState = await window.GetSlideStateAsync(tab);
+                    }
                 }
+
+                tabInfos.Add(tabInfo);
             }
 
             windowInfos.Add(new WindowInfo { Index = winIdx, Tabs = tabInfos.ToArray() });
@@ -543,6 +563,7 @@ public class TabInfo
     public string Path { get; set; } = "";
     public bool IsSelected { get; set; }
     public bool IsSlideView { get; set; }
+    public int? CurrentLine { get; set; }
     public string[]? Errors { get; set; }
 }
 
