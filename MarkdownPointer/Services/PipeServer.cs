@@ -134,6 +134,9 @@ public class PipeServer : IDisposable
             case "activate":
                 return HandleActivate(windows);
 
+            case "status":
+                return await HandleStatusAsync(windows);
+
             case "slideControl":
                 return await HandleSlideControlAsync(message, windows);
 
@@ -407,6 +410,49 @@ public class PipeServer : IDisposable
         return new PipeResponse { Success = true, SlideState = slideState };
     }
 
+    private static async Task<PipeResponse> HandleStatusAsync(List<MainWindow> windows)
+    {
+        var windowInfos = new List<WindowInfo>();
+        SlideStateInfo? slideState = null;
+
+        for (int winIdx = 0; winIdx < windows.Count; winIdx++)
+        {
+            var window = windows[winIdx];
+            var tabs = window.GetTabs();
+            var selectedIndex = window.GetSelectedTabIndex();
+            var tabInfos = new List<TabInfo>();
+
+            for (int tabIdx = 0; tabIdx < tabs.Count; tabIdx++)
+            {
+                var tab = tabs[tabIdx];
+                tabInfos.Add(new TabInfo
+                {
+                    Index = tabIdx,
+                    Title = tab.Title,
+                    Path = tab.FilePath,
+                    IsSelected = tabIdx == selectedIndex,
+                    IsSlideView = tab.IsSlideView,
+                    Errors = tab.LastRenderErrors.Count > 0 ? tab.LastRenderErrors.ToArray() : null
+                });
+
+                // Get slide state for the active slide tab
+                if (tabIdx == selectedIndex && tab.IsSlideView)
+                {
+                    slideState = await window.GetSlideStateAsync(tab);
+                }
+            }
+
+            windowInfos.Add(new WindowInfo { Index = winIdx, Tabs = tabInfos.ToArray() });
+        }
+
+        return new PipeResponse
+        {
+            Success = true,
+            Windows = windowInfos.ToArray(),
+            SlideState = slideState
+        };
+    }
+
     private static PipeResponse HandleActivate(List<MainWindow> windows)
     {
         var mainWindow = windows.FirstOrDefault();
@@ -496,6 +542,7 @@ public class TabInfo
     public string Title { get; set; } = "";
     public string Path { get; set; } = "";
     public bool IsSelected { get; set; }
+    public bool IsSlideView { get; set; }
     public string[]? Errors { get; set; }
 }
 

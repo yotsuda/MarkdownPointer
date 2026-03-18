@@ -82,6 +82,36 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
         }
     }
 
+    [McpServerTool(Name = "get_status"), Description("Get current MarkdownPointer status: open windows, tabs, selected file, and slide state if in slide view. Use this to check what the user is viewing before taking action.")]
+    public async Task<string> GetStatus(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var message = new PipeCommand { Command = "status" };
+            var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
+
+            if (result == null)
+            {
+                return WithVersionWarning(JsonSerializer.Serialize(
+                    new ErrorResponse
+                    {
+                        Success = false,
+                        Error = "Failed to communicate with MarkdownPointer",
+                        ViewerRunning = _pipeClient.IsViewerRunning()
+                    },
+                    PipeJsonContext.Default.ErrorResponse));
+            }
+
+            return WithVersionWarning(result.RootElement.GetRawText());
+        }
+        catch (Exception ex)
+        {
+            return WithVersionWarning(JsonSerializer.Serialize(
+                new ErrorResponse { Success = false, Error = $"{ex.GetType().Name}: {ex.Message}" },
+                PipeJsonContext.Default.ErrorResponse));
+        }
+    }
+
     [McpServerTool(Name = "slide_control"), Description("Control slide navigation in MarkdownPointer. Requires a file to be open in slide view (use show_markdown with slideView=true first). Returns current slide content and next slide content for presentation narration.")]
     public async Task<string> SlideControl(
         [Description("Slide action: 'next', 'prev', 'first', 'last', or 'goto'")] string action,
