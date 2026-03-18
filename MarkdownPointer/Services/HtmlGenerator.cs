@@ -9,7 +9,7 @@ namespace MarkdownPointer.Services
     /// <summary>
     /// Generates HTML content from Markdown source.
     /// </summary>
-    public partial class HtmlGenerator
+    public class HtmlGenerator
     {
         private readonly MarkdownPipeline _pipeline;
 
