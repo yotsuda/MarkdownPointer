@@ -62,16 +62,6 @@
             </Canvas>
         </Grid>
 
-        <!-- Scroll mode overlay -->
-        <Border x:Name="DragOverlay" Grid.Row="0"
-                Background="#01000000" 
-                Visibility="Collapsed"
-                Margin="0,22,0,0"
-                MouseLeftButtonDown="DragOverlay_MouseLeftButtonDown" MouseMove="DragOverlay_MouseMove" MouseLeftButtonUp="DragOverlay_MouseLeftButtonUp"
-                PreviewMouseWheel="DragOverlay_PreviewMouseWheel"
-                MouseRightButtonUp="DragOverlay_MouseRightButtonUp"
-                />
-
         <!-- Placeholder when no file is loaded -->
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40,0">

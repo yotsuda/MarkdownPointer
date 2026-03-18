@@ -356,11 +356,11 @@ namespace MarkdownPointer
 
         private void HandlePointingModeClick(TabItemData tab, string data)
         {
-            var parts = data.Split('|');
+            var parts = data.Split('|', 2);
             if (parts.Length >= 2)
             {
                 var line = parts[0];
-                var elementContent = parts.Length > 1 ? parts[1] : "";
+                var elementContent = parts[1];
                 var reference = $"[{tab.FilePath}:{line}] {elementContent}";
                 Clipboard.SetText(reference);
                 ShowStatusMessage("✓ Ref copied - Paste into prompt to point AI here", 3.0);

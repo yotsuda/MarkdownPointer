@@ -18,6 +18,8 @@ namespace MarkdownPointer
         /// </summary>
         internal static CoreWebView2Environment? PreCreatedWebView2Environment { get; private set; }
 
+        private static readonly SemaphoreSlim _webView2EnvLock = new(1, 1);
+
         internal static string WebView2UserDataFolder =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MarkdownPointer");
 
@@ -25,9 +27,19 @@ namespace MarkdownPointer
         {
             if (PreCreatedWebView2Environment != null)
                 return PreCreatedWebView2Environment;
-            var env = await CoreWebView2Environment.CreateAsync(null, WebView2UserDataFolder);
-            PreCreatedWebView2Environment ??= env;
-            return PreCreatedWebView2Environment;
+
+            await _webView2EnvLock.WaitAsync();
+            try
+            {
+                if (PreCreatedWebView2Environment != null)
+                    return PreCreatedWebView2Environment;
+                PreCreatedWebView2Environment = await CoreWebView2Environment.CreateAsync(null, WebView2UserDataFolder);
+                return PreCreatedWebView2Environment;
+            }
+            finally
+            {
+                _webView2EnvLock.Release();
+            }
         }
 
         protected override void OnStartup(StartupEventArgs e)

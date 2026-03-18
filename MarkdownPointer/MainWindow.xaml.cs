@@ -74,10 +74,6 @@ namespace MarkdownPointer
         private int _spinnerFrame;
         private Point _contextMenuPosition;
 
-        // Document scroll state (for drag mode)
-        private bool _isDocumentScrolling = false;
-        private Point _scrollStartPoint;
-
         // Tab drag state
         private Point _tabDragStartPoint;
         private Point _dragStartCursorPos;

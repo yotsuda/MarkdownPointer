@@ -82,12 +82,20 @@ public class PipeServer : IDisposable
         {
             using (server)
             {
+                // Read full message (may arrive in multiple chunks)
+                using var ms = new MemoryStream();
                 var buffer = new byte[BufferSize];
-                var bytesRead = await server.ReadAsync(buffer, ct);
-
-                if (bytesRead > 0)
+                int bytesRead;
+                do
                 {
-                    var json = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    bytesRead = await server.ReadAsync(buffer, ct);
+                    if (bytesRead > 0)
+                        ms.Write(buffer, 0, bytesRead);
+                } while (bytesRead == buffer.Length);
+
+                if (ms.Length > 0)
+                {
+                    var json = Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
                     var message = JsonSerializer.Deserialize<PipeMessage>(json);
 
                     if (message != null)
@@ -352,6 +360,11 @@ public class PipeServer : IDisposable
             var json = JsonSerializer.Serialize(message);
             var bytes = Encoding.UTF8.GetBytes(json);
             client.Write(bytes, 0, bytes.Length);
+            client.Flush();
+
+            // Read response so the server-side write completes before pipe is closed
+            var buffer = new byte[BufferSize];
+            _ = client.Read(buffer, 0, buffer.Length);
         }
         catch
         {

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Web.WebView2.Wpf;
@@ -22,10 +23,12 @@ namespace MarkdownPointer.Services
         /// </summary>
         public async Task CopyMermaidSvgAsync(WebView2 webView, Point position)
         {
+            var px = position.X.ToString(CultureInfo.InvariantCulture);
+            var py = position.Y.ToString(CultureInfo.InvariantCulture);
             var script = $@"
                 (function() {{
-                    var x = {position.X};
-                    var y = {position.Y};
+                    var x = {px};
+                    var y = {py};
                     var element = document.elementFromPoint(x, y);
                     var mermaidDiv = element ? element.closest('.mermaid') : null;
                     if (!mermaidDiv) return '';
@@ -113,10 +116,12 @@ namespace MarkdownPointer.Services
             webView.CoreWebView2.WebMessageReceived += handler;
             try
             {
+                var px = position.X.ToString(CultureInfo.InvariantCulture);
+                var py = position.Y.ToString(CultureInfo.InvariantCulture);
                 var script = $@"
                     (async function() {{
-                        var x = {position.X};
-                        var y = {position.Y};
+                        var x = {px};
+                        var y = {py};
                         var element = document.elementFromPoint(x, y);
                         var mathEl = element ? element.closest('.katex') : null;
                         if (!mathEl) {{
@@ -273,10 +278,12 @@ namespace MarkdownPointer.Services
 
         private static string BuildMermaidPngScript(Point position)
         {
+            var px = position.X.ToString(CultureInfo.InvariantCulture);
+            var py = position.Y.ToString(CultureInfo.InvariantCulture);
             return $@"
                 (async function() {{
-                    var x = {position.X};
-                    var y = {position.Y};
+                    var x = {px};
+                    var y = {py};
                     var element = document.elementFromPoint(x, y);
                     var mermaidDiv = element ? element.closest('.mermaid') : null;
                     if (!mermaidDiv) {{ window.chrome.webview.postMessage('PNG:'); return; }}

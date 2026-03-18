@@ -9,9 +9,27 @@ namespace MarkdownPointer.Services
     /// <summary>
     /// Generates HTML content from Markdown source.
     /// </summary>
-    public class HtmlGenerator
+    public partial class HtmlGenerator
     {
         private readonly MarkdownPipeline _pipeline;
+
+        // Pre-compiled regex patterns for image inlining
+        private static readonly Regex LocalImagePattern = new(
+            @"(<img\s+[^>]*?src\s*=\s*[""'])([^""']+?)([""'][^>]*?/?>)",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+
+        private static readonly Regex SvgImagePattern = new(
+            @"<img\s+([^>]*?)src\s*=\s*[""']([^""']+\.svg)(?:\?[^""']*)?[""']([^>]*?)\/?>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+
+        private static readonly Regex XmlDeclarationPattern = new(
+            @"<\?xml[^?]*\?>\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex AltAttributePattern = new(
+            @"alt\s*=\s*[""']([^""']*)[""']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex SvgOpenTagPattern = new(
+            @"(<svg\s)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public HtmlGenerator(MarkdownPipeline pipeline)
         {
@@ -112,11 +130,7 @@ namespace MarkdownPointer.Services
         /// </summary>
         private static string InlineLocalImages(string html, string baseDir)
         {
-            var imgPattern = new Regex(
-                @"(<img\s+[^>]*?src\s*=\s*[""'])([^""']+?)([""'][^>]*?/?>)",
-                RegexOptions.IgnoreCase | RegexOptions.Singleline);
-
-            return imgPattern.Replace(html, match =>
+            return LocalImagePattern.Replace(html, match =>
             {
                 var prefix = match.Groups[1].Value;
                 var src = match.Groups[2].Value;
@@ -165,12 +179,7 @@ namespace MarkdownPointer.Services
         /// </summary>
         private static string InlineSvgImages(string html, string baseDir)
         {
-            // Match <img> tags with .svg extension
-            var imgPattern = new Regex(
-                @"<img\s+([^>]*?)src\s*=\s*[""']([^""']+\.svg)(?:\?[^""']*)?[""']([^>]*?)\/?>",
-                RegexOptions.IgnoreCase | RegexOptions.Singleline);
-
-            return imgPattern.Replace(html, match =>
+            return SvgImagePattern.Replace(html, match =>
             {
                 var beforeSrc = match.Groups[1].Value;
                 var svgPath = match.Groups[2].Value;
@@ -197,26 +206,26 @@ namespace MarkdownPointer.Services
                     var svgContent = File.ReadAllText(fullPath);
 
                     // Remove XML declaration if present
-                    svgContent = Regex.Replace(svgContent, @"<\?xml[^?]*\?>\s*", "", RegexOptions.IgnoreCase);
+                    svgContent = XmlDeclarationPattern.Replace(svgContent, "");
 
                     // Extract alt attribute for aria-label
-                    var altMatch = Regex.Match(beforeSrc + afterSrc, @"alt\s*=\s*[""']([^""']*)[""']", RegexOptions.IgnoreCase);
+                    var altMatch = AltAttributePattern.Match(beforeSrc + afterSrc);
                     if (altMatch.Success)
                     {
                         var altText = altMatch.Groups[1].Value;
-                        svgContent = Regex.Replace(svgContent, @"(<svg\s)", $"$1aria-label=\"{altText}\" ", RegexOptions.IgnoreCase);
+                        svgContent = SvgOpenTagPattern.Replace(svgContent, $"$1aria-label=\"{altText}\" ");
                     }
 
                     // Add class for styling
-                    svgContent = Regex.Replace(svgContent, @"(<svg\s)", "$1class=\"inlined-svg\" ", RegexOptions.IgnoreCase);
+                    svgContent = SvgOpenTagPattern.Replace(svgContent, "$1class=\"inlined-svg\" ");
 
                     // Add data-original-src for reference
-                    svgContent = Regex.Replace(svgContent, @"(<svg\s)", $"$1data-original-src=\"{svgPath}\" ", RegexOptions.IgnoreCase);
+                    svgContent = SvgOpenTagPattern.Replace(svgContent, $"$1data-original-src=\"{svgPath}\" ");
 
                     // Ensure responsive sizing
                     if (!svgContent.Contains("style="))
                     {
-                        svgContent = Regex.Replace(svgContent, @"(<svg\s)", "$1style=\"max-width:100%;height:auto\" ", RegexOptions.IgnoreCase);
+                        svgContent = SvgOpenTagPattern.Replace(svgContent, "$1style=\"max-width:100%;height:auto\" ");
                     }
 
                     return svgContent;

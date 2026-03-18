@@ -140,6 +140,7 @@ namespace MarkdownPointer.Models
             Watcher?.Dispose();
             DebounceTimer?.Stop();
             WebView?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

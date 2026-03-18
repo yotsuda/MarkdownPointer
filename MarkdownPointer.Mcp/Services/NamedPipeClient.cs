@@ -38,23 +38,32 @@ public class NamedPipeClient
         // Retry loop: connect and send command directly (no separate probe step).
         // ConnectAsync waits for the pipe to become available, so this handles
         // both the "viewer just started" and "viewer already running" cases.
-        for (int retry = 0; retry < 50; retry++)
+        // 15 retries × 500ms timeout = ~7.5s max wait (enough for viewer cold start).
+        const int maxRetries = 15;
+        for (int retry = 0; retry < maxRetries; retry++)
         {
             try
             {
                 using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
-                await client.ConnectAsync(200, cancellationToken);
+                await client.ConnectAsync(500, cancellationToken);
 
                 await client.WriteAsync(bytes, cancellationToken);
                 await client.FlushAsync(cancellationToken);
 
-                // Read response
+                // Read full response (may arrive in multiple chunks)
+                using var ms = new MemoryStream();
                 var buffer = new byte[BufferSize];
-                var bytesRead = await client.ReadAsync(buffer, cancellationToken);
-
-                if (bytesRead > 0)
+                int bytesRead;
+                do
                 {
-                    var responseJson = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    bytesRead = await client.ReadAsync(buffer, cancellationToken);
+                    if (bytesRead > 0)
+                        ms.Write(buffer, 0, bytesRead);
+                } while (bytesRead == buffer.Length);
+
+                if (ms.Length > 0)
+                {
+                    var responseJson = Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
                     return JsonDocument.Parse(responseJson);
                 }
 
@@ -67,11 +76,12 @@ public class NamedPipeClient
             catch (Exception ex)
             {
                 lastException = ex;
+                Debug.WriteLine($"Pipe connect attempt {retry + 1}/{maxRetries} failed: {ex.Message}");
             }
         }
 
         throw new InvalidOperationException(
-            $"Failed to communicate with MarkdownPointer after multiple attempts: {lastException?.Message}",
+            $"Failed to communicate with MarkdownPointer after {maxRetries} attempts: {lastException?.Message}",
             lastException);
     }
 
