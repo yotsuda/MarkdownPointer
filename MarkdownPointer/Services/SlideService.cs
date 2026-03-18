@@ -376,6 +376,28 @@ document.addEventListener('DOMContentLoaded', function() {{
     }});
 }});
 
+// Auto-fit: scale down slides whose content overflows
+function autoFitSlides() {{
+    if (typeof Reveal === 'undefined' || !Reveal.isReady()) return;
+    var slides = Reveal.getSlides();
+    slides.forEach(function(slide) {{
+        // Reset any previous scaling
+        slide.style.transform = '';
+        slide.style.transformOrigin = '';
+        // Compare content height to slide viewport height
+        var viewportH = Reveal.getConfig().height || slide.parentElement.clientHeight || 700;
+        var contentH = slide.scrollHeight;
+        if (contentH > viewportH) {{
+            var scale = viewportH / contentH;
+            // Don't scale below 50% — content would be unreadable
+            scale = Math.max(scale, 0.5);
+            slide.style.transform = 'scale(' + scale + ')';
+            slide.style.transformOrigin = 'top left';
+            slide.style.width = (100 / scale) + '%';
+        }}
+    }});
+}}
+
 // Slide state query for MCP control
 // Returns a plain object (ExecuteScriptAsync will JSON-serialize it)
 function getSlideState() {{
@@ -383,6 +405,7 @@ function getSlideState() {{
     var total = Reveal.getTotalSlides();
     var current = Reveal.getCurrentSlide();
     var currentText = current ? current.textContent.trim().substring(0, 500) : '';
+    var overflowed = current ? (current.scrollHeight > (Reveal.getConfig().height || 700)) : false;
 
     var nextText = null;
     var slides = Reveal.getSlides();
@@ -395,13 +418,18 @@ function getSlideState() {{
         currentIndex: currentIdx,
         totalSlides: total,
         currentContent: currentText,
-        nextContent: nextText
+        nextContent: nextText,
+        overflowed: overflowed
     }};
 }}
 
-// Signal render completion
+// Signal render completion and auto-fit
 window.addEventListener('load', function() {{
-    window.chrome.webview.postMessage('render-complete:[]');
+    // Delay to ensure Reveal.js has fully laid out slides
+    setTimeout(function() {{
+        autoFitSlides();
+        window.chrome.webview.postMessage('render-complete:[]');
+    }}, 300);
 }});
 </script>";
 

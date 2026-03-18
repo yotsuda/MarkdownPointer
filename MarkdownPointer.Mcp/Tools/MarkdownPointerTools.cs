@@ -33,7 +33,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
     public async Task<string> ShowMarkdown(
         [Description("Path(s) to the Markdown file(s) to open")] string[] paths,
         [Description("Optional line number to scroll to in the last opened file")] int? line = null,
-        [Description("Open in slide view mode (reveal.js). Enables slide_control navigation.")] bool? slideView = null,
+        [Description("Open in slide view mode (reveal.js). Enables slide_control navigation. Keep each slide short (5-7 bullet points max) to avoid overflow.")] bool? slideView = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -125,7 +125,8 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
                     CurrentIndex = stateProp.TryGetProperty("currentIndex", out var ci) ? ci.GetInt32() : 0,
                     TotalSlides = stateProp.TryGetProperty("totalSlides", out var ts) ? ts.GetInt32() : 0,
                     CurrentContent = stateProp.TryGetProperty("currentContent", out var cc) ? cc.GetString() ?? "" : "",
-                    NextContent = stateProp.TryGetProperty("nextContent", out var nc) && nc.ValueKind != JsonValueKind.Null ? nc.GetString() : null
+                    NextContent = stateProp.TryGetProperty("nextContent", out var nc) && nc.ValueKind != JsonValueKind.Null ? nc.GetString() : null,
+                    Overflowed = stateProp.TryGetProperty("overflowed", out var ov) && ov.GetBoolean()
                 };
                 return WithVersionWarning(JsonSerializer.Serialize(response, Utf8JsonOptions));
             }

@@ -80,6 +80,9 @@ public class SlideControlResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? NextContent { get; set; }
 
+    [JsonPropertyName("overflowed")]
+    public bool Overflowed { get; set; }
+
     [JsonPropertyName("error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Error { get; set; }

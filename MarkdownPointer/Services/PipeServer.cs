@@ -473,6 +473,7 @@ public class SlideStateInfo
     public int TotalSlides { get; set; }
     public string CurrentContent { get; set; } = "";
     public string? NextContent { get; set; }
+    public bool Overflowed { get; set; }
 }
 
 public class OpenedTabInfo
