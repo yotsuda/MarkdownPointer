@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using MarkdownPointer.Models;
@@ -341,20 +342,42 @@ namespace MarkdownPointer
             }
         }
 
-        private void OpenInCodeButton_Click(object sender, RoutedEventArgs e)
+        private async void OpenInCodeButton_Click(object sender, RoutedEventArgs e)
         {
             if (FileTabControl.SelectedItem is TabItemData tab && !string.IsNullOrEmpty(tab.FilePath))
             {
                 try
                 {
+                    var target = tab.FilePath;
+                    if (tab.WebView?.CoreWebView2 != null)
+                    {
+                        var result = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                            @"(function() {
+                                var elems = document.querySelectorAll('[data-line]');
+                                var best = null;
+                                var bestTop = Infinity;
+                                for (var i = 0; i < elems.length; i++) {
+                                    var rect = elems[i].getBoundingClientRect();
+                                    if (rect.height === 0) continue;
+                                    var top = Math.abs(rect.top);
+                                    if (rect.top >= 0) { best = elems[i]; break; }
+                                    if (rect.bottom > 0 && top < bestTop) { bestTop = top; best = elems[i]; }
+                                }
+                                return best ? best.getAttribute('data-line') : null;
+                            })()");
+                        if (result != "null" && int.TryParse(result.Trim('"'), out var ln))
+                        {
+                            target = $"{tab.FilePath}:{ln}";
+                        }
+                    }
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = "cmd.exe",
-                        Arguments = $"/c code \"{tab.FilePath}\"",
+                        Arguments = $"/c code -g \"{target}\"",
                         UseShellExecute = false,
                         CreateNoWindow = true
                     });
-                    ShowStatusMessage("✓ Opened in VS Code");
+                    ShowStatusMessage($"✓ Opened in VS Code at L{(target.Contains(':') ? target.Substring(target.LastIndexOf(':') + 1) : "1")}");
                 }
                 catch (Exception ex)
                 {
@@ -516,6 +539,36 @@ namespace MarkdownPointer
                     ShowStatusMessage($"✗ Failed: {ex.Message}");
                 }
             }
+        }
+
+        #endregion
+
+        #region Placeholder Title
+
+        private void PlaceholderTitle_Click(object sender, MouseButtonEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo("https://github.com/yotsuda/MarkdownPointer#readme") { UseShellExecute = true });
+        }
+
+        #endregion
+
+        #region Hyperlink
+
+        private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            e.Handled = true;
+        }
+
+        private void Hyperlink_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is Hyperlink hl && hl.NavigateUri != null)
+                LinkStatusText.Text = hl.NavigateUri.AbsoluteUri;
+        }
+
+        private void Hyperlink_MouseLeave(object sender, MouseEventArgs e)
+        {
+            LinkStatusText.Text = "";
         }
 
         #endregion

@@ -479,13 +479,20 @@ namespace MarkdownPointer
         private void RecentLink_MouseEnter(object sender, MouseEventArgs e)
         {
             if (sender is TextBlock tb)
+            {
                 tb.TextDecorations = TextDecorations.Underline;
+                if (tb.Tag is string path)
+                    LinkStatusText.Text = path;
+            }
         }
 
         private void RecentLink_MouseLeave(object sender, MouseEventArgs e)
         {
             if (sender is TextBlock tb)
+            {
                 tb.TextDecorations = null;
+                LinkStatusText.Text = "";
+            }
         }
 
         private void OpenRecentFile(string path)
