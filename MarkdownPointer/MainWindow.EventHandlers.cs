@@ -558,15 +558,6 @@ namespace MarkdownPointer
 
         #endregion
 
-        #region Placeholder Title
-
-        private void PlaceholderTitle_Click(object sender, MouseButtonEventArgs e)
-        {
-            Process.Start(new ProcessStartInfo("https://github.com/yotsuda/MarkdownPointer#readme") { UseShellExecute = true });
-        }
-
-        #endregion
-
         #region Hyperlink
 
         private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)

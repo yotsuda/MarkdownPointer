@@ -44,6 +44,15 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.9.0
+- Redesign welcome screen: action-first layout with recent folders/files front and center
+- VS Code button opens at the current viewport line (code -g)
+- Show full path in status bar when hovering recent items and hyperlinks
+- Fix arrow key slide navigation not working after button click
+- Disable slide view button when no file is open
+- Increase max recent folders from 5 to 10
+- Pre-compile SlideService regexes, fix null baseDir, block path traversal
+
 0.8.0
 - Slide view: toggle with 🎞 button to preview Markdown as reveal.js slides (Pandoc)
 - Slide themes: right-click 🎞 to choose from 12 reveal.js themes
