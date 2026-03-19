@@ -10,6 +10,11 @@ Vibe editing for Markdown. Point at anything, tell AI to fix it.
 Click any element in the rendered preview to copy a location reference:
   "Rewrite this: [C:\docs\notes.md:42] ## My Section"
 
+Prompt examples:
+  "Fix the grammar here [ref]"
+  "Translate this section to Japanese [ref]"
+  "Add a code example after this section [ref]"
+
 Renders Markdown with Mermaid diagrams, KaTeX math, and SVG. Includes MCP server for Claude Code / Claude Desktop.
 
 Requirements:
@@ -32,9 +37,6 @@ Example prompts for AI:
   "open README.md in mdp"
   "show the report in mdp and scroll to line 50"
   "export report.md to docx"
-  "Fix the grammar here [ref]"
-  "Translate this section to Japanese [ref]"
-  "Add a code example after this section [ref]"
 '@
     PowerShellVersion = '7.4'
     FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerMCPPath', 'ConvertTo-Docx')

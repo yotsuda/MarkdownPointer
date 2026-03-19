@@ -496,25 +496,56 @@ namespace MarkdownPointer
 
                 StartSpinner($"Exporting {ext}");
 
-                (bool success, string? error) result;
-                if (ext == ".pptx")
-                    result = await SlideService.ExportPptxAsync(tab.FilePath, dialog.FileName, templatePath);
-                else
-                    result = await PandocService.ConvertAsync(tab.FilePath, dialog.FileName, templatePath);
-
-                StopSpinner();
-
-                if (result.success)
+                string? tempDir = null;
+                var markdownPath = tab.FilePath;
+                try
                 {
-                    ShowStatusMessage($"✓ Exported {ext}");
-                    var exportedPath = dialog.FileName;
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-                    timer.Tick += (_, _) => { timer.Stop(); Process.Start("explorer.exe", $"/select,\"{exportedPath}\""); };
-                    timer.Start();
+                    // Pre-process: render Mermaid diagrams as PNG for docx export
+                    if (ext == ".docx" && tab.WebView?.CoreWebView2 != null)
+                    {
+                        var mdContent = await File.ReadAllTextAsync(tab.FilePath);
+                        if (mdContent.Contains("```mermaid"))
+                        {
+                            tempDir = Path.Combine(Path.GetTempPath(), $"mdp_mermaid_{Guid.NewGuid():N}");
+                            Directory.CreateDirectory(tempDir);
+
+                            var pngs = await _mermaidExportService.CaptureAllMermaidPngsAsync(tab.WebView, tempDir);
+                            if (pngs.Count > 0)
+                            {
+                                var modifiedMd = MermaidExportService.ReplaceMermaidBlocksWithImages(mdContent, pngs);
+                                markdownPath = Path.Combine(tempDir, "export.md");
+                                await File.WriteAllTextAsync(markdownPath, modifiedMd);
+                            }
+                        }
+                    }
+
+                    (bool success, string? error) result;
+                    if (ext == ".pptx")
+                        result = await SlideService.ExportPptxAsync(tab.FilePath, dialog.FileName, templatePath);
+                    else
+                        result = await PandocService.ConvertAsync(markdownPath, dialog.FileName, templatePath);
+
+                    StopSpinner();
+
+                    if (result.success)
+                    {
+                        ShowStatusMessage($"✓ Exported {ext}");
+                        var exportedPath = dialog.FileName;
+                        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                        timer.Tick += (_, _) => { timer.Stop(); Process.Start("explorer.exe", $"/select,\"{exportedPath}\""); };
+                        timer.Start();
+                    }
+                    else
+                    {
+                        ShowStatusMessage($"✗ Export failed: {result.error}");
+                    }
                 }
-                else
+                finally
                 {
-                    ShowStatusMessage($"✗ Export failed: {result.error}");
+                    if (tempDir != null)
+                    {
+                        try { Directory.Delete(tempDir, true); } catch { }
+                    }
                 }
             }
         }

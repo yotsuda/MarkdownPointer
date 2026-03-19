@@ -53,6 +53,7 @@ namespace MarkdownPointer
         private MarkdownPipeline? _pipeline;
         private HtmlGenerator? _htmlGenerator;
         private readonly ClipboardService _clipboardService;
+        private readonly MermaidExportService _mermaidExportService = new();
         private readonly RecentFilesService _recentFiles = new();
         private readonly ObservableCollection<TabItemData> _tabs = new();
         private bool _suppressCtrlTab;

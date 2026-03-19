@@ -1,0 +1,194 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Threading;
+using Microsoft.Web.WebView2.Wpf;
+
+namespace MarkdownPointer.Services
+{
+    public class MermaidExportService
+    {
+        private static readonly Regex MermaidBlockPattern = new(
+            @"```mermaid\s*\r?\n[\s\S]*?\r?\n```",
+            RegexOptions.Compiled);
+
+        // docx text area is ~15cm ≈ 570px at 96dpi
+        private const int PageWidthPx = 570;
+
+        /// <summary>
+        /// Captures all Mermaid diagrams from the WebView2 as PNG files.
+        /// Returns (filePath, svgWidth) for each diagram.
+        /// </summary>
+        public async Task<List<(string Path, int Width)>> CaptureAllMermaidPngsAsync(WebView2 webView, string tempDir)
+        {
+            var result = new List<(string, int)>();
+            if (webView?.CoreWebView2 == null) return result;
+
+            var countResult = await webView.CoreWebView2.ExecuteScriptAsync(
+                "document.querySelectorAll('.mermaid').length");
+            if (!int.TryParse(countResult, out var count) || count == 0)
+                return result;
+
+            for (int i = 0; i < count; i++)
+            {
+                var pngPath = Path.Combine(tempDir, $"mermaid_{i}.png");
+                var (captured, width) = await CaptureMermaidByIndexAsync(webView, i, pngPath);
+                result.Add(captured ? (pngPath, width) : ("", 0));
+                // Yield to UI thread so spinner can animate
+                await Dispatcher.Yield(DispatcherPriority.Background);
+            }
+
+            return result;
+        }
+
+        private async Task<(bool Captured, int Width)> CaptureMermaidByIndexAsync(WebView2 webView, int index, string outputPath)
+        {
+            var tcs = new TaskCompletionSource<string>();
+            var prefix = $"MERMAID_EXPORT:{index}:";
+
+            void handler(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+            {
+                var msg = e.TryGetWebMessageAsString();
+                if (msg != null && msg.StartsWith(prefix))
+                {
+                    tcs.TrySetResult(msg.Substring(prefix.Length));
+                }
+            }
+
+            webView.CoreWebView2.WebMessageReceived += handler;
+            try
+            {
+                await webView.CoreWebView2.ExecuteScriptAsync(BuildCaptureScript(index));
+
+                var timeoutTask = Task.Delay(10000);
+                var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+                if (completedTask == timeoutTask) return (false, 0);
+
+                var message = await tcs.Task;
+                // Message format: "svgWidth|data:image/png;base64,..."
+                var pipeIdx = message.IndexOf('|');
+                if (pipeIdx < 0) return (false, 0);
+
+                var widthStr = message.Substring(0, pipeIdx);
+                var dataUrl = message.Substring(pipeIdx + 1);
+
+                if (!int.TryParse(widthStr, out var svgWidth)) svgWidth = 0;
+                if (string.IsNullOrEmpty(dataUrl) || !dataUrl.StartsWith("data:image/png;base64,"))
+                    return (false, 0);
+
+                var base64 = dataUrl.Substring("data:image/png;base64,".Length);
+                await Task.Run(async () =>
+                {
+                    var bytes = Convert.FromBase64String(base64);
+                    await File.WriteAllBytesAsync(outputPath, bytes);
+                });
+                return (true, svgWidth);
+            }
+            finally
+            {
+                webView.CoreWebView2.WebMessageReceived -= handler;
+            }
+        }
+
+        private static string BuildCaptureScript(int index)
+        {
+            return $@"
+                (async function() {{
+                    var divs = document.querySelectorAll('.mermaid');
+                    var elem = divs[{index}];
+                    if (!elem) {{ window.chrome.webview.postMessage('MERMAID_EXPORT:{index}:'); return; }}
+
+                    var svg = elem.querySelector('svg');
+                    if (!svg) {{ window.chrome.webview.postMessage('MERMAID_EXPORT:{index}:'); return; }}
+
+                    var vb = svg.getAttribute('viewBox');
+                    var width, height;
+                    if (vb) {{
+                        var parts = vb.split(/[\s,]+/);
+                        width = Math.ceil(parseFloat(parts[2]));
+                        height = Math.ceil(parseFloat(parts[3]));
+                    }} else {{
+                        var bbox = svg.getBoundingClientRect();
+                        width = Math.ceil(bbox.width);
+                        height = Math.ceil(bbox.height);
+                    }}
+
+                    var clonedSvg = svg.cloneNode(true);
+                    clonedSvg.style.width = '';
+                    clonedSvg.style.height = '';
+                    clonedSvg.style.minWidth = '';
+                    clonedSvg.style.maxWidth = '';
+                    clonedSvg.setAttribute('width', width);
+                    clonedSvg.setAttribute('height', height);
+                    clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+                    var css = '';
+                    for (var si = 0; si < document.styleSheets.length; si++) {{
+                        try {{ var rules = document.styleSheets[si].cssRules; for (var ri = 0; ri < rules.length; ri++) css += rules[ri].cssText + ' '; }} catch(e) {{}}
+                    }}
+                    if (css) {{
+                        var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                        styleEl.textContent = css;
+                        clonedSvg.insertBefore(styleEl, clonedSvg.firstChild);
+                    }}
+
+                    var serializer = new XMLSerializer();
+                    var svgStr = serializer.serializeToString(clonedSvg);
+                    var svgBase64 = btoa(unescape(encodeURIComponent(svgStr)));
+                    var dataUrl = 'data:image/svg+xml;base64,' + svgBase64;
+
+                    var canvas = document.createElement('canvas');
+                    canvas.width = width * 2;
+                    canvas.height = height * 2;
+                    var ctx = canvas.getContext('2d');
+                    ctx.scale(2, 2);
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, width, height);
+
+                    var img = new Image();
+                    img.onload = function() {{
+                        ctx.drawImage(img, 0, 0);
+                        window.chrome.webview.postMessage('MERMAID_EXPORT:{index}:' + width + '|' + canvas.toDataURL('image/png'));
+                    }};
+                    img.onerror = function() {{
+                        window.chrome.webview.postMessage('MERMAID_EXPORT:{index}:0|error');
+                    }};
+                    img.src = dataUrl;
+                }})()";
+        }
+
+        /// <summary>
+        /// Replaces mermaid code blocks with image references.
+        /// Adds {width=100%} only when the SVG width exceeds the docx page width.
+        /// </summary>
+        public static string ReplaceMermaidBlocksWithImages(string markdown, IReadOnlyList<(string Path, int Width)> pngs)
+        {
+            int i = 0;
+            return MermaidBlockPattern.Replace(markdown, match =>
+            {
+                if (i < pngs.Count && !string.IsNullOrEmpty(pngs[i].Path))
+                {
+                    var path = pngs[i].Path.Replace("\\", "/");
+                    string widthAttr;
+                    if (pngs[i].Width > PageWidthPx)
+                    {
+                        widthAttr = "{width=100%}";
+                    }
+                    else
+                    {
+                        // Convert SVG px to cm (96 DPI) so 2x PNG displays at correct size
+                        var cm = pngs[i].Width / 96.0 * 2.54;
+                        widthAttr = $"{{width={cm.ToString("F1", CultureInfo.InvariantCulture)}cm}}";
+                    }
+                    i++;
+                    return $"![]({path}){widthAttr}";
+                }
+                i++;
+                return match.Value;
+            });
+        }
+    }
+}
