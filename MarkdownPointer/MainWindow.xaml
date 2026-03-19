@@ -89,20 +89,18 @@
                     <TextBlock Text="📝 " FontSize="32" FontFamily="Segoe UI Emoji" VerticalAlignment="Center"/>
                     <TextBlock x:Name="PlaceholderTitle"
                                FontSize="24" FontWeight="SemiBold"
-                               Foreground="#24292e" VerticalAlignment="Center"
-                               Cursor="Hand" MouseLeftButtonUp="PlaceholderTitle_Click"
-                               ToolTip="Open on GitHub"/>
+                               Foreground="#24292e" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Recent Folders -->
-                <StackPanel x:Name="RecentFoldersPanel" Grid.Row="1" Visibility="Collapsed" Margin="0,0,0,16">
+                <StackPanel x:Name="RecentFoldersPanel" Grid.Row="1" Visibility="Collapsed" Margin="20,0,0,16">
                     <TextBlock Text="📁 RECENT FOLDERS" FontSize="10" FontWeight="SemiBold"
                                FontFamily="Segoe UI Emoji" Foreground="#8B949E" Margin="4,0,0,6"/>
                     <ItemsControl x:Name="RecentFoldersList" Margin="16,0,0,0"/>
                 </StackPanel>
 
                 <!-- Recent Files -->
-                <StackPanel x:Name="RecentFilesPanel" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,24">
+                <StackPanel x:Name="RecentFilesPanel" Grid.Row="2" Visibility="Collapsed" Margin="20,0,0,24">
                     <TextBlock Text="📄 RECENT FILES" FontSize="10" FontWeight="SemiBold"
                                FontFamily="Segoe UI Emoji" Foreground="#8B949E" Margin="4,0,0,6"/>
                     <ItemsControl x:Name="RecentFilesList" Margin="16,0,0,0"/>
@@ -115,7 +113,7 @@
 
                 <!-- AI integration (subtle footer) -->
                 <TextBlock Grid.Row="4" FontSize="11" Foreground="#8B949E" HorizontalAlignment="Center"
-                           xml:space="preserve"><Run Text="🤖 MCP server built in — AI can open files and control slides. "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/PowerShell.MCP#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">PowerShell.MCP</Hyperlink><Run Text=" + "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/Speech#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">Speech</Hyperlink><Run Text=" for voice presentations."/></TextBlock>
+                           xml:space="preserve"><Run Text="🤖 "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/MarkdownPointer#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">MCP server</Hyperlink><Run Text=" built in — AI can open files and control slides. "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/PowerShell.MCP#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">PowerShell.MCP</Hyperlink><Run Text=" + "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/Speech#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">Speech</Hyperlink><Run Text=" for voice presentations."/></TextBlock>
             </Grid>
         </Border>
 
@@ -223,7 +221,7 @@
                                   Background="Transparent"
                                   BorderThickness="1"/>
                     <ToggleButton x:Name="SlideViewToggle" FontFamily="Segoe UI Emoji"
-                                  Content="🎞"
+                                  Content="🎞" IsEnabled="False"
                                   ToolTip="Slide view (right-click: theme)"
                                   Click="SlideViewToggle_Click"
                                   MouseRightButtonUp="SlideViewToggle_RightClick"

@@ -481,6 +481,7 @@ namespace MarkdownPointer
                     // This is the last window - show placeholder instead of closing
                     FileTabControl.Visibility = Visibility.Collapsed;
                     PlaceholderPanel.Visibility = Visibility.Visible;
+                    SlideViewToggle.IsEnabled = false;
                     Title = "Markdown Pointer";
                     RefreshRecentFiles();
                     LinkStatusText.Text = "";

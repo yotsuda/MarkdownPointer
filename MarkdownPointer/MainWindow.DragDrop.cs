@@ -403,6 +403,7 @@ namespace MarkdownPointer
                     // This is the last window - show placeholder
                     FileTabControl.Visibility = Visibility.Collapsed;
                     PlaceholderPanel.Visibility = Visibility.Visible;
+                    SlideViewToggle.IsEnabled = false;
                     Title = "Markdown Pointer";
                     RefreshRecentFiles();
                 }
@@ -424,6 +425,7 @@ namespace MarkdownPointer
             targetWindow.FileTabControl.SelectedItem = tab;
             targetWindow.PlaceholderPanel.Visibility = Visibility.Collapsed;
             targetWindow.FileTabControl.Visibility = Visibility.Visible;
+            targetWindow.SlideViewToggle.IsEnabled = true;
             targetWindow.UpdateWindowTitle();
 
             // Re-setup file watcher in target window context
@@ -459,6 +461,7 @@ namespace MarkdownPointer
             {
                 FileTabControl.Visibility = Visibility.Collapsed;
                 PlaceholderPanel.Visibility = Visibility.Visible;
+                SlideViewToggle.IsEnabled = false;
                 Title = "Markdown Pointer";
                 RefreshRecentFiles();
             }
@@ -485,6 +488,7 @@ namespace MarkdownPointer
             newWindow.FileTabControl.SelectedItem = tab;
             newWindow.PlaceholderPanel.Visibility = Visibility.Collapsed;
             newWindow.FileTabControl.Visibility = Visibility.Visible;
+            newWindow.SlideViewToggle.IsEnabled = true;
             newWindow.UpdateWindowTitle();
 
             // Re-setup file watcher in new window context
