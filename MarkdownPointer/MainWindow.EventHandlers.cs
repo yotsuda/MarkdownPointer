@@ -525,8 +525,6 @@ namespace MarkdownPointer
                     else
                         result = await PandocService.ConvertAsync(markdownPath, dialog.FileName, templatePath);
 
-                    StopSpinner();
-
                     if (result.success)
                     {
                         ShowStatusMessage($"✓ Exported {ext}");
@@ -542,6 +540,7 @@ namespace MarkdownPointer
                 }
                 finally
                 {
+                    StopSpinner();
                     if (tempDir != null)
                     {
                         try { Directory.Delete(tempDir, true); } catch { }

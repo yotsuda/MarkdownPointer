@@ -56,6 +56,7 @@ Example prompts for AI:
 - Fix arrow key slide navigation not working after button click
 - Disable slide view button when no file is open
 - Increase max recent folders from 5 to 10
+- Export Mermaid diagrams as PNG images in .docx export (no external tools needed)
 - Pre-compile SlideService regexes, fix null baseDir, block path traversal
 
 0.8.0

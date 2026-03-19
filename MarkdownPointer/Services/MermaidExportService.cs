@@ -99,10 +99,10 @@ namespace MarkdownPointer.Services
                 (async function() {{
                     var divs = document.querySelectorAll('.mermaid');
                     var elem = divs[{index}];
-                    if (!elem) {{ window.chrome.webview.postMessage('MERMAID_EXPORT:{index}:'); return; }}
+                    if (!elem) {{ window.chrome.webview.postMessage('MERMAID_EXPORT:{index}:0|'); return; }}
 
                     var svg = elem.querySelector('svg');
-                    if (!svg) {{ window.chrome.webview.postMessage('MERMAID_EXPORT:{index}:'); return; }}
+                    if (!svg) {{ window.chrome.webview.postMessage('MERMAID_EXPORT:{index}:0|'); return; }}
 
                     var vb = svg.getAttribute('viewBox');
                     var width, height;
