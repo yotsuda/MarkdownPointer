@@ -32,6 +32,9 @@ Example prompts for AI:
   "open README.md in mdp"
   "show the report in mdp and scroll to line 50"
   "export report.md to docx"
+  "Fix the grammar here [ref]"
+  "Translate this section to Japanese [ref]"
+  "Add a code example after this section [ref]"
 '@
     PowerShellVersion = '7.4'
     FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerMCPPath', 'ConvertTo-Docx')
