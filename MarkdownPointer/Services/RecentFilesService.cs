@@ -18,7 +18,7 @@ namespace MarkdownPointer.Services
     public class RecentFilesService
     {
         private const int MaxFiles = 10;
-        private const int MaxFolders = 5;
+        private const int MaxFolders = 10;
         private readonly string _filePath;
         private RecentData _data = new();
 
