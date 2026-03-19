@@ -75,7 +75,8 @@
 
         <!-- Placeholder when no file is loaded -->
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
-            <Grid VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" Margin="40,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" Margin="40,20">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -115,6 +116,7 @@
                 <TextBlock Grid.Row="4" FontSize="11" Foreground="#8B949E" HorizontalAlignment="Center"
                            xml:space="preserve"><Run Text="🤖 "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/MarkdownPointer#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">MCP server</Hyperlink><Run Text=" built in — AI can open files and control slides. "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/PowerShell.MCP#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">PowerShell.MCP</Hyperlink><Run Text=" + "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/Speech#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">Speech</Hyperlink><Run Text=" for voice presentations."/></TextBlock>
             </Grid>
+            </ScrollViewer>
         </Border>
 
 
