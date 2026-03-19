@@ -354,14 +354,18 @@ namespace MarkdownPointer
                         var result = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
                             @"(function() {
                                 var elems = document.querySelectorAll('[data-line]');
+                                var mid = window.innerHeight / 2;
                                 var best = null;
-                                var bestTop = Infinity;
+                                var bestDist = Infinity;
                                 for (var i = 0; i < elems.length; i++) {
-                                    var rect = elems[i].getBoundingClientRect();
+                                    var el = elems[i];
+                                    var rect = el.getBoundingClientRect();
                                     if (rect.height === 0) continue;
-                                    var top = Math.abs(rect.top);
-                                    if (rect.top >= 0) { best = elems[i]; break; }
-                                    if (rect.bottom > 0 && top < bestTop) { bestTop = top; best = elems[i]; }
+                                    if (el.querySelector('[data-line]')) continue;
+                                    var center = (rect.top + rect.bottom) / 2;
+                                    var dist = Math.abs(center - mid);
+                                    if (dist < bestDist) { bestDist = dist; best = el; }
+                                    if (rect.top > mid) break;
                                 }
                                 return best ? best.getAttribute('data-line') : null;
                             })()");
