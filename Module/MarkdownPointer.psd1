@@ -9,8 +9,6 @@ Vibe editing for Markdown. Point at anything, tell AI to fix it.
 
 Click any element in the rendered preview to copy a location reference:
   "Rewrite this: [C:\docs\notes.md:42] ## My Section"
-
-Prompt examples:
   "Fix the grammar here [ref]"
   "Translate this section to Japanese [ref]"
   "Add a code example after this section [ref]"
