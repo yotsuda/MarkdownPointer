@@ -294,7 +294,7 @@ function Get-MarkdownPointerMCPPath {
     return $mcpPath
 }
 
-function _ConvertToFormat {
+$script:ConvertToFormat = {
     # Internal: shared export logic for ConvertTo-Docx / ConvertTo-Pptx
     param(
         [string]$FilePath,
@@ -406,7 +406,7 @@ function ConvertTo-Docx {
                 } else {
                     [System.IO.Path]::ChangeExtension($filePath, '.docx')
                 }
-                _ConvertToFormat -FilePath $filePath -OutPath $outPath -Format 'docx' -Template $Template -MdpRunning $mdpRunning
+                & $script:ConvertToFormat -FilePath $filePath -OutPath $outPath -Format 'docx' -Template $Template -MdpRunning $mdpRunning
             }
         }
     }
@@ -470,7 +470,7 @@ function ConvertTo-Pptx {
                 } else {
                     [System.IO.Path]::ChangeExtension($filePath, '.pptx')
                 }
-                _ConvertToFormat -FilePath $filePath -OutPath $outPath -Format 'pptx' -Template $Template -MdpRunning $mdpRunning
+                & $script:ConvertToFormat -FilePath $filePath -OutPath $outPath -Format 'pptx' -Template $Template -MdpRunning $mdpRunning
             }
         }
     }
