@@ -41,13 +41,13 @@ Color this node orange [c:\docs\architecture.md:6] mermaid node: mdp.exe
 | Tab Dock/Undock | Drag tabs between windows or detach to a new window |
 | Always on Top | Pin the window above other apps for reference |
 | Live Reload | Auto-refresh on file changes |
-| Export | `.docx` via Pandoc |
+| Export | `.docx` / `.pptx` via Pandoc (Mermaid/SVG rendered as images) |
 | MCP Server | Let Claude open, navigate, and export your documents |
 
 ## Install
 In a [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/install-powershell-on-windows) console:
 ```powershell
-Install-PSResource MarkdownPointer
+Install-Module MarkdownPointer
 ```
 
 ## Quick Start
@@ -99,7 +99,9 @@ Then add to `claude_desktop_config.json`:
 | Tool | Description |
 |------|-------------|
 | `show_markdown` | Open files and scroll to a line |
-| `export_docx` | Convert to .docx via Pandoc |
+| `get_status` | Get current window/tab state |
+| `slide_control` | Navigate reveal.js slides |
+| `export_document` | Export to .docx / .pptx via Pandoc |
 
 ## Keyboard Shortcuts
 
