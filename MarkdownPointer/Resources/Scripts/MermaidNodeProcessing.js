@@ -710,8 +710,8 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
-    // Gantt: task text (index-based for duplicate task names)
-    svg.querySelectorAll('text.taskText').forEach(function(text, idx) {
+    // Gantt: task text (inside bar, or outside when bar is too narrow)
+    svg.querySelectorAll('text.taskText, text.taskTextOutsideRight, text.taskTextOutsideLeft').forEach(function(text, idx) {
         var taskName = text.textContent.trim();
         text.style.cursor = 'pointer';
         text.setAttribute('data-mermaid-node', 'true');
