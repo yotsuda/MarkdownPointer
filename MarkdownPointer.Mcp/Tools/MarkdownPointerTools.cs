@@ -173,10 +173,11 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
         }
     }
 
-    [McpServerTool(Name = "export_docx"), Description("Convert a Markdown file to .docx using Pandoc. Requires Pandoc to be installed.")]
+    [McpServerTool(Name = "export_docx"), Description("Convert a Markdown file to .docx using Pandoc. Mermaid diagrams and SVG images are rendered as PNG for full fidelity. Requires Pandoc to be installed.")]
     public async Task<string> ExportDocx(
         [Description("Path to the Markdown file")] string path,
         [Description("Output .docx file path. Defaults to same directory with .docx extension")] string? output = null,
+        [Description("Path to a .docx template (reference-doc) for styling the output")] string? template = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -192,12 +193,52 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
             var outputPath = output != null ? Path.GetFullPath(output) : Path.ChangeExtension(fullPath, ".docx");
 
+            // Try routing through MarkdownPointer app for Mermaid/SVG conversion
+            try
+            {
+                var templatePath = template != null ? Path.GetFullPath(template) : null;
+                var message = new PipeCommand
+                {
+                    Command = "export",
+                    Path = fullPath,
+                    OutputPath = outputPath,
+                    TemplatePath = templatePath
+                };
+                var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
+
+                if (result != null)
+                {
+                    var root = result.RootElement;
+                    var success = root.GetProperty("success").GetBoolean();
+                    if (success)
+                    {
+                        var exportOutput = root.TryGetProperty("exportOutput", out var outProp) ? outProp.GetString() : outputPath;
+                        return WithVersionWarning(JsonSerializer.Serialize(
+                            new ExportResponse { Success = true, Output = exportOutput },
+                            PipeJsonContext.Default.ExportResponse));
+                    }
+                    var error = root.TryGetProperty("error", out var errProp) ? errProp.GetString() : "Export failed";
+                    return WithVersionWarning(JsonSerializer.Serialize(
+                        new ExportResponse { Success = false, Error = error },
+                        PipeJsonContext.Default.ExportResponse));
+                }
+            }
+            catch
+            {
+                // Fall through to direct Pandoc call
+            }
+
+            // Fallback: direct Pandoc (no Mermaid/SVG conversion)
+            var templateFullPath = template != null ? Path.GetFullPath(template) : null;
+            var refDoc = templateFullPath != null && File.Exists(templateFullPath)
+                ? $"--reference-doc=\"{templateFullPath}\" "
+                : "";
             using var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "pandoc",
-                    Arguments = $"-f markdown -t docx -o \"{outputPath}\" \"{fullPath}\"",
+                    Arguments = $"-f markdown -t docx {refDoc}-o \"{outputPath}\" \"{fullPath}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardError = true
@@ -221,9 +262,9 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
             if (process.ExitCode != 0)
             {
-                var error = string.IsNullOrWhiteSpace(stderr) ? "Pandoc exited with error" : stderr.Trim();
+                var pandocError = string.IsNullOrWhiteSpace(stderr) ? "Pandoc exited with error" : stderr.Trim();
                 return WithVersionWarning(JsonSerializer.Serialize(
-                    new ExportResponse { Success = false, Error = error },
+                    new ExportResponse { Success = false, Error = pandocError },
                     PipeJsonContext.Default.ExportResponse));
             }
 

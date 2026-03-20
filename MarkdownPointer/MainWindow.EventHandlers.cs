@@ -500,30 +500,58 @@ namespace MarkdownPointer
                 var markdownPath = tab.FilePath;
                 try
                 {
-                    // Pre-process: render Mermaid diagrams as PNG for docx export
+                    // Pre-process: render Mermaid diagrams and SVG images as PNG for docx export
                     if (ext == ".docx" && tab.WebView?.CoreWebView2 != null)
                     {
                         var mdContent = await File.ReadAllTextAsync(tab.FilePath);
+                        bool modified = false;
+
+                        // Mermaid diagrams → PNG
                         if (mdContent.Contains("```mermaid"))
                         {
-                            tempDir = Path.Combine(Path.GetTempPath(), $"mdp_mermaid_{Guid.NewGuid():N}");
+                            tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
                             Directory.CreateDirectory(tempDir);
 
                             var pngs = await _mermaidExportService.CaptureAllMermaidPngsAsync(tab.WebView, tempDir);
                             if (pngs.Count > 0)
                             {
-                                var modifiedMd = MermaidExportService.ReplaceMermaidBlocksWithImages(mdContent, pngs);
-                                markdownPath = Path.Combine(tempDir, "export.md");
-                                await File.WriteAllTextAsync(markdownPath, modifiedMd);
+                                mdContent = MermaidExportService.ReplaceMermaidBlocksWithImages(mdContent, pngs);
+                                modified = true;
                             }
                         }
+
+                        // SVG images → PNG
+                        if (MermaidExportService.ContainsSvgImages(mdContent))
+                        {
+                            if (tempDir == null)
+                            {
+                                tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
+                                Directory.CreateDirectory(tempDir);
+                            }
+
+                            var svgPngs = await _mermaidExportService.CaptureAllInlineSvgPngsAsync(tab.WebView, tempDir);
+                            if (svgPngs.Count > 0)
+                            {
+                                mdContent = MermaidExportService.ReplaceSvgImagesWithPngs(mdContent, svgPngs);
+                                modified = true;
+                            }
+                        }
+
+                        if (modified)
+                        {
+                            markdownPath = Path.Combine(tempDir!, "export.md");
+                            await File.WriteAllTextAsync(markdownPath, mdContent);
+                        }
                     }
+
+                    // Pass original file's directory as resource-path so Pandoc can resolve relative images
+                    var resourceDir = markdownPath != tab.FilePath ? Path.GetDirectoryName(tab.FilePath) : null;
 
                     (bool success, string? error) result;
                     if (ext == ".pptx")
                         result = await SlideService.ExportPptxAsync(tab.FilePath, dialog.FileName, templatePath);
                     else
-                        result = await PandocService.ConvertAsync(markdownPath, dialog.FileName, templatePath);
+                        result = await PandocService.ConvertAsync(markdownPath, dialog.FileName, templatePath, resourceDir);
 
                     if (result.success)
                     {

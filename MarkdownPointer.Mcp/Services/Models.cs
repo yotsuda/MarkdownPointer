@@ -30,6 +30,14 @@ public class PipeCommand
     [JsonPropertyName("SlideIndex")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? SlideIndex { get; set; }
+
+    [JsonPropertyName("OutputPath")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OutputPath { get; set; }
+
+    [JsonPropertyName("TemplatePath")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TemplatePath { get; set; }
 }
 
 // Error response from MCP tool

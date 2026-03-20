@@ -301,7 +301,8 @@ function ConvertTo-Docx {
 
     .DESCRIPTION
     Converts one or more files to Word documents (.docx) using Pandoc.
-    Input format is auto-detected by Pandoc from the file extension.
+    When MarkdownPointer is running, Mermaid diagrams and SVG images are
+    rendered as PNG for full fidelity. Falls back to direct Pandoc otherwise.
     Supports wildcards. Output files are placed alongside the source files by default.
 
     .PARAMETER Path
@@ -309,6 +310,9 @@ function ConvertTo-Docx {
 
     .PARAMETER OutputDirectory
     Optional output directory. Defaults to each source file's directory.
+
+    .PARAMETER Template
+    Path to a .docx template (reference-doc) for styling the output.
 
     .EXAMPLE
     ConvertTo-Docx .\README.md
@@ -318,13 +322,18 @@ function ConvertTo-Docx {
 
     .EXAMPLE
     ConvertTo-Docx .\docs\*.md -OutputDirectory .\out
+
+    .EXAMPLE
+    ConvertTo-Docx .\README.md -Template .\custom-style.docx
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
         [string[]]$Path,
 
-        [string]$OutputDirectory
+        [string]$OutputDirectory,
+
+        [string]$Template
     )
 
     begin {
@@ -338,6 +347,7 @@ function ConvertTo-Docx {
                 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
             }
         }
+        $mdpRunning = $null -ne (Get-Process -Name mdp -ErrorAction Ignore)
     }
 
     process {
@@ -354,14 +364,48 @@ function ConvertTo-Docx {
                 } else {
                     $outPath = [System.IO.Path]::ChangeExtension($filePath, '.docx')
                 }
-                $result = & pandoc -t docx -o $outPath $filePath 2>&1
-                if ($LASTEXITCODE -eq 0) {
-                    [PSCustomObject]@{
-                        Source = $filePath
-                        Output = $outPath
+
+                $exported = $false
+
+                # Try MarkdownPointer pipe export (handles Mermaid/SVG conversion)
+                if ($mdpRunning) {
+                    $exportMsg = @{
+                        Command    = "export"
+                        Path       = $filePath
+                        OutputPath = $outPath
                     }
-                } else {
-                    Write-Error "Failed to convert ${filePath}: $result"
+                    if ($Template) {
+                        $exportMsg.TemplatePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Template)
+                    }
+                    $pipeResult = Send-MarkdownPointerCommand -Message $exportMsg -TimeoutMs 60000
+                    if ($pipeResult -and $pipeResult.Success) {
+                        [PSCustomObject]@{
+                            Source = $filePath
+                            Output = if ($pipeResult.ExportOutput) { $pipeResult.ExportOutput } else { $outPath }
+                        }
+                        $exported = $true
+                    } elseif ($pipeResult -and $pipeResult.Error) {
+                        Write-Warning "Pipe export failed: $($pipeResult.Error) — falling back to Pandoc"
+                    }
+                }
+
+                # Fallback: direct Pandoc (no Mermaid/SVG conversion)
+                if (-not $exported) {
+                    $pandocArgs = @('-t', 'docx', '-o', $outPath)
+                    if ($Template) {
+                        $resolvedTemplate = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Template)
+                        $pandocArgs += @('--reference-doc', $resolvedTemplate)
+                    }
+                    $pandocArgs += $filePath
+                    $result = & pandoc @pandocArgs 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        [PSCustomObject]@{
+                            Source = $filePath
+                            Output = $outPath
+                        }
+                    } else {
+                        Write-Error "Failed to convert ${filePath}: $result"
+                    }
                 }
             }
         }

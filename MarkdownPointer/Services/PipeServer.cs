@@ -140,6 +140,9 @@ public class PipeServer : IDisposable
             case "slideControl":
                 return await HandleSlideControlAsync(message, windows);
 
+            case "export":
+                return await HandleExportAsync(message, windows);
+
             default:
                 return new PipeResponse { Success = false, Error = "Unknown command" };
         }
@@ -358,6 +361,110 @@ public class PipeServer : IDisposable
         };
     }
 
+    private static async Task<PipeResponse> HandleExportAsync(PipeMessage message, List<MainWindow> windows)
+    {
+        var sourcePath = message.Path;
+        if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
+            return new PipeResponse { Success = false, Error = "File not found" };
+
+        var outputPath = message.OutputPath;
+        if (string.IsNullOrEmpty(outputPath))
+            outputPath = Path.ChangeExtension(sourcePath, ".docx");
+
+        if (!PandocService.IsPandocInstalled())
+            return new PipeResponse { Success = false, Error = "Pandoc is not installed" };
+
+        var targetWindow = windows.FirstOrDefault();
+        if (targetWindow == null)
+            return new PipeResponse { Success = false, Error = "No window available" };
+
+        // Find or open the tab
+        Models.TabItemData? tab = null;
+        foreach (var win in windows)
+        {
+            tab = win.FindTabByFilePath(sourcePath);
+            if (tab != null) { targetWindow = win; break; }
+        }
+
+        if (tab == null)
+        {
+            tab = targetWindow.LoadMarkdownFile(sourcePath);
+        }
+        if (tab == null)
+            return new PipeResponse { Success = false, Error = "Failed to open file" };
+
+        // Wait for render completion (Mermaid/KaTeX/SVG all rendered)
+        if (tab.RenderCompletion != null)
+        {
+            try { await tab.RenderCompletion.Task.WaitAsync(TimeSpan.FromSeconds(30)); }
+            catch (TimeoutException) { }
+        }
+
+        string? tempDir = null;
+        var markdownPath = sourcePath;
+        var ext = Path.GetExtension(outputPath).ToLowerInvariant();
+
+        try
+        {
+            if (ext == ".docx" && tab.WebView?.CoreWebView2 != null)
+            {
+                var mdContent = await File.ReadAllTextAsync(sourcePath);
+                bool modified = false;
+                var mermaidExport = new MermaidExportService();
+
+                if (mdContent.Contains("```mermaid"))
+                {
+                    tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
+                    Directory.CreateDirectory(tempDir);
+                    var pngs = await mermaidExport.CaptureAllMermaidPngsAsync(tab.WebView, tempDir);
+                    if (pngs.Count > 0)
+                    {
+                        mdContent = MermaidExportService.ReplaceMermaidBlocksWithImages(mdContent, pngs);
+                        modified = true;
+                    }
+                }
+
+                if (MermaidExportService.ContainsSvgImages(mdContent))
+                {
+                    if (tempDir == null)
+                    {
+                        tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
+                        Directory.CreateDirectory(tempDir);
+                    }
+                    var svgPngs = await mermaidExport.CaptureAllInlineSvgPngsAsync(tab.WebView, tempDir);
+                    if (svgPngs.Count > 0)
+                    {
+                        mdContent = MermaidExportService.ReplaceSvgImagesWithPngs(mdContent, svgPngs);
+                        modified = true;
+                    }
+                }
+
+                if (modified)
+                {
+                    markdownPath = Path.Combine(tempDir!, "export.md");
+                    await File.WriteAllTextAsync(markdownPath, mdContent);
+                }
+            }
+
+            var resourceDir = markdownPath != sourcePath ? Path.GetDirectoryName(sourcePath) : null;
+            var (success, error) = await PandocService.ConvertAsync(markdownPath, outputPath, message.TemplatePath, resourceDir);
+
+            return new PipeResponse
+            {
+                Success = success,
+                ExportOutput = success ? outputPath : null,
+                Error = error
+            };
+        }
+        finally
+        {
+            if (tempDir != null)
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+    }
+
     private static async Task<PipeResponse> HandleSlideControlAsync(PipeMessage message, List<MainWindow> windows)
     {
         var action = message.SlideAction;
@@ -523,6 +630,8 @@ public class PipeMessage
     public bool? SlideView { get; set; }
     public string? SlideAction { get; set; }
     public int? SlideIndex { get; set; }
+    public string? OutputPath { get; set; }
+    public string? TemplatePath { get; set; }
 }
 
 public class PipeResponse
@@ -532,6 +641,7 @@ public class PipeResponse
     public OpenedTabInfo? OpenedTab { get; set; }
     public WindowInfo[]? Windows { get; set; }
     public SlideStateInfo? SlideState { get; set; }
+    public string? ExportOutput { get; set; }
 }
 
 public class SlideStateInfo
