@@ -35,7 +35,7 @@ namespace MarkdownPointer.Services
             var format = ext switch
             {
                 ".docx" => "docx",
-                ".pdf" => "pdf",
+                ".pptx" => "pptx",
                 _ => "docx"
             };
 

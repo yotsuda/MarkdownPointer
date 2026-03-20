@@ -406,7 +406,7 @@ public class PipeServer : IDisposable
 
         try
         {
-            if (ext == ".docx" && tab.WebView?.CoreWebView2 != null)
+            if ((ext == ".docx" || ext == ".pptx") && tab.WebView?.CoreWebView2 != null)
             {
                 var mdContent = await File.ReadAllTextAsync(sourcePath);
                 bool modified = false;
@@ -447,7 +447,13 @@ public class PipeServer : IDisposable
             }
 
             var resourceDir = markdownPath != sourcePath ? Path.GetDirectoryName(sourcePath) : null;
-            var (success, error) = await PandocService.ConvertAsync(markdownPath, outputPath, message.TemplatePath, resourceDir);
+
+            (bool success, string? error) exportResult;
+            if (ext == ".pptx")
+                exportResult = await SlideService.ExportPptxAsync(markdownPath, outputPath, message.TemplatePath, resourceDir);
+            else
+                exportResult = await PandocService.ConvertAsync(markdownPath, outputPath, message.TemplatePath, resourceDir);
+            var (success, error) = exportResult;
 
             return new PipeResponse
             {

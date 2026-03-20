@@ -500,8 +500,8 @@ namespace MarkdownPointer
                 var markdownPath = tab.FilePath;
                 try
                 {
-                    // Pre-process: render Mermaid diagrams and SVG images as PNG for docx export
-                    if (ext == ".docx" && tab.WebView?.CoreWebView2 != null)
+                    // Pre-process: render Mermaid diagrams and SVG images as PNG for export
+                    if ((ext == ".docx" || ext == ".pptx") && tab.WebView?.CoreWebView2 != null)
                     {
                         var mdContent = await File.ReadAllTextAsync(tab.FilePath);
                         bool modified = false;
@@ -549,7 +549,7 @@ namespace MarkdownPointer
 
                     (bool success, string? error) result;
                     if (ext == ".pptx")
-                        result = await SlideService.ExportPptxAsync(tab.FilePath, dialog.FileName, templatePath);
+                        result = await SlideService.ExportPptxAsync(markdownPath, dialog.FileName, templatePath, resourceDir);
                     else
                         result = await PandocService.ConvertAsync(markdownPath, dialog.FileName, templatePath, resourceDir);
 

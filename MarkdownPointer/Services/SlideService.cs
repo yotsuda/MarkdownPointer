@@ -41,15 +41,15 @@ namespace MarkdownPointer.Services
         /// Supports --reference-doc for template application.
         /// </summary>
         public static async Task<(bool Success, string? Error)> ExportPptxAsync(
-            string markdownPath, string outputPath, string? templatePath = null)
+            string markdownPath, string outputPath, string? templatePath = null, string? resourceDir = null)
         {
             try
             {
-                var args = $"-f markdown -t pptx -o \"{outputPath}\" \"{markdownPath}\"";
-                if (!string.IsNullOrEmpty(templatePath) && File.Exists(templatePath))
-                {
-                    args = $"-f markdown -t pptx --reference-doc=\"{templatePath}\" -o \"{outputPath}\" \"{markdownPath}\"";
-                }
+                var refDoc = !string.IsNullOrEmpty(templatePath) && File.Exists(templatePath)
+                    ? $"--reference-doc=\"{templatePath}\" " : "";
+                var resPath = !string.IsNullOrEmpty(resourceDir)
+                    ? $"--resource-path=\"{resourceDir}\" " : "";
+                var args = $"-f markdown -t pptx {refDoc}{resPath}-o \"{outputPath}\" \"{markdownPath}\"";
 
                 var psi = new ProcessStartInfo
                 {
