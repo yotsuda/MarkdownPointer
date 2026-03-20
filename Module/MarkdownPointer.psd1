@@ -1,6 +1,6 @@
 @{
     RootModule = 'MarkdownPointer.psm1'
-    ModuleVersion = '0.9.0'
+    ModuleVersion = '0.10.0'
     GUID = '4c50c9c4-d155-457d-a3a3-e3952253b51d'
     Author = 'Yoshifumi Tsuda'
     Copyright = '(c) 2025-2026 Yoshifumi Tsuda. All rights reserved.'
@@ -11,6 +11,7 @@ Click any element in the rendered preview to copy a location reference:
   "Rewrite this: [C:\docs\notes.md:42] ## My Section"
   "Fix the grammar here [ref]"
   "Translate this section to Japanese [ref]"
+  "Swap these two: [ref] [ref]"
   "Add a code example after this section [ref]"
 
 Renders Markdown with Mermaid diagrams, KaTeX math, and SVG. Includes MCP server for Claude Code / Claude Desktop.
@@ -20,9 +21,10 @@ Requirements:
   Pandoc (optional, for .docx export) - https://pandoc.org
 
 Quick start:
-  mdp .\README.md           # Open a file
-  mdp .\docs\*.md           # Open multiple files
-  ConvertTo-Docx .\*.md     # Convert to .docx via Pandoc
+  mdp .\README.md             # Open a file
+  mdp .\docs\*.md             # Open multiple files
+  ConvertTo-Docx .\*.md       # Convert to .docx via Pandoc
+  ConvertTo-Pptx .\slides.md  # Convert to .pptx via Pandoc
 
 MCP setup for Claude Code:
   claude mcp add mdp -s user -- "$(Get-MarkdownPointerMCPPath)"
@@ -37,7 +39,7 @@ Example prompts for AI:
   "export report.md to docx"
 '@
     PowerShellVersion = '7.4'
-    FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerMCPPath', 'ConvertTo-Docx')
+    FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerMCPPath', 'ConvertTo-Docx', 'ConvertTo-Pptx')
     CmdletsToExport = @()
     VariablesToExport = @()
     AliasesToExport = @('mdp')
@@ -47,6 +49,14 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.10.0
+- Export SVG images as PNG in .docx/.pptx export (embedded fonts preserved)
+- Mermaid/SVG pre-processing now applies to .pptx export (previously .docx only)
+- Rename MCP tool export_docx → export_document, add .pptx support
+- MCP/PS export routes through mdp.exe for Mermaid/SVG conversion (Pandoc fallback)
+- ConvertTo-Pptx: new PowerShell function for .pptx export via Pandoc
+- Template parameter (-Template) for ConvertTo-Docx, ConvertTo-Pptx, and MCP tool
+
 0.9.0
 - Redesign welcome screen: action-first layout with recent folders/files front and center
 - VS Code button opens at the current viewport line (code -g)

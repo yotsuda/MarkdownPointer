@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>mdp-mcp</AssemblyName>
-    <Version>0.9.0</Version>
+    <Version>0.10.0</Version>
     
     <!-- NuGet Tool Package settings -->
     <PackAsTool>true</PackAsTool>
