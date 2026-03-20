@@ -173,15 +173,17 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
         }
     }
 
-    [McpServerTool(Name = "export_docx"), Description("Convert a Markdown file to .docx using Pandoc. Mermaid diagrams and SVG images are rendered as PNG for full fidelity. Requires Pandoc to be installed.")]
-    public async Task<string> ExportDocx(
+    [McpServerTool(Name = "export_document"), Description("Export a Markdown file to .docx (Word) or .pptx (PowerPoint). Output format is determined by the file extension of the output path. Defaults to .docx. Mermaid diagrams and SVG images are rendered as PNG for full fidelity. Requires Pandoc to be installed.")]
+    public async Task<string> ExportDocument(
         [Description("Path to the Markdown file")] string path,
-        [Description("Output .docx file path. Defaults to same directory with .docx extension")] string? output = null,
-        [Description("Path to a .docx template (reference-doc) for styling the output")] string? template = null,
+        [Description("Output file path (.docx or .pptx). Defaults to same directory with .docx extension")] string? output = null,
+        [Description("Path to a .docx/.pptx template (reference-doc) for styling the output")] string? template = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            var ext = output != null ? Path.GetExtension(Path.GetFullPath(output)).ToLowerInvariant() : ".docx";
+            var format = ext == ".pptx" ? "pptx" : "docx";
             var fullPath = Path.GetFullPath(path);
 
             if (!File.Exists(fullPath))
@@ -191,7 +193,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
                     PipeJsonContext.Default.ExportResponse));
             }
 
-            var outputPath = output != null ? Path.GetFullPath(output) : Path.ChangeExtension(fullPath, ".docx");
+            var outputPath = output != null ? Path.GetFullPath(output) : Path.ChangeExtension(fullPath, ext);
 
             // Try routing through MarkdownPointer app for Mermaid/SVG conversion
             try
@@ -238,7 +240,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "pandoc",
-                    Arguments = $"-f markdown -t docx {refDoc}-o \"{outputPath}\" \"{fullPath}\"",
+                    Arguments = $"-f markdown -t {format} {refDoc}-o \"{outputPath}\" \"{fullPath}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardError = true

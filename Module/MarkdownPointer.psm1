@@ -294,6 +294,60 @@ function Get-MarkdownPointerMCPPath {
     return $mcpPath
 }
 
+function _ConvertToFormat {
+    # Internal: shared export logic for ConvertTo-Docx / ConvertTo-Pptx
+    param(
+        [string]$FilePath,
+        [string]$OutPath,
+        [string]$Format,
+        [string]$Template,
+        [bool]$MdpRunning
+    )
+
+    $exported = $false
+
+    # Try MarkdownPointer pipe export (handles Mermaid/SVG conversion)
+    if ($MdpRunning) {
+        $exportMsg = @{
+            Command    = "export"
+            Path       = $FilePath
+            OutputPath = $OutPath
+        }
+        if ($Template) {
+            $exportMsg.TemplatePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Template)
+        }
+        $pipeResult = Send-MarkdownPointerCommand -Message $exportMsg -TimeoutMs 60000
+        if ($pipeResult -and $pipeResult.Success) {
+            [PSCustomObject]@{
+                Source = $FilePath
+                Output = if ($pipeResult.ExportOutput) { $pipeResult.ExportOutput } else { $OutPath }
+            }
+            $exported = $true
+        } elseif ($pipeResult -and $pipeResult.Error) {
+            Write-Warning "Pipe export failed: $($pipeResult.Error) — falling back to Pandoc"
+        }
+    }
+
+    # Fallback: direct Pandoc (no Mermaid/SVG conversion)
+    if (-not $exported) {
+        $pandocArgs = @('-t', $Format, '-o', $OutPath)
+        if ($Template) {
+            $resolvedTemplate = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Template)
+            $pandocArgs += @('--reference-doc', $resolvedTemplate)
+        }
+        $pandocArgs += $FilePath
+        $result = & pandoc @pandocArgs 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            [PSCustomObject]@{
+                Source = $FilePath
+                Output = $OutPath
+            }
+        } else {
+            Write-Error "Failed to convert ${FilePath}: $result"
+        }
+    }
+}
+
 function ConvertTo-Docx {
     <#
     .SYNOPSIS
@@ -318,9 +372,6 @@ function ConvertTo-Docx {
     ConvertTo-Docx .\README.md
 
     .EXAMPLE
-    ConvertTo-Docx .\docs\*.md
-
-    .EXAMPLE
     ConvertTo-Docx .\docs\*.md -OutputDirectory .\out
 
     .EXAMPLE
@@ -330,22 +381,16 @@ function ConvertTo-Docx {
     param(
         [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
         [string[]]$Path,
-
         [string]$OutputDirectory,
-
         [string]$Template
     )
 
     begin {
         $pandoc = Get-Command pandoc -ErrorAction SilentlyContinue
-        if (-not $pandoc) {
-            throw "Pandoc is not installed. Install from https://pandoc.org/installing.html"
-        }
+        if (-not $pandoc) { throw "Pandoc is not installed. Install from https://pandoc.org/installing.html" }
         if ($OutputDirectory) {
             $OutputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
-            if (-not (Test-Path $OutputDirectory)) {
-                New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-            }
+            if (-not (Test-Path $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null }
         }
         $mdpRunning = $null -ne (Get-Process -Name mdp -ErrorAction Ignore)
     }
@@ -353,60 +398,79 @@ function ConvertTo-Docx {
     process {
         foreach ($p in $Path) {
             $resolved = @(Resolve-Path -Path $p -ErrorAction SilentlyContinue)
-            if ($resolved.Count -eq 0) {
-                Write-Warning "No files found: $p"
-                continue
-            }
+            if ($resolved.Count -eq 0) { Write-Warning "No files found: $p"; continue }
             foreach ($file in $resolved) {
                 $filePath = $file.Path
-                if ($OutputDirectory) {
-                    $outPath = Join-Path $OutputDirectory ([System.IO.Path]::ChangeExtension([System.IO.Path]::GetFileName($filePath), '.docx'))
+                $outPath = if ($OutputDirectory) {
+                    Join-Path $OutputDirectory ([System.IO.Path]::ChangeExtension([System.IO.Path]::GetFileName($filePath), '.docx'))
                 } else {
-                    $outPath = [System.IO.Path]::ChangeExtension($filePath, '.docx')
+                    [System.IO.Path]::ChangeExtension($filePath, '.docx')
                 }
+                _ConvertToFormat -FilePath $filePath -OutPath $outPath -Format 'docx' -Template $Template -MdpRunning $mdpRunning
+            }
+        }
+    }
+}
 
-                $exported = $false
+function ConvertTo-Pptx {
+    <#
+    .SYNOPSIS
+    Convert files to .pptx using Pandoc.
 
-                # Try MarkdownPointer pipe export (handles Mermaid/SVG conversion)
-                if ($mdpRunning) {
-                    $exportMsg = @{
-                        Command    = "export"
-                        Path       = $filePath
-                        OutputPath = $outPath
-                    }
-                    if ($Template) {
-                        $exportMsg.TemplatePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Template)
-                    }
-                    $pipeResult = Send-MarkdownPointerCommand -Message $exportMsg -TimeoutMs 60000
-                    if ($pipeResult -and $pipeResult.Success) {
-                        [PSCustomObject]@{
-                            Source = $filePath
-                            Output = if ($pipeResult.ExportOutput) { $pipeResult.ExportOutput } else { $outPath }
-                        }
-                        $exported = $true
-                    } elseif ($pipeResult -and $pipeResult.Error) {
-                        Write-Warning "Pipe export failed: $($pipeResult.Error) — falling back to Pandoc"
-                    }
+    .DESCRIPTION
+    Converts one or more files to PowerPoint presentations (.pptx) using Pandoc.
+    When MarkdownPointer is running, Mermaid diagrams and SVG images are
+    rendered as PNG for full fidelity. Falls back to direct Pandoc otherwise.
+    Supports wildcards. Output files are placed alongside the source files by default.
+
+    .PARAMETER Path
+    Path(s) to Markdown files. Supports wildcards.
+
+    .PARAMETER OutputDirectory
+    Optional output directory. Defaults to each source file's directory.
+
+    .PARAMETER Template
+    Path to a .pptx template (reference-doc) for styling the output.
+
+    .EXAMPLE
+    ConvertTo-Pptx .\presentation.md
+
+    .EXAMPLE
+    ConvertTo-Pptx .\slides\*.md -OutputDirectory .\out
+
+    .EXAMPLE
+    ConvertTo-Pptx .\presentation.md -Template .\company-theme.pptx
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
+        [string[]]$Path,
+        [string]$OutputDirectory,
+        [string]$Template
+    )
+
+    begin {
+        $pandoc = Get-Command pandoc -ErrorAction SilentlyContinue
+        if (-not $pandoc) { throw "Pandoc is not installed. Install from https://pandoc.org/installing.html" }
+        if ($OutputDirectory) {
+            $OutputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
+            if (-not (Test-Path $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null }
+        }
+        $mdpRunning = $null -ne (Get-Process -Name mdp -ErrorAction Ignore)
+    }
+
+    process {
+        foreach ($p in $Path) {
+            $resolved = @(Resolve-Path -Path $p -ErrorAction SilentlyContinue)
+            if ($resolved.Count -eq 0) { Write-Warning "No files found: $p"; continue }
+            foreach ($file in $resolved) {
+                $filePath = $file.Path
+                $outPath = if ($OutputDirectory) {
+                    Join-Path $OutputDirectory ([System.IO.Path]::ChangeExtension([System.IO.Path]::GetFileName($filePath), '.pptx'))
+                } else {
+                    [System.IO.Path]::ChangeExtension($filePath, '.pptx')
                 }
-
-                # Fallback: direct Pandoc (no Mermaid/SVG conversion)
-                if (-not $exported) {
-                    $pandocArgs = @('-t', 'docx', '-o', $outPath)
-                    if ($Template) {
-                        $resolvedTemplate = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Template)
-                        $pandocArgs += @('--reference-doc', $resolvedTemplate)
-                    }
-                    $pandocArgs += $filePath
-                    $result = & pandoc @pandocArgs 2>&1
-                    if ($LASTEXITCODE -eq 0) {
-                        [PSCustomObject]@{
-                            Source = $filePath
-                            Output = $outPath
-                        }
-                    } else {
-                        Write-Error "Failed to convert ${filePath}: $result"
-                    }
-                }
+                _ConvertToFormat -FilePath $filePath -OutPath $outPath -Format 'pptx' -Template $Template -MdpRunning $mdpRunning
             }
         }
     }
@@ -414,4 +478,4 @@ function ConvertTo-Docx {
 
 New-Alias -Name mdp -Value Show-MarkdownPointer
 
-Export-ModuleMember -Function Show-MarkdownPointer, Get-MarkdownPointerMCPPath, ConvertTo-Docx -Alias mdp
+Export-ModuleMember -Function Show-MarkdownPointer, Get-MarkdownPointerMCPPath, ConvertTo-Docx, ConvertTo-Pptx -Alias mdp
