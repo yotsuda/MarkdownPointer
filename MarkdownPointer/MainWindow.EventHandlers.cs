@@ -118,12 +118,13 @@ namespace MarkdownPointer
                 ShowGoToLineBox();
                 e.Handled = true;
             }
-            else if ((e.Key == Key.Left || e.Key == Key.Right) && Keyboard.Modifiers == ModifierKeys.None)
+            else if ((e.Key == Key.Left || e.Key == Key.Right || e.Key == Key.Up || e.Key == Key.Down)
+                     && Keyboard.Modifiers == ModifierKeys.None)
             {
                 if (FileTabControl.SelectedItem is TabItemData tab && tab.IsSlideView
                     && tab.WebView?.CoreWebView2 != null)
                 {
-                    var direction = e.Key == Key.Left ? "prev" : "next";
+                    var direction = (e.Key == Key.Left || e.Key == Key.Up) ? "prev" : "next";
                     tab.WebView.CoreWebView2.ExecuteScriptAsync(
                         $"if(typeof Reveal!=='undefined')Reveal.{direction}()");
                     e.Handled = true;
