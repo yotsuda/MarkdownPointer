@@ -15,8 +15,7 @@ namespace MarkdownPointer.Services;
 public class PipeServer : IDisposable
 {
     public const string PipeName = "MarkdownPointer_Pipe";
-    private const int BufferSize = 65536; // 64KB for large responses
-    
+
     private CancellationTokenSource? _cts;
     private Task? _serverTask;
 
@@ -70,8 +69,9 @@ public class PipeServer : IDisposable
                 server?.Dispose();
                 break;
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"PipeServer.RunAsync error: {ex.Message}");
                 server?.Dispose();
             }
         }
@@ -83,37 +83,38 @@ public class PipeServer : IDisposable
         {
             using (server)
             {
-                // Read full message (may arrive in multiple chunks)
-                using var ms = new MemoryStream();
-                var buffer = new byte[BufferSize];
-                int bytesRead;
-                do
+                // Read length-prefixed message
+                var lengthBuffer = new byte[4];
+                await ReadExactAsync(server, lengthBuffer, ct);
+                var length = BitConverter.ToInt32(lengthBuffer, 0);
+                if (length <= 0 || length > 10 * 1024 * 1024)
                 {
-                    bytesRead = await server.ReadAsync(buffer, ct);
-                    if (bytesRead > 0)
-                        ms.Write(buffer, 0, bytesRead);
-                } while (bytesRead == buffer.Length);
+                    System.Diagnostics.Debug.WriteLine($"PipeServer: rejected invalid message length {length} (protocol mismatch?)");
+                    return;
+                }
+                var messageBytes = new byte[length];
+                await ReadExactAsync(server, messageBytes, length, ct);
 
-                if (ms.Length > 0)
+                var json = Encoding.UTF8.GetString(messageBytes);
+                var message = JsonSerializer.Deserialize<PipeMessage>(json);
+
+                if (message != null)
                 {
-                    var json = Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
-                    var message = JsonSerializer.Deserialize<PipeMessage>(json);
+                    var response = await Application.Current.Dispatcher.InvokeAsync(
+                        () => HandleMessageAsync(message)).Task.Unwrap();
 
-                    if (message != null)
-                    {
-                        var response = await Application.Current.Dispatcher.InvokeAsync(
-                            () => HandleMessageAsync(message)).Task.Unwrap();
-
-                        var responseJson = JsonSerializer.Serialize(response, JsonOptions);
-                        var responseBytes = Encoding.UTF8.GetBytes(responseJson);
-                        await server.WriteAsync(responseBytes, ct);
-                    }
+                    var responseJson = JsonSerializer.Serialize(response, JsonOptions);
+                    var responseBytes = Encoding.UTF8.GetBytes(responseJson);
+                    var responseLengthBytes = BitConverter.GetBytes(responseBytes.Length);
+                    await server.WriteAsync(responseLengthBytes, ct);
+                    await server.WriteAsync(responseBytes, ct);
+                    await server.FlushAsync(ct);
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors in individual connections
+            System.Diagnostics.Debug.WriteLine($"PipeServer.HandleConnectionAsync error: {ex.Message}");
         }
     }
 
@@ -400,75 +401,18 @@ public class PipeServer : IDisposable
             catch (TimeoutException) { }
         }
 
-        string? tempDir = null;
-        var markdownPath = sourcePath;
-        var ext = Path.GetExtension(outputPath).ToLowerInvariant();
+        var (success, error, tempDir) = await ExportService.ExportAsync(
+            sourcePath, outputPath, message.TemplatePath,
+            tab.WebView, new MermaidExportService());
 
-        try
+        ExportService.CleanupTempDir(tempDir);
+
+        return new PipeResponse
         {
-            if ((ext == ".docx" || ext == ".pptx") && tab.WebView?.CoreWebView2 != null)
-            {
-                var mdContent = await File.ReadAllTextAsync(sourcePath);
-                bool modified = false;
-                var mermaidExport = new MermaidExportService();
-
-                if (mdContent.Contains("```mermaid"))
-                {
-                    tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
-                    Directory.CreateDirectory(tempDir);
-                    var pngs = await mermaidExport.CaptureAllMermaidPngsAsync(tab.WebView, tempDir);
-                    if (pngs.Count > 0)
-                    {
-                        mdContent = MermaidExportService.ReplaceMermaidBlocksWithImages(mdContent, pngs);
-                        modified = true;
-                    }
-                }
-
-                if (MermaidExportService.ContainsSvgImages(mdContent))
-                {
-                    if (tempDir == null)
-                    {
-                        tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
-                        Directory.CreateDirectory(tempDir);
-                    }
-                    var svgPngs = await mermaidExport.CaptureAllInlineSvgPngsAsync(tab.WebView, tempDir);
-                    if (svgPngs.Count > 0)
-                    {
-                        mdContent = MermaidExportService.ReplaceSvgImagesWithPngs(mdContent, svgPngs);
-                        modified = true;
-                    }
-                }
-
-                if (modified)
-                {
-                    markdownPath = Path.Combine(tempDir!, "export.md");
-                    await File.WriteAllTextAsync(markdownPath, mdContent);
-                }
-            }
-
-            var resourceDir = markdownPath != sourcePath ? Path.GetDirectoryName(sourcePath) : null;
-
-            (bool success, string? error) exportResult;
-            if (ext == ".pptx")
-                exportResult = await SlideService.ExportPptxAsync(markdownPath, outputPath, message.TemplatePath, resourceDir);
-            else
-                exportResult = await PandocService.ConvertAsync(markdownPath, outputPath, message.TemplatePath, resourceDir);
-            var (success, error) = exportResult;
-
-            return new PipeResponse
-            {
-                Success = success,
-                ExportOutput = success ? outputPath : null,
-                Error = error
-            };
-        }
-        finally
-        {
-            if (tempDir != null)
-            {
-                try { Directory.Delete(tempDir, true); } catch { }
-            }
-        }
+            Success = success,
+            ExportOutput = success ? outputPath : null,
+            Error = error
+        };
     }
 
     private static async Task<PipeResponse> HandleSlideControlAsync(PipeMessage message, List<MainWindow> windows)
@@ -564,7 +508,10 @@ public class PipeServer : IDisposable
                             if (lineJs != "null" && int.TryParse(lineJs, out var line))
                                 tabInfo.CurrentLine = line;
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"GetCurrentLine JS error: {ex.Message}");
+                        }
                     }
 
                     if (tab.IsSlideView)
@@ -610,78 +557,49 @@ public class PipeServer : IDisposable
 
             var json = JsonSerializer.Serialize(message);
             var bytes = Encoding.UTF8.GetBytes(json);
+            var lengthBytes = BitConverter.GetBytes(bytes.Length);
+            client.Write(lengthBytes, 0, 4);
             client.Write(bytes, 0, bytes.Length);
             client.Flush();
 
-            // Read response so the server-side write completes before pipe is closed
-            var buffer = new byte[BufferSize];
-            _ = client.Read(buffer, 0, buffer.Length);
+            // Read length-prefixed response (waits for render completion)
+            var respLengthBuffer = new byte[4];
+            ReadExact(client, respLengthBuffer, 4);
+            var respLength = BitConverter.ToInt32(respLengthBuffer, 0);
+            if (respLength > 0 && respLength <= 10 * 1024 * 1024)
+            {
+                var respBuffer = new byte[respLength];
+                ReadExact(client, respBuffer, respLength);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors when sending to existing instance
+            System.Diagnostics.Debug.WriteLine($"SendToExistingInstance error: {ex.Message}");
+        }
+    }
+
+    private static async Task ReadExactAsync(Stream stream, byte[] buffer, CancellationToken ct)
+        => await ReadExactAsync(stream, buffer, buffer.Length, ct);
+
+    private static async Task ReadExactAsync(Stream stream, byte[] buffer, int count, CancellationToken ct)
+    {
+        int offset = 0;
+        while (offset < count)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(offset, count - offset), ct);
+            if (read == 0) throw new EndOfStreamException("Pipe closed before all data was received");
+            offset += read;
+        }
+    }
+
+    private static void ReadExact(Stream stream, byte[] buffer, int count)
+    {
+        int offset = 0;
+        while (offset < count)
+        {
+            var read = stream.Read(buffer, offset, count - offset);
+            if (read == 0) throw new EndOfStreamException("Pipe closed before all data was received");
+            offset += read;
         }
     }
 }
-
-#region DTO Classes
-
-public class PipeMessage
-{
-    public string Command { get; set; } = "";
-    public string? Path { get; set; }
-    public string[]? Paths { get; set; }
-    public int? Line { get; set; }
-    public string? Title { get; set; }
-    public bool? SlideView { get; set; }
-    public string? SlideAction { get; set; }
-    public int? SlideIndex { get; set; }
-    public string? OutputPath { get; set; }
-    public string? TemplatePath { get; set; }
-}
-
-public class PipeResponse
-{
-    public bool Success { get; set; }
-    public string? Error { get; set; }
-    public OpenedTabInfo? OpenedTab { get; set; }
-    public WindowInfo[]? Windows { get; set; }
-    public SlideStateInfo? SlideState { get; set; }
-    public string? ExportOutput { get; set; }
-}
-
-public class SlideStateInfo
-{
-    public int CurrentIndex { get; set; }
-    public int TotalSlides { get; set; }
-    public string CurrentContent { get; set; } = "";
-    public string? NextContent { get; set; }
-    public bool Overflowed { get; set; }
-}
-
-public class OpenedTabInfo
-{
-    public int WindowIndex { get; set; }
-    public int TabIndex { get; set; }
-    public string Title { get; set; } = "";
-    public string Path { get; set; } = "";
-}
-
-public class WindowInfo
-{
-    public int Index { get; set; }
-    public TabInfo[] Tabs { get; set; } = Array.Empty<TabInfo>();
-}
-
-public class TabInfo
-{
-    public int Index { get; set; }
-    public string Title { get; set; } = "";
-    public string Path { get; set; } = "";
-    public bool IsSelected { get; set; }
-    public bool IsSlideView { get; set; }
-    public int? CurrentLine { get; set; }
-    public string[]? Errors { get; set; }
-}
-
-#endregion

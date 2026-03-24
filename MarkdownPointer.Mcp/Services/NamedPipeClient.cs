@@ -8,7 +8,6 @@ namespace MarkdownPointer.Mcp.Services;
 public class NamedPipeClient
 {
     private const string PipeName = "MarkdownPointer_Pipe";
-    private const int BufferSize = 65536; // 64KB to match server
 
     private readonly string? _viewerExePath;
 
@@ -25,10 +24,14 @@ public class NamedPipeClient
 
     public async Task<JsonDocument?> SendCommandAsync(PipeCommand message, CancellationToken cancellationToken = default)
     {
-        // Start viewer if not running
+        // Start viewer if not running, or detect version mismatch
         if (!IsViewerRunning())
         {
             StartViewer();
+        }
+        else
+        {
+            ValidateViewerPath();
         }
 
         var json = JsonSerializer.Serialize(message, PipeJsonContext.Default.PipeCommand);
@@ -47,27 +50,20 @@ public class NamedPipeClient
                 using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
                 await client.ConnectAsync(500, cancellationToken);
 
+                // Write length-prefixed message
+                var lengthBytes = BitConverter.GetBytes(bytes.Length);
+                await client.WriteAsync(lengthBytes, cancellationToken);
                 await client.WriteAsync(bytes, cancellationToken);
                 await client.FlushAsync(cancellationToken);
 
-                // Read full response (may arrive in multiple chunks)
-                using var ms = new MemoryStream();
-                var buffer = new byte[BufferSize];
-                int bytesRead;
-                do
-                {
-                    bytesRead = await client.ReadAsync(buffer, cancellationToken);
-                    if (bytesRead > 0)
-                        ms.Write(buffer, 0, bytesRead);
-                } while (bytesRead == buffer.Length);
+                // Read length-prefixed response
+                var respLengthBuffer = new byte[4];
+                await ReadExactAsync(client, respLengthBuffer, cancellationToken);
+                var respLength = BitConverter.ToInt32(respLengthBuffer, 0);
+                var responseBytes = new byte[respLength];
+                await ReadExactAsync(client, responseBytes, respLength, cancellationToken);
 
-                if (ms.Length > 0)
-                {
-                    var responseJson = Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
-                    return JsonDocument.Parse(responseJson);
-                }
-
-                return null;
+                return JsonDocument.Parse(responseBytes);
             }
             catch (OperationCanceledException)
             {
@@ -90,6 +86,35 @@ public class NamedPipeClient
         return Process.GetProcessesByName("mdp").Length > 0;
     }
 
+    private void ValidateViewerPath()
+    {
+        if (_viewerExePath == null) return;
+
+        foreach (var proc in Process.GetProcessesByName("mdp"))
+        {
+            try
+            {
+                if (proc.MainModule?.FileName is string exePath)
+                    ThrowIfPathMismatch(_viewerExePath, exePath);
+            }
+            catch (InvalidOperationException) { throw; }
+            catch { /* Access denied for protected processes - skip */ }
+        }
+    }
+
+    internal static void ThrowIfPathMismatch(string expectedPath, string runningPath)
+    {
+        var expectedDir = Path.GetDirectoryName(expectedPath);
+        var runningDir = Path.GetDirectoryName(runningPath);
+        if (!string.Equals(runningDir, expectedDir, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Version mismatch: running mdp.exe is at '{runningPath}', " +
+                $"but this MCP server expects '{expectedPath}'. " +
+                $"Kill the running mdp.exe or update the MCP client configuration.");
+        }
+    }
+
     private void StartViewer()
     {
         if (_viewerExePath == null)
@@ -103,5 +128,19 @@ public class NamedPipeClient
             UseShellExecute = false,
             CreateNoWindow = false
         });
+    }
+
+    private static async Task ReadExactAsync(Stream stream, byte[] buffer, CancellationToken ct)
+        => await ReadExactAsync(stream, buffer, buffer.Length, ct);
+
+    private static async Task ReadExactAsync(Stream stream, byte[] buffer, int count, CancellationToken ct)
+    {
+        int offset = 0;
+        while (offset < count)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(offset, count - offset), ct);
+            if (read == 0) throw new EndOfStreamException("Pipe closed before all data was received");
+            offset += read;
+        }
     }
 }

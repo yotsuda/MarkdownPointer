@@ -16,26 +16,45 @@ function Send-MarkdownPointerCommand {
     
     $json = $Message | ConvertTo-Json -Compress
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-    
+
     $ErrorActionPreference = 'SilentlyContinue'
-    
+
     for ($i = 0; $i -lt $Retries; $i++) {
         $client = $null
         try {
             $client = [System.IO.Pipes.NamedPipeClientStream]::new(".", $script:PipeName, [System.IO.Pipes.PipeDirection]::InOut)
             $client.Connect($TimeoutMs)
+
+            # Write length-prefixed message
+            $lengthBytes = [System.BitConverter]::GetBytes($bytes.Length)
+            $client.Write($lengthBytes, 0, 4)
             $client.Write($bytes, 0, $bytes.Length)
             $client.Flush()
-            
-            # Read response
-            $buffer = [byte[]]::new(4096)
-            $bytesRead = $client.Read($buffer, 0, $buffer.Length)
-            $client.Close()
-            
-            if ($bytesRead -gt 0) {
-                $responseJson = [System.Text.Encoding]::UTF8.GetString($buffer, 0, $bytesRead)
-                return $responseJson | ConvertFrom-Json
+
+            # Read length-prefixed response
+            $respLenBuf = [byte[]]::new(4)
+            $offset = 0
+            while ($offset -lt 4) {
+                $read = $client.Read($respLenBuf, $offset, 4 - $offset)
+                if ($read -eq 0) { break }
+                $offset += $read
             }
+            if ($offset -eq 4) {
+                $respLen = [System.BitConverter]::ToInt32($respLenBuf, 0)
+                if ($respLen -gt 0 -and $respLen -le 10MB) {
+                    $respBuf = [byte[]]::new($respLen)
+                    $offset = 0
+                    while ($offset -lt $respLen) {
+                        $read = $client.Read($respBuf, $offset, $respLen - $offset)
+                        if ($read -eq 0) { break }
+                        $offset += $read
+                    }
+                    $client.Close()
+                    $responseJson = [System.Text.Encoding]::UTF8.GetString($respBuf, 0, $offset)
+                    return $responseJson | ConvertFrom-Json
+                }
+            }
+            $client.Close()
             return $null
         }
         catch {

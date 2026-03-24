@@ -37,16 +37,24 @@ public class Program
 
     private static void CheckForNewerVersion()
     {
+        VersionWarning = DetectNewerVersion(AppContext.BaseDirectory);
+    }
+
+    /// <summary>
+    /// Checks if a newer module version exists in a sibling directory.
+    /// Expected layout: Modules/MarkdownPointer/&lt;version&gt;/bin/mdp-mcp.exe
+    /// </summary>
+    internal static string? DetectNewerVersion(string baseDirectory)
+    {
         try
         {
-            // Expected layout: Modules/MarkdownPointer/<version>/bin/mdp-mcp.exe
-            var binDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+            var binDir = baseDirectory.TrimEnd(Path.DirectorySeparatorChar);
             var versionDir = Path.GetDirectoryName(binDir);
             var moduleRoot = versionDir != null ? Path.GetDirectoryName(versionDir) : null;
-            if (moduleRoot == null || versionDir == null) return;
+            if (moduleRoot == null || versionDir == null) return null;
 
             var myVersionStr = Path.GetFileName(versionDir);
-            if (!Version.TryParse(myVersionStr, out var myVersion)) return;
+            if (!Version.TryParse(myVersionStr, out var myVersion)) return null;
 
             Version? latestVersion = null;
             string? latestDir = null;
@@ -64,14 +72,15 @@ public class Program
             if (latestVersion != null && latestDir != null)
             {
                 var newExePath = Path.Combine(latestDir, "bin", "mdp-mcp.exe");
-                VersionWarning =
-                    $"Tell the user: MCP config is outdated (v{myVersionStr} → v{latestVersion}). " +
-                    $"Update path to: {newExePath}";
+                return $"Tell the user: MCP config is outdated (v{myVersionStr} → v{latestVersion}). " +
+                       $"Update path to: {newExePath}";
             }
+            return null;
         }
         catch
         {
             // Not in a versioned module directory (e.g., local dev) — skip check
+            return null;
         }
     }
 }

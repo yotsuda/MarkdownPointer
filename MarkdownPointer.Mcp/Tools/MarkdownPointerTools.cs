@@ -29,35 +29,24 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
         return node.ToJsonString();
     }
 
-    [McpServerTool(Name = "show_markdown"), Description("Open one or more Markdown/SVG files in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors. When slideView is true, opens in reveal.js slide mode and returns slide state.")]
+    [McpServerTool(Name = "show_markdown"), Description("Open a Markdown/SVG file in MarkdownPointer. Supports Mermaid diagrams, KaTeX math, and SVG with embedded fonts. Auto-refreshes on file changes. Returns current tab status and any render errors. When slideView is true, opens in reveal.js slide mode and returns slide state. Call multiple times to open multiple files.")]
     public async Task<string> ShowMarkdown(
-        [Description("Path(s) to the Markdown file(s) to open")] string[] paths,
+        [Description("Path to the Markdown file to open")] string path,
         [Description("Optional line number to scroll to in the last opened file")] int? line = null,
         [Description("Open in slide view mode (reveal.js). Enables slide_control navigation. Keep each slide short (5-7 bullet points max) to avoid overflow.")] bool? slideView = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var fullPaths = new List<string>();
-            var notFound = new List<string>();
-
-            foreach (var p in paths)
-            {
-                var fullPath = Path.GetFullPath(p);
-                if (File.Exists(fullPath))
-                    fullPaths.Add(fullPath);
-                else
-                    notFound.Add(fullPath);
-            }
-
-            if (fullPaths.Count == 0)
+            var fullPath = Path.GetFullPath(path);
+            if (!File.Exists(fullPath))
             {
                 return WithVersionWarning(JsonSerializer.Serialize(
-                    new ErrorResponse { Success = false, Error = $"File(s) not found: {string.Join(", ", notFound)}" },
+                    new ErrorResponse { Success = false, Error = $"File not found: {fullPath}" },
                     PipeJsonContext.Default.ErrorResponse));
             }
 
-            var message = new PipeCommand { Command = "open", Paths = fullPaths.ToArray(), Line = line, SlideView = slideView };
+            var message = new PipeCommand { Command = "open", Paths = new[] { fullPath }, Line = line, SlideView = slideView };
             var result = await _pipeClient.SendCommandAsync(message, cancellationToken);
 
             if (result == null)

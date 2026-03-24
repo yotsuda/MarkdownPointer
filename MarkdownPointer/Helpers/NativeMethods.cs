@@ -76,7 +76,6 @@ namespace MarkdownPointer.Helpers
         {
             var foregroundWnd = GetForegroundWindow();
             var currentThreadId = GetCurrentThreadId();
-            GetWindowThreadProcessId(foregroundWnd, out _);
             var foregroundThreadId = GetWindowThreadProcessId(foregroundWnd, out _);
 
             // Attach to the foreground thread to allow SetForegroundWindow

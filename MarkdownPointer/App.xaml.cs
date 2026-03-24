@@ -80,9 +80,10 @@ namespace MarkdownPointer
                         "MarkdownPointer");
                     PreCreatedWebView2Environment = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Non-fatal: tabs will create their own environment on demand
+                    System.Diagnostics.Debug.WriteLine($"WebView2 pre-init failed: {ex.Message}");
                 }
             });
 

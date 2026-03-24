@@ -214,12 +214,34 @@ namespace MarkdownPointer.Services
             return result;
         }
 
+        // Cached tag patterns for InjectBlockLineAttributes
+        private static readonly Dictionary<string, Regex> TagPatternCache = new();
+        private static readonly Regex SectionOpenPattern = new(@"<section\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static Regex GetTagPattern(string tag)
+        {
+            if (!TagPatternCache.TryGetValue(tag, out var pattern))
+            {
+                pattern = new Regex($@"<{Regex.Escape(tag)}\b([^>]*)>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                TagPatternCache[tag] = pattern;
+            }
+            return pattern;
+        }
+
         /// <summary>
         /// Adds data-line to block elements within each section.
         /// </summary>
         private static string AddElementLineTracking(string html, string[] lines, List<int> slideStartLines)
         {
-            // Build block element list per slide and inject data-line
+            // Pre-compute section positions once for all slides
+            var sectionMatches = SectionOpenPattern.Matches(html)
+                .Cast<Match>()
+                .Where(m => !m.Value.Contains("id=\"title-slide\""))
+                .ToList();
+
+            // Collect all blocks per section
+            var allSectionBlocks = new List<(int SectionIndex, List<(int Line, string Tag)> Blocks)>();
+
             for (int s = 0; s < slideStartLines.Count; s++)
             {
                 int startIdx = slideStartLines[s] - 1; // 0-based
@@ -266,53 +288,47 @@ namespace MarkdownPointer.Services
                 }
                 if (inCodeBlock) blocks.Add((codeBlockStart + 1, "pre"));
 
-                html = InjectBlockLineAttributes(html, s, blocks);
-            }
-            return html;
-        }
-
-        private static string InjectBlockLineAttributes(string html, int sectionIndex,
-            List<(int Line, string Tag)> blocks)
-        {
-            if (blocks.Count == 0) return html;
-
-            var sectionPattern = new Regex(@"<section\b[^>]*>", RegexOptions.IgnoreCase);
-            // Filter out the auto-generated title slide from frontmatter
-            var allMatches = sectionPattern.Matches(html);
-            var sectionMatches = allMatches.Cast<Match>()
-                .Where(m => !m.Value.Contains("id=\"title-slide\""))
-                .ToList();
-            if (sectionIndex >= sectionMatches.Count) return html;
-
-            var sectionStart = sectionMatches[sectionIndex].Index + sectionMatches[sectionIndex].Length;
-            var sectionEnd = html.Length;
-            if (sectionIndex + 1 < sectionMatches.Count)
-            {
-                var closingIdx = html.LastIndexOf("</section>",
-                    sectionMatches[sectionIndex + 1].Index, StringComparison.OrdinalIgnoreCase);
-                if (closingIdx > sectionStart) sectionEnd = closingIdx;
+                if (blocks.Count > 0)
+                    allSectionBlocks.Add((s, blocks));
             }
 
+            // Single StringBuilder pass for all sections
             var sb = new StringBuilder(html);
             int offset = 0;
-            var searchPos = sectionStart;
 
-            foreach (var (line, tag) in blocks)
+            foreach (var (sectionIndex, blocks) in allSectionBlocks)
             {
-                var tagPattern = new Regex($@"<{Regex.Escape(tag)}\b([^>]*)>", RegexOptions.IgnoreCase);
-                var tagMatch = tagPattern.Match(sb.ToString(), searchPos + offset);
-                if (!tagMatch.Success || tagMatch.Index >= sectionEnd + offset) continue;
-                if (tagMatch.Groups[1].Value.Contains("data-line"))
+                if (sectionIndex >= sectionMatches.Count) continue;
+
+                var sectionStart = sectionMatches[sectionIndex].Index + sectionMatches[sectionIndex].Length;
+                var sectionEnd = html.Length;
+                if (sectionIndex + 1 < sectionMatches.Count)
                 {
-                    searchPos = tagMatch.Index + tagMatch.Length - offset;
-                    continue;
+                    var closingIdx = html.LastIndexOf("</section>",
+                        sectionMatches[sectionIndex + 1].Index, StringComparison.OrdinalIgnoreCase);
+                    if (closingIdx > sectionStart) sectionEnd = closingIdx;
                 }
 
-                var insertPos = tagMatch.Index + $"<{tag}".Length;
-                var attr = $" data-line=\"{line}\"";
-                sb.Insert(insertPos, attr);
-                offset += attr.Length;
-                searchPos = tagMatch.Index + tagMatch.Length - offset + attr.Length;
+                var searchPos = sectionStart;
+
+                foreach (var (line, tag) in blocks)
+                {
+                    var tagPattern = GetTagPattern(tag);
+                    var currentHtml = sb.ToString();
+                    var tagMatch = tagPattern.Match(currentHtml, searchPos + offset);
+                    if (!tagMatch.Success || tagMatch.Index >= sectionEnd + offset) continue;
+                    if (tagMatch.Groups[1].Value.Contains("data-line"))
+                    {
+                        searchPos = tagMatch.Index + tagMatch.Length - offset;
+                        continue;
+                    }
+
+                    var insertPos = tagMatch.Index + $"<{tag}".Length;
+                    var attr = $" data-line=\"{line}\"";
+                    sb.Insert(insertPos, attr);
+                    offset += attr.Length;
+                    searchPos = tagMatch.Index + tagMatch.Length - offset + attr.Length;
+                }
             }
 
             return sb.ToString();

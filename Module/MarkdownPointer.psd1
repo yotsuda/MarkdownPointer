@@ -1,11 +1,11 @@
 @{
     RootModule = 'MarkdownPointer.psm1'
-    ModuleVersion = '0.10.0'
+    ModuleVersion = '0.11.0'
     GUID = '4c50c9c4-d155-457d-a3a3-e3952253b51d'
     Author = 'Yoshifumi Tsuda'
     Copyright = '(c) 2025-2026 Yoshifumi Tsuda. All rights reserved.'
     Description = @'
-Vibe editing for Markdown. Point at anything, tell AI to fix it.
+Vibe writing for Markdown. Point at anything, tell AI to fix it.
 
 Click any element in the rendered preview to copy a location reference:
   "Rewrite this: [C:\docs\notes.md:42] ## My Section"

@@ -496,67 +496,16 @@ namespace MarkdownPointer
 
                 StartSpinner($"Exporting {ext}");
 
-                string? tempDir = null;
-                var markdownPath = tab.FilePath;
                 try
                 {
-                    // Pre-process: render Mermaid diagrams and SVG images as PNG for export
-                    if ((ext == ".docx" || ext == ".pptx") && tab.WebView?.CoreWebView2 != null)
-                    {
-                        var mdContent = await File.ReadAllTextAsync(tab.FilePath);
-                        bool modified = false;
-
-                        // Mermaid diagrams → PNG
-                        if (mdContent.Contains("```mermaid"))
-                        {
-                            tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
-                            Directory.CreateDirectory(tempDir);
-
-                            var pngs = await _mermaidExportService.CaptureAllMermaidPngsAsync(tab.WebView, tempDir);
-                            if (pngs.Count > 0)
-                            {
-                                mdContent = MermaidExportService.ReplaceMermaidBlocksWithImages(mdContent, pngs);
-                                modified = true;
-                            }
-                        }
-
-                        // SVG images → PNG
-                        if (MermaidExportService.ContainsSvgImages(mdContent))
-                        {
-                            if (tempDir == null)
-                            {
-                                tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
-                                Directory.CreateDirectory(tempDir);
-                            }
-
-                            var svgPngs = await _mermaidExportService.CaptureAllInlineSvgPngsAsync(tab.WebView, tempDir);
-                            if (svgPngs.Count > 0)
-                            {
-                                mdContent = MermaidExportService.ReplaceSvgImagesWithPngs(mdContent, svgPngs);
-                                modified = true;
-                            }
-                        }
-
-                        if (modified)
-                        {
-                            markdownPath = Path.Combine(tempDir!, "export.md");
-                            await File.WriteAllTextAsync(markdownPath, mdContent);
-                        }
-                    }
-
-                    // Pass original file's directory as resource-path so Pandoc can resolve relative images
-                    var resourceDir = markdownPath != tab.FilePath ? Path.GetDirectoryName(tab.FilePath) : null;
-
-                    (bool success, string? error) result;
-                    if (ext == ".pptx")
-                        result = await SlideService.ExportPptxAsync(markdownPath, dialog.FileName, templatePath, resourceDir);
-                    else
-                        result = await PandocService.ConvertAsync(markdownPath, dialog.FileName, templatePath, resourceDir);
+                    var (success, error, tempDir) = await ExportService.ExportAsync(
+                        tab.FilePath, dialog.FileName, templatePath,
+                        tab.WebView, _mermaidExportService);
 
                     // StopSpinner before ShowStatusMessage so it doesn't clear the message
                     StopSpinner();
 
-                    if (result.success)
+                    if (success)
                     {
                         ShowStatusMessage($"✓ Exported {ext}");
                         var exportedPath = dialog.FileName;
@@ -566,18 +515,16 @@ namespace MarkdownPointer
                     }
                     else
                     {
-                        ShowStatusMessage($"✗ Export failed: {result.error}");
+                        ShowStatusMessage($"✗ Export failed: {error}");
                     }
+
+                    ExportService.CleanupTempDir(tempDir);
                 }
                 finally
                 {
                     // Ensure spinner is stopped on exception (normal path already called StopSpinner)
                     _spinnerTimer?.Stop();
                     _spinnerTimer = null;
-                    if (tempDir != null)
-                    {
-                        try { Directory.Delete(tempDir, true); } catch { }
-                    }
                 }
             }
         }
