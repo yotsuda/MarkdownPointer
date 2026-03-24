@@ -62,8 +62,17 @@ namespace MarkdownPointer
                     var userSelect = _isPointingMode ? "none" : "";
                     tab.WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
 
-                    // Restore saved scroll position
-                    if (tab.SavedScrollPosition > 0)
+                    // Restore saved position
+                    if (tab.IsSlideView && tab.SavedSlideIndex >= 0)
+                    {
+                        var idx = tab.SavedSlideIndex;
+                        tab.SavedSlideIndex = -1;
+                        tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                            $"(function r(){{if(typeof Reveal==='undefined'){{setTimeout(r,50);return}}" +
+                            $"if(Reveal.isReady())Reveal.slide({idx});" +
+                            $"else Reveal.on('ready',function(){{Reveal.slide({idx})}});}})()");
+                    }
+                    else if (tab.SavedScrollPosition > 0)
                     {
                         tab.WebView.CoreWebView2.ExecuteScriptAsync($"window.scrollTo(0, {tab.SavedScrollPosition})");
                     }

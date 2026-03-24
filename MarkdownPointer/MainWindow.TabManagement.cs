@@ -593,20 +593,28 @@ namespace MarkdownPointer
         {
             try
             {
-                // Save current scroll position before re-rendering
+                // Save current position before re-rendering
                 if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
                 {
                     try
                     {
-                        var scrollPosJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync("window.scrollY");
-                        if (double.TryParse(scrollPosJson, out var scrollPos))
+                        if (tab.IsSlideView)
                         {
-                            tab.SavedScrollPosition = scrollPos;
+                            var indexJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                                "typeof Reveal !== 'undefined' && Reveal.isReady() ? Reveal.getSlides().indexOf(Reveal.getCurrentSlide()) : -1");
+                            if (int.TryParse(indexJson, out var idx))
+                                tab.SavedSlideIndex = idx;
+                        }
+                        else
+                        {
+                            var scrollPosJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync("window.scrollY");
+                            if (double.TryParse(scrollPosJson, out var scrollPos))
+                                tab.SavedScrollPosition = scrollPos;
                         }
                     }
                     catch
                     {
-                        // Ignore errors when getting scroll position
+                        // Ignore errors when getting position
                     }
                 }
 

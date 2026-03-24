@@ -88,6 +88,12 @@ namespace MarkdownPointer.Models
         public double SavedScrollPosition { get; set; }
 
         /// <summary>
+        /// Saved slide index for restoring after reload in slide view.
+        /// -1 means no saved position.
+        /// </summary>
+        public int SavedSlideIndex { get; set; } = -1;
+
+        /// <summary>
         /// Current CSS zoom factor for this tab.
         /// </summary>
         public double CssZoomFactor { get; set; } = 1.0;
