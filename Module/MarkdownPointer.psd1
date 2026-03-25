@@ -50,10 +50,16 @@ Example prompts for AI:
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
 0.11.0
+- High-quality PPTX export using Open XML SDK (replaces Pandoc for .pptx)
+- New MCP tools: load_deck, get_slide_info, get_slide_image, update_deck, import_pptx
+- import_pptx: extract text, tables, and images from existing PPTX to Markdown + assets/
+- Slide annotations: `<!-- slide: title/section/end -->`, `<!-- bg: color -->`
+- Upgrade to .NET 10 (requires .NET 10 Desktop Runtime)
+- Update MCP SDK to 1.1.0
 - Switch Named Pipe protocol to length-prefixed framing (breaking change from 0.10.0)
-- Detect version mismatch: MCP server checks running mdp.exe path and warns about outdated config
+- Detect version mismatch: MCP server warns about outdated config
 - Preserve slide position when file is updated in slide view
-- Add Up/Down arrow keys for slide navigation (vertical slides)
+- Add Up/Down arrow keys for slide navigation
 - Change show_markdown parameter from string[] to string (Claude Code compatibility)
 
 0.10.0

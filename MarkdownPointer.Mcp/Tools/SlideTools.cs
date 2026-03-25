@@ -11,20 +11,20 @@ namespace MarkdownPointer.Mcp.Tools;
 public class SlideTools
 {
     [McpServerTool]
-    [Description("Load a YAML deck file and generate PPTX + preview images. Returns slide count and structure info.")]
+    [Description("Load a Markdown or YAML deck file and generate PPTX + preview images. Returns slide count and structure info.")]
     public static string LoadDeck(
         SlideService service,
-        [Description("Absolute path to the .yaml file")] string yaml_path)
+        [Description("Absolute path to a .md or .yaml file")] string path)
     {
         try
         {
-            var result = service.Load(yaml_path);
+            var result = service.Load(path);
             var info = service.GetSlideInfo();
             return $"{result}\n\n{info}";
         }
         catch (Exception ex)
         {
-            return $"Error loading {yaml_path}: {ex.Message}";
+            return $"Error loading {path}: {ex.Message}";
         }
     }
 
@@ -52,19 +52,19 @@ public class SlideTools
     }
 
     [McpServerTool]
-    [Description("Update the YAML deck file and regenerate PPTX + previews. Returns updated slide info.")]
+    [Description("Update a Markdown or YAML deck file and regenerate PPTX + previews. Returns updated slide info.")]
     public static string UpdateDeck(
         SlideService service,
-        [Description("Absolute path to the .yaml file")] string yaml_path,
-        [Description("New full content of the YAML file")] string content)
+        [Description("Absolute path to the .md or .yaml file")] string path,
+        [Description("New full content of the file")] string content)
     {
         try
         {
-            return service.UpdateYaml(yaml_path, content);
+            return service.UpdateContent(path, content);
         }
         catch (Exception ex)
         {
-            return $"Error updating {yaml_path}: {ex.Message}";
+            return $"Error updating {path}: {ex.Message}";
         }
     }
 

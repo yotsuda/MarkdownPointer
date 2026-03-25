@@ -41,8 +41,8 @@ Color this node orange [c:\docs\architecture.md:6] mermaid node: mdp.exe
 | Tab Dock/Undock | Drag tabs between windows or detach to a new window |
 | Always on Top | Pin the window above other apps for reference |
 | Live Reload | Auto-refresh on file changes |
-| Export | `.docx` / `.pptx` via Pandoc (Mermaid/SVG rendered as images) |
-| MCP Server | Let Claude open, navigate, and export your documents |
+| Export | `.pptx` (built-in Open XML), `.docx` (via Pandoc). Mermaid/SVG rendered as images |
+| MCP Server | Let AI open, navigate, export documents, and generate/import PPTX |
 
 ## Install
 In a [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/install-powershell-on-windows) console:
@@ -101,7 +101,8 @@ Then add to `claude_desktop_config.json`:
 | `show_markdown` | Open files and scroll to a line |
 | `get_status` | Get current window/tab state |
 | `slide_control` | Navigate reveal.js slides |
-| `export_document` | Export to .docx / .pptx via Pandoc |
+| `export_document` | Export to .pptx (built-in) or .docx (Pandoc) |
+| `import_pptx` | Import PPTX to Markdown + extract images to assets/ |
 
 ## Keyboard Shortcuts
 
@@ -121,7 +122,7 @@ Then add to `claude_desktop_config.json`:
 
 - Windows 10/11
 - [PowerShell 7.4+](https://learn.microsoft.com/powershell/scripting/install/install-powershell-on-windows)
-- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
 
 <details>
 <summary>Build from Source</summary>

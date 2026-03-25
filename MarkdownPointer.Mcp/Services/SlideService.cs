@@ -12,7 +12,8 @@ namespace MarkdownPointer.Mcp.Services;
 
 public class SlideService
 {
-    private readonly DeckParser _parser = new();
+    private readonly DeckParser _yamlParser = new();
+    private readonly MarkdownToDeckConverter _mdConverter = new();
     private readonly PptxRenderer _renderer = new();
     private readonly PptxImporter _importer = new();
 
@@ -22,11 +23,16 @@ public class SlideService
 
     public Deck? CurrentDeck => _deck;
 
-    public string Load(string yamlPath)
+    public string Load(string path)
     {
-        _deck = _parser.ParseFile(yamlPath);
-        _sourceFile = yamlPath;
-        _outputDir = Path.Combine(Path.GetDirectoryName(yamlPath)!, ".pinpoint");
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        _deck = ext switch
+        {
+            ".md" => _mdConverter.ConvertFile(path),
+            _ => _yamlParser.ParseFile(path),
+        };
+        _sourceFile = path;
+        _outputDir = Path.Combine(Path.GetDirectoryName(path)!, ".pinpoint");
         Directory.CreateDirectory(_outputDir);
 
         var pptxPath = Path.Combine(_outputDir, "preview.pptx");
@@ -40,10 +46,10 @@ public class SlideService
         }
         catch (Exception ex)
         {
-            return $"Loaded {_deck.Slides.Count} slides from {Path.GetFileName(yamlPath)} (no slide images: {ex.Message})";
+            return $"Loaded {_deck.Slides.Count} slides from {Path.GetFileName(path)} (no slide images: {ex.Message})";
         }
 
-        return $"Loaded {_deck.Slides.Count} slides from {Path.GetFileName(yamlPath)}";
+        return $"Loaded {_deck.Slides.Count} slides from {Path.GetFileName(path)}";
     }
 
     private const long EmuPerPt = 12700;
@@ -205,10 +211,10 @@ public class SlideService
         return ms.ToArray();
     }
 
-    public string UpdateYaml(string yamlPath, string newContent)
+    public string UpdateContent(string path, string newContent)
     {
-        File.WriteAllText(yamlPath, newContent);
-        return Load(yamlPath);
+        File.WriteAllText(path, newContent);
+        return Load(path);
     }
 
     public string ImportPptx(string pptxPath, string? outputMdPath = null)
