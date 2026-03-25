@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="Rendering\export-slides.ps1" Link="export-slides.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Rendering\Export-Slides.ps1" Link="Export-Slides.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Rendering\blank-template.pptx" Link="blank-template.pptx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

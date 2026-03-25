@@ -8,11 +8,11 @@ public static class PowerPointExporter
     {
         Directory.CreateDirectory(outputDir);
 
-        // Find export-slides.ps1 next to the host executable
-        var scriptPath = Path.Combine(AppContext.BaseDirectory, "export-slides.ps1");
+        // Find Export-Slides.ps1 next to the host executable
+        var scriptPath = Path.Combine(AppContext.BaseDirectory, "Export-Slides.ps1");
 
         if (!File.Exists(scriptPath))
-            throw new FileNotFoundException("export-slides.ps1 not found", scriptPath);
+            throw new FileNotFoundException("Export-Slides.ps1 not found", scriptPath);
 
         var psi = new ProcessStartInfo
         {
