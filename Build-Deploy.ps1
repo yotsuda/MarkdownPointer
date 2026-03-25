@@ -98,6 +98,14 @@ if (-not (Test-Path $InstallBinDir)) {
     New-Item $InstallBinDir -ItemType Directory -Force | Out-Null
 }
 
+# Clean stale files from bin (single-file publish bundles DLLs into exe)
+$keepFiles = @('mdp.exe', 'mdp-mcp.exe', 'blank-template.pptx', 'Export-Slides.ps1')
+$staleFiles = Get-ChildItem $InstallBinDir | Where-Object { $_.Name -notin $keepFiles }
+if ($staleFiles) {
+    $staleFiles | Remove-Item -Force
+    Write-Host "      Removed $($staleFiles.Count) stale file(s): $($staleFiles.Name -join ', ')" -ForegroundColor DarkGray
+}
+
 # Module files
 Copy-Item "$ModuleDir\MarkdownPointer.psd1" $InstallDir -Force
 Copy-Item "$ModuleDir\MarkdownPointer.psm1" $InstallDir -Force

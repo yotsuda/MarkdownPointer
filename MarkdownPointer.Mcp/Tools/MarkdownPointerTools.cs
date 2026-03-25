@@ -164,6 +164,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
     [McpServerTool(Name = "export_document"), Description("Export a Markdown file to .docx (Word) or .pptx (PowerPoint). Output format is determined by the file extension of the output path. Defaults to .docx. PPTX uses SlideKit (no Pandoc needed). DOCX requires Pandoc.")]
     public async Task<string> ExportDocument(
+        SlideService slideService,
         [Description("Path to the Markdown file")] string path,
         [Description("Output file path (.docx or .pptx). Defaults to same directory with .docx extension")] string? output = null,
         [Description("Path to a .docx template (reference-doc) for styling. Only applies to .docx output.")] string? template = null,
@@ -172,7 +173,6 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
         try
         {
             var ext = output != null ? Path.GetExtension(Path.GetFullPath(output)).ToLowerInvariant() : ".docx";
-            var format = ext == ".pptx" ? "pptx" : "docx";
             var fullPath = Path.GetFullPath(path);
 
             if (!File.Exists(fullPath))
@@ -184,7 +184,16 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
             var outputPath = output != null ? Path.GetFullPath(output) : Path.ChangeExtension(fullPath, ext);
 
-            // Try routing through MarkdownPointer app for Mermaid/SVG conversion
+            // PPTX: use SlideKit directly (no Pandoc needed)
+            if (ext == ".pptx")
+            {
+                slideService.ExportPptx(fullPath, outputPath);
+                return WithVersionWarning(JsonSerializer.Serialize(
+                    new ExportResponse { Success = true, Output = outputPath },
+                    PipeJsonContext.Default.ExportResponse));
+            }
+
+            // DOCX: try routing through MarkdownPointer app for Mermaid/SVG conversion
             try
             {
                 var templatePath = template != null ? Path.GetFullPath(template) : null;
@@ -229,7 +238,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "pandoc",
-                    Arguments = $"-f markdown -t {format} {refDoc}-o \"{outputPath}\" \"{fullPath}\"",
+                    Arguments = $"-f markdown -t docx {refDoc}-o \"{outputPath}\" \"{fullPath}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardError = true

@@ -44,11 +44,18 @@ public class SlideTools
         [Description("Slide index (0-based)")] int slide_index,
         [Description("Image width in pixels. Default 480 (270p). Use 320 for quick check, 960 for detail.")] int width = 480)
     {
-        var bytes = service.GetSlideImage(slide_index, width);
-        if (bytes is null)
-            return [new TextContentBlock { Text = "Error: Slide not found or no deck loaded." }];
+        try
+        {
+            var bytes = service.GetSlideImage(slide_index, width);
+            if (bytes is null)
+                return [new TextContentBlock { Text = "Error: Slide not found or no deck loaded." }];
 
-        return [ImageContentBlock.FromBytes(bytes, "image/jpeg")];
+            return [ImageContentBlock.FromBytes(bytes, "image/jpeg")];
+        }
+        catch (Exception ex)
+        {
+            return [new TextContentBlock { Text = $"Error in GetSlideImage: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}" }];
+        }
     }
 
     [McpServerTool]

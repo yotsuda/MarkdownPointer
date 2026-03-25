@@ -217,6 +217,17 @@ public class SlideService
         return Load(path);
     }
 
+    public void ExportPptx(string mdPath, string outputPath)
+    {
+        var ext = Path.GetExtension(mdPath).ToLowerInvariant();
+        var deck = ext switch
+        {
+            ".md" => _mdConverter.ConvertFile(mdPath),
+            _ => _yamlParser.ParseFile(mdPath),
+        };
+        _renderer.Render(deck, outputPath, basePath: Path.GetDirectoryName(mdPath));
+    }
+
     public string ImportPptx(string pptxPath, string? outputMdPath = null)
     {
         outputMdPath ??= Path.ChangeExtension(pptxPath, ".md");

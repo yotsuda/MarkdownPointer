@@ -122,7 +122,7 @@ public class PptxRenderer
                     new D.Offset { X = shape.X, Y = shape.Y },
                     new D.Extents { Cx = shape.Width, Cy = shape.Height }),
                 new D.PresetGeometry(new D.AdjustValueList()) { Preset = D.ShapeTypeValues.Rectangle },
-                new D.SolidFill(new D.RgbColorModelHex { Val = shape.Fill ?? "FFFFFF" }),
+                new D.SolidFill(new D.RgbColorModelHex { Val = Hex(shape.Fill) }),
                 new D.Outline(new D.NoFill())));
         tree.Append(sp);
     }
@@ -131,7 +131,7 @@ public class PptxRenderer
     {
         var alignment = ParseAlignment(shape.Alignment);
         int fontSize = shape.FontSize ?? 1800;
-        string color = shape.Color ?? "333333";
+        string color = Hex(shape.Color, "333333");
 
         D.TextBody body;
 
@@ -204,10 +204,10 @@ public class PptxRenderer
         long rowH = shape.Height / rowCount;
         int fontSize = shape.FontSize ?? 1800;
 
-        string headerFill = shape.HeaderFill ?? "1F4E79";
-        string headerColor = shape.HeaderColor ?? "FFFFFF";
-        string? altRowFill = shape.AltRowFill;
-        string borderColor = shape.BorderColor ?? "D6E4F0";
+        string headerFill = Hex(shape.HeaderFill, "1F4E79");
+        string headerColor = Hex(shape.HeaderColor, "FFFFFF");
+        string? altRowFill = shape.AltRowFill is not null ? Hex(shape.AltRowFill) : null;
+        string borderColor = Hex(shape.BorderColor, "D6E4F0");
 
         var table = new D.Table();
         table.Append(new D.TableProperties { FirstRow = true, BandRow = true });
@@ -251,8 +251,8 @@ public class PptxRenderer
     private static D.TableCell CreateTableCell(string text, string font, int fontSize,
         bool bold = false, string? bgColor = null, string? textColor = null, string? borderColor = null)
     {
-        string color = textColor ?? "333333";
-        string border = borderColor ?? "D6E4F0";
+        string color = Hex(textColor, "333333");
+        string border = Hex(borderColor, "D6E4F0");
 
         var runProps = new D.RunProperties
         {
@@ -366,6 +366,9 @@ public class PptxRenderer
             _ => null,
         };
     }
+
+    private static string Hex(string? color, string fallback = "FFFFFF")
+        => (color ?? fallback).TrimStart('#');
 
     // ---- Presentation initialization (fallback when no template) ----
 
