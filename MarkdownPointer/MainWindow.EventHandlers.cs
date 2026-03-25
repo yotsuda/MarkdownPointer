@@ -464,25 +464,22 @@ namespace MarkdownPointer
             {
                 var ext = Path.GetExtension(dialog.FileName).ToLowerInvariant();
 
-                // Ask if user wants to apply a template
+                // Ask if user wants to apply a template (.docx only; .pptx uses SlideKit)
                 string? templatePath = null;
-                if (ext == ".pptx" || ext == ".docx")
+                if (ext == ".docx")
                 {
                     var applyTemplate = MessageBox.Show(
-                        $"Apply a {(ext == ".pptx" ? "PowerPoint" : "Word")} template?",
+                        "Apply a Word template?",
                         "Template",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question);
 
                     if (applyTemplate == MessageBoxResult.Yes)
                     {
-                        var templateFilter = ext == ".pptx"
-                            ? "PowerPoint (*.pptx)|*.pptx"
-                            : "Word Document (*.docx)|*.docx";
                         var templateDialog = new Microsoft.Win32.OpenFileDialog
                         {
                             Title = "Select template",
-                            Filter = templateFilter
+                            Filter = "Word Document (*.docx)|*.docx"
                         };
                         if (templateDialog.ShowDialog() == true)
                         {

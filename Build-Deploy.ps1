@@ -106,10 +106,17 @@ Copy-Item "$PSScriptRoot\LICENSE" $InstallDir -Force -ErrorAction SilentlyContin
 # App binary
 Copy-Item "$BuildDir\app\mdp.exe" $InstallBinDir -Force
 
-# MCP binary
+# MCP binary + SlideKit assets
 if (-not $AppOnly) {
     $mcpExe = Get-ChildItem "$BuildDir\mcp" -Filter '*.exe' | Select-Object -First 1
     Copy-Item $mcpExe.FullName "$InstallBinDir\mdp-mcp.exe" -Force
+    # SlideKit assets (PPTX template and PowerPoint export script)
+    foreach ($asset in @('blank-template.pptx', 'export-slides.ps1')) {
+        $assetPath = Join-Path "$BuildDir\mcp" $asset
+        if (Test-Path $assetPath) {
+            Copy-Item $assetPath $InstallBinDir -Force
+        }
+    }
 }
 
 Write-Host "`n=== Deployed to $InstallDir ===" -ForegroundColor Green

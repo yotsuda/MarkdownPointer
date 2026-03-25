@@ -162,11 +162,11 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
         }
     }
 
-    [McpServerTool(Name = "export_document"), Description("Export a Markdown file to .docx (Word) or .pptx (PowerPoint). Output format is determined by the file extension of the output path. Defaults to .docx. Mermaid diagrams and SVG images are rendered as PNG for full fidelity. Requires Pandoc to be installed.")]
+    [McpServerTool(Name = "export_document"), Description("Export a Markdown file to .docx (Word) or .pptx (PowerPoint). Output format is determined by the file extension of the output path. Defaults to .docx. PPTX uses SlideKit (no Pandoc needed). DOCX requires Pandoc.")]
     public async Task<string> ExportDocument(
         [Description("Path to the Markdown file")] string path,
         [Description("Output file path (.docx or .pptx). Defaults to same directory with .docx extension")] string? output = null,
-        [Description("Path to a .docx/.pptx template (reference-doc) for styling the output")] string? template = null,
+        [Description("Path to a .docx template (reference-doc) for styling. Only applies to .docx output.")] string? template = null,
         CancellationToken cancellationToken = default)
     {
         try

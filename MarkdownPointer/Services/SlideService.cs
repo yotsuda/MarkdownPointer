@@ -37,39 +37,21 @@ namespace MarkdownPointer.Services
         }
 
         /// <summary>
-        /// Exports markdown to .pptx using Pandoc.
-        /// Supports --reference-doc for template application.
+        /// Exports markdown to .pptx using SlideKit.
         /// </summary>
         public static async Task<(bool Success, string? Error)> ExportPptxAsync(
             string markdownPath, string outputPath, string? templatePath = null, string? resourceDir = null)
         {
             try
             {
-                var refDoc = !string.IsNullOrEmpty(templatePath) && File.Exists(templatePath)
-                    ? $"--reference-doc=\"{templatePath}\" " : "";
-                var resPath = !string.IsNullOrEmpty(resourceDir)
-                    ? $"--resource-path=\"{resourceDir}\" " : "";
-                var args = $"-f markdown -t pptx {refDoc}{resPath}-o \"{outputPath}\" \"{markdownPath}\"";
-
-                var psi = new ProcessStartInfo
+                return await Task.Run(() =>
                 {
-                    FileName = "pandoc",
-                    Arguments = args,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardError = true
-                };
-
-                using var process = Process.Start(psi);
-                if (process == null) return (false, "Failed to start Pandoc");
-
-                var stderr = await process.StandardError.ReadToEndAsync();
-                await process.WaitForExitAsync();
-
-                if (process.ExitCode != 0)
-                    return (false, string.IsNullOrWhiteSpace(stderr) ? "Pandoc exited with error" : stderr.Trim());
-
-                return (true, null);
+                    var converter = new SlideKit.Parsing.MarkdownToDeckConverter();
+                    var deck = converter.ConvertFile(markdownPath);
+                    var renderer = new SlideKit.Rendering.PptxRenderer();
+                    renderer.Render(deck, outputPath, templatePath);
+                    return ((bool Success, string? Error))(true, null);
+                });
             }
             catch (Exception ex)
             {

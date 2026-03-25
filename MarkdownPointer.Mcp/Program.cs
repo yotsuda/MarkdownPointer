@@ -23,12 +23,14 @@ public class Program
         });
 
         builder.Services
-            .AddSingleton<NamedPipeClient>();
+            .AddSingleton<NamedPipeClient>()
+            .AddSingleton<SlideService>();
 
         builder.Services
             .AddMcpServer()
             .WithStdioServerTransport()
-            .WithTools<MarkdownPointerTools>();
+            .WithTools<MarkdownPointerTools>()
+            .WithTools<SlideTools>();
 
         var host = builder.Build();
 

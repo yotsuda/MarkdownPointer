@@ -49,6 +49,13 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.11.0
+- Switch Named Pipe protocol to length-prefixed framing (breaking change from 0.10.0)
+- Detect version mismatch: MCP server checks running mdp.exe path and warns about outdated config
+- Preserve slide position when file is updated in slide view
+- Add Up/Down arrow keys for slide navigation (vertical slides)
+- Change show_markdown parameter from string[] to string (Claude Code compatibility)
+
 0.10.0
 - Export SVG images as PNG in .docx/.pptx export (embedded fonts preserved)
 - Mermaid/SVG pre-processing now applies to .pptx export (previously .docx only)
