@@ -234,7 +234,7 @@ public partial class MarkdownToDeckConverter
             "title" => BuildTitleSlide(title, subtitle, bgOverride),
             "section" => BuildSectionSlide(title, bgOverride),
             "end" => BuildEndSlide(title, bgOverride),
-            _ => BuildContentSlide(title, bullets, tableHeaders, tableRows, codeLines, bgOverride),
+            _ => BuildContentSlide(title, subtitle, bullets, tableHeaders, tableRows, codeLines, bgOverride),
         };
     }
 
@@ -280,7 +280,7 @@ public partial class MarkdownToDeckConverter
         return BuildSectionSlide(title, bg);
     }
 
-    private Slide BuildContentSlide(string? title, List<string> bullets,
+    private Slide BuildContentSlide(string? title, string? subtitle, List<string> bullets,
         List<string> tableHeaders, List<List<string>> tableRows,
         List<string> codeLines, string? bg)
     {
@@ -344,6 +344,16 @@ public partial class MarkdownToDeckConverter
                 Type = "textbox", X = ContentLeft, Y = cY,
                 Width = 864 * Emu, Height = cH,
                 Bullets = bullets, FontSize = ContentFontSize
+            });
+        }
+        // Plain text
+        else if (!string.IsNullOrWhiteSpace(subtitle))
+        {
+            slide.Shapes.Add(new Shape
+            {
+                Type = "textbox", X = ContentLeft, Y = cY,
+                Width = 864 * Emu, Height = cH,
+                Text = subtitle, FontSize = ContentFontSize
             });
         }
 

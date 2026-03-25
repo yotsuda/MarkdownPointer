@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownPointer.Tests", "Ma
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlideKit", "SlideKit\SlideKit.csproj", "{FC59F0D1-2428-4114-B10C-822C3F74F746}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlideKit.Tests", "SlideKit.Tests\SlideKit.Tests.csproj", "{03F65622-4849-4E60-8036-D9AC2106BA68}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{FC59F0D1-2428-4114-B10C-822C3F74F746}.Release|x64.Build.0 = Release|Any CPU
 		{FC59F0D1-2428-4114-B10C-822C3F74F746}.Release|x86.ActiveCfg = Release|Any CPU
 		{FC59F0D1-2428-4114-B10C-822C3F74F746}.Release|x86.Build.0 = Release|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Debug|x64.Build.0 = Debug|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Debug|x86.Build.0 = Debug|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Release|Any CPU.Build.0 = Release|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Release|x64.ActiveCfg = Release|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Release|x64.Build.0 = Release|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Release|x86.ActiveCfg = Release|Any CPU
+		{03F65622-4849-4E60-8036-D9AC2106BA68}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
