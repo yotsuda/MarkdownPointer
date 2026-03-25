@@ -17,14 +17,14 @@ Click any element in the rendered preview to copy a location reference:
 Renders Markdown with Mermaid diagrams, KaTeX math, and SVG. Includes MCP server for Claude Code / Claude Desktop.
 
 Requirements:
-  .NET 8 Desktop Runtime - https://dotnet.microsoft.com/download/dotnet/8.0
+  .NET 10 Desktop Runtime - https://dotnet.microsoft.com/download/dotnet/10.0
   Pandoc (optional, for .docx export) - https://pandoc.org
 
 Quick start:
   mdp .\README.md             # Open a file
   mdp .\docs\*.md             # Open multiple files
   ConvertTo-Docx .\*.md       # Convert to .docx via Pandoc
-  ConvertTo-Pptx .\slides.md  # Convert to .pptx via Pandoc
+  ConvertTo-Pptx .\slides.md  # Convert to .pptx
 
 MCP setup for Claude Code:
   claude mcp add mdp -s user -- "$(Get-MarkdownPointerMCPPath)"
@@ -45,7 +45,7 @@ Example prompts for AI:
     AliasesToExport = @('mdp')
     PrivateData = @{
         PSData = @{
-            Tags = @('Markdown', 'Viewer', 'Preview', 'MCP', 'Claude', 'AI', 'WPF', 'Mermaid', 'KaTeX', 'Pandoc')
+            Tags = @('Markdown', 'Viewer', 'Preview', 'MCP', 'Claude', 'AI', 'WPF', 'Mermaid', 'KaTeX', 'Pandoc', 'PPTX', 'PowerPoint')
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
@@ -55,7 +55,7 @@ Example prompts for AI:
 - import_pptx: extract text, tables, and images from existing PPTX to Markdown + assets/
 - Slide annotations: `<!-- slide: title/section/end -->`, `<!-- bg: color -->`
 - Upgrade to .NET 10 (requires .NET 10 Desktop Runtime)
-- Update MCP SDK to 1.1.0
+- Update C# MCP SDK to 1.1.0
 - Switch Named Pipe protocol to length-prefixed framing (breaking change from 0.10.0)
 - Detect version mismatch: MCP server warns about outdated config
 - Preserve slide position when file is updated in slide view

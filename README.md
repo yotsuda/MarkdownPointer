@@ -73,6 +73,9 @@ Then just ask Claude:
 - "open README.md in mdp"
 - "show the report in mdp and scroll to line 50"
 - "export report.md to docx"
+- "export slides.md to pptx"
+- "import presentation.pptx to markdown"
+- "show me slide 3 of slides.md"
 
 ### Claude Desktop
 
