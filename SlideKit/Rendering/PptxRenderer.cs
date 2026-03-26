@@ -359,8 +359,9 @@ public class PptxRenderer
         try
         {
             using var fs = File.OpenRead(path);
+            if (fs.Length < 32) return (0, 0);
             var header = new byte[32];
-            if (fs.Read(header, 0, header.Length) < 24) return (0, 0);
+            fs.ReadExactly(header);
 
             // PNG: bytes 0-7 = signature, IHDR chunk at offset 8, width at 16, height at 20 (big-endian)
             if (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47)
@@ -381,9 +382,9 @@ public class PptxRenderer
                     int marker = fs.ReadByte();
                     if (marker == 0xC0 || marker == 0xC2) // SOF0 or SOF2
                     {
-                        fs.Read(buf, 0, 5); // length(2) + precision(1) + height(2)
+                        fs.ReadExactly(buf, 0, 5); // length(2) + precision(1) + height(2)
                         int h = (buf[3] << 8) | buf[4];
-                        fs.Read(buf, 0, 2);
+                        fs.ReadExactly(buf, 0, 2);
                         int w = (buf[0] << 8) | buf[1];
                         return (w, h);
                     }

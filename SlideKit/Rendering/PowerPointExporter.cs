@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
 
 namespace SlideKit.Rendering;
 
+[SupportedOSPlatform("windows")]
 public static class PowerPointExporter
 {
     public static void ExportSlideImages(string pptxPath, string outputDir, int width = 1920, int height = 1080)

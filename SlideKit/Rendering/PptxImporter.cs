@@ -73,8 +73,8 @@ public class PptxImporter
 
         // Extract font
         var fontScheme = themePart.Theme.ThemeElements.FontScheme;
-        var majorFont = fontScheme?.MajorFont?.LatinFont?.Typeface
-                     ?? fontScheme?.MajorFont?.EastAsianFont?.Typeface;
+        var majorFont = (string?)(fontScheme?.MajorFont?.LatinFont?.Typeface
+                     ?? fontScheme?.MajorFont?.EastAsianFont?.Typeface);
         if (majorFont is not null)
             deck.Theme.Font = majorFont;
     }
