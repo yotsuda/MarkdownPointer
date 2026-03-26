@@ -96,5 +96,6 @@ namespace MarkdownPointer.Services
                 try { Directory.Delete(tempDir, true); } catch { }
             }
         }
+
     }
 }

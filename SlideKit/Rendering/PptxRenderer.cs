@@ -312,6 +312,28 @@ public class PptxRenderer
 
         var relId = slidePart.GetIdOfPart(imagePart);
 
+        // Fit image within the shape bounds while preserving aspect ratio
+        long imgX = shape.X, imgY = shape.Y;
+        long imgW = shape.Width, imgH = shape.Height;
+        var (pixW, pixH) = ReadImageDimensions(imagePath);
+        if (pixW > 0 && pixH > 0)
+        {
+            double imgAspect = (double)pixW / pixH;
+            double boxAspect = (double)shape.Width / shape.Height;
+            if (imgAspect > boxAspect)
+            {
+                imgW = shape.Width;
+                imgH = (long)(shape.Width / imgAspect);
+                imgY = shape.Y + (shape.Height - imgH) / 2;
+            }
+            else
+            {
+                imgH = shape.Height;
+                imgW = (long)(shape.Height * imgAspect);
+                imgX = shape.X + (shape.Width - imgW) / 2;
+            }
+        }
+
         var pic = new P.Picture(
             new P.NonVisualPictureProperties(
                 new P.NonVisualDrawingProperties { Id = id++, Name = $"Image{id}" },
@@ -322,11 +344,75 @@ public class PptxRenderer
                 new D.Stretch(new D.FillRectangle())),
             new P.ShapeProperties(
                 new D.Transform2D(
-                    new D.Offset { X = shape.X, Y = shape.Y },
-                    new D.Extents { Cx = shape.Width, Cy = shape.Height }),
+                    new D.Offset { X = imgX, Y = imgY },
+                    new D.Extents { Cx = imgW, Cy = imgH }),
                 new D.PresetGeometry(new D.AdjustValueList()) { Preset = D.ShapeTypeValues.Rectangle }));
 
         tree.Append(pic);
+    }
+
+    /// <summary>
+    /// Reads image pixel dimensions from PNG/JPEG/GIF/BMP file headers without loading the full image.
+    /// </summary>
+    private static (int Width, int Height) ReadImageDimensions(string path)
+    {
+        try
+        {
+            using var fs = File.OpenRead(path);
+            var header = new byte[32];
+            if (fs.Read(header, 0, header.Length) < 24) return (0, 0);
+
+            // PNG: bytes 0-7 = signature, IHDR chunk at offset 8, width at 16, height at 20 (big-endian)
+            if (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47)
+            {
+                int w = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
+                int h = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
+                return (w, h);
+            }
+
+            // JPEG: search for SOF0/SOF2 marker
+            if (header[0] == 0xFF && header[1] == 0xD8)
+            {
+                fs.Position = 2;
+                var buf = new byte[8];
+                while (fs.Position < fs.Length - 8)
+                {
+                    if (fs.ReadByte() != 0xFF) continue;
+                    int marker = fs.ReadByte();
+                    if (marker == 0xC0 || marker == 0xC2) // SOF0 or SOF2
+                    {
+                        fs.Read(buf, 0, 5); // length(2) + precision(1) + height(2)
+                        int h = (buf[3] << 8) | buf[4];
+                        fs.Read(buf, 0, 2);
+                        int w = (buf[0] << 8) | buf[1];
+                        return (w, h);
+                    }
+                    // Skip segment
+                    if (fs.Read(buf, 0, 2) < 2) break;
+                    int len = (buf[0] << 8) | buf[1];
+                    if (len < 2) break;
+                    fs.Position += len - 2;
+                }
+            }
+
+            // GIF: width at 6, height at 8 (little-endian)
+            if (header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46)
+            {
+                int w = header[6] | (header[7] << 8);
+                int h = header[8] | (header[9] << 8);
+                return (w, h);
+            }
+
+            // BMP: width at 18, height at 22 (little-endian, signed for height)
+            if (header[0] == 0x42 && header[1] == 0x4D && header.Length >= 26)
+            {
+                int w = header[18] | (header[19] << 8) | (header[20] << 16) | (header[21] << 24);
+                int h = header[22] | (header[23] << 8) | (header[24] << 16) | (header[25] << 24);
+                return (w, Math.Abs(h));
+            }
+        }
+        catch { }
+        return (0, 0);
     }
 
     private static void AddSpeakerNotes(SlidePart slidePart, string notes)

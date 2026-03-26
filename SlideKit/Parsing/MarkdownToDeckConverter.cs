@@ -124,8 +124,40 @@ public partial class MarkdownToDeckConverter
 
     private static List<string> SplitSlides(string content)
     {
-        // Split on lines that are exactly --- (horizontal rule)
-        return HrPattern().Split(content).ToList();
+        // Split on --- (horizontal rule) and # / ## headings (like Pandoc/reveal.js)
+        var slides = new List<string>();
+        var lines = content.Split('\n');
+        var current = new List<string>();
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var trimmed = lines[i].TrimEnd();
+
+            // Horizontal rule: --- or more
+            if (HrPattern().IsMatch(trimmed))
+            {
+                if (current.Count > 0)
+                {
+                    slides.Add(string.Join('\n', current));
+                    current.Clear();
+                }
+                continue;
+            }
+
+            // # or ## heading starts a new slide (but not ### or deeper)
+            if (SlideHeadingPattern().IsMatch(trimmed) && current.Any(l => !string.IsNullOrWhiteSpace(l)))
+            {
+                slides.Add(string.Join('\n', current));
+                current.Clear();
+            }
+
+            current.Add(lines[i]);
+        }
+
+        if (current.Count > 0)
+            slides.Add(string.Join('\n', current));
+
+        return slides;
     }
 
     private static string DetectSlideType(string slideText, int index, int total)
@@ -183,6 +215,7 @@ public partial class MarkdownToDeckConverter
         var tableHeaders = new List<string>();
         var tableRows = new List<List<string>>();
         var codeLines = new List<string>();
+        string? imagePath = null;
         bool inCode = false;
 
         foreach (var line in lines)
@@ -201,6 +234,14 @@ public partial class MarkdownToDeckConverter
             if (HeadingPattern().IsMatch(trimmed))
             {
                 title = HeadingPattern().Replace(trimmed, "").Trim();
+                continue;
+            }
+
+            // Image: ![alt](path) or ![alt](path){width=...}
+            var imgMatch = ImagePattern().Match(trimmed);
+            if (imgMatch.Success)
+            {
+                imagePath = imgMatch.Groups[1].Value;
                 continue;
             }
 
@@ -234,7 +275,7 @@ public partial class MarkdownToDeckConverter
             "title" => BuildTitleSlide(title, subtitle, bgOverride),
             "section" => BuildSectionSlide(title, bgOverride),
             "end" => BuildEndSlide(title, bgOverride),
-            _ => BuildContentSlide(title, subtitle, bullets, tableHeaders, tableRows, codeLines, bgOverride),
+            _ => BuildContentSlide(title, subtitle, bullets, tableHeaders, tableRows, codeLines, imagePath, bgOverride),
         };
     }
 
@@ -282,7 +323,7 @@ public partial class MarkdownToDeckConverter
 
     private Slide BuildContentSlide(string? title, string? subtitle, List<string> bullets,
         List<string> tableHeaders, List<List<string>> tableRows,
-        List<string> codeLines, string? bg)
+        List<string> codeLines, string? imagePath, string? bg)
     {
         var slide = new Slide();
 
@@ -307,8 +348,18 @@ public partial class MarkdownToDeckConverter
         long cY = title != null ? ContentY : 40 * Emu;
         long cH = SlideH - cY - 30 * Emu;
 
+        // Image
+        if (imagePath != null)
+        {
+            slide.Shapes.Add(new Shape
+            {
+                Type = "image", X = ContentLeft, Y = cY + 10 * Emu,
+                Width = 852 * Emu, Height = cH - 10 * Emu,
+                Source = imagePath
+            });
+        }
         // Table
-        if (tableHeaders.Count > 0)
+        else if (tableHeaders.Count > 0)
         {
             slide.Shapes.Add(new Shape
             {
@@ -360,8 +411,11 @@ public partial class MarkdownToDeckConverter
         return slide;
     }
 
-    [GeneratedRegex(@"^\n*-{3,}\s*$", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^-{3,}\s*$")]
     private static partial Regex HrPattern();
+
+    [GeneratedRegex(@"^#{1,2}\s+")]
+    private static partial Regex SlideHeadingPattern();
 
     [GeneratedRegex(@"<!--\s*slide:\s*(.+?)\s*-->")]
     private static partial Regex SlideAnnotationPattern();
@@ -377,4 +431,7 @@ public partial class MarkdownToDeckConverter
 
     [GeneratedRegex(@"^\|[\s\-:]+\|")]
     private static partial Regex TableSepPattern();
+
+    [GeneratedRegex(@"^!\[[^\]]*\]\(([^)\s]+)[^)]*\)")]
+    private static partial Regex ImagePattern();
 }
