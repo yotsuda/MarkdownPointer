@@ -351,13 +351,18 @@ section.pointing-highlight {
     0% { box-shadow: inset 0 0 0 100px rgba(0, 120, 212, 0.4); }
     100% { box-shadow: inset 0 0 0 100px transparent; }
 }
-/* Prevent reveal.js from clipping Mermaid diagram content */
-.mermaid, .mermaid svg {
-    overflow: visible !important;
-    max-height: none !important;
-}
+/* Prevent reveal.js from clipping Mermaid diagram text */
 .mermaid svg foreignObject {
     overflow: visible !important;
+}
+/* Fit Mermaid diagrams within the slide */
+.mermaid {
+    display: flex !important;
+    justify-content: center;
+}
+.mermaid svg {
+    max-height: var(--mermaid-max-h, 500px);
+    width: auto;
 }
 </style>";
             // Map reveal.js theme to Mermaid theme
@@ -441,7 +446,47 @@ document.addEventListener('DOMContentLoaded', async function() {{
         s.style.display = saved[i].display;
         s.style.visibility = saved[i].visibility;
     }});
+
+    // Fit Mermaid SVGs within their slide's available height
+    fitMermaidToSlides();
 }});
+
+function fitMermaidToSlides() {{
+    if (typeof Reveal === 'undefined') return;
+    var slideW = Reveal.getConfig().width || 960;
+    var slideH = Reveal.getConfig().height || 700;
+    document.querySelectorAll('.mermaid').forEach(function(elem) {{
+        var svg = elem.querySelector('svg');
+        if (!svg) return;
+        var section = elem.closest('section');
+        if (!section) return;
+
+        // Get SVG's intrinsic size from viewBox or attributes
+        var svgW, svgH;
+        var vb = svg.getAttribute('viewBox');
+        if (vb) {{
+            var parts = vb.split(/[\s,]+/);
+            svgW = parseFloat(parts[2]);
+            svgH = parseFloat(parts[3]);
+        }}
+        if (!svgW) svgW = parseFloat(svg.getAttribute('width')) || 0;
+        if (!svgH) svgH = parseFloat(svg.getAttribute('height')) || 0;
+        if (svgW <= 0 || svgH <= 0) return;
+
+        // Ensure viewBox is set for proper scaling
+        if (!vb) svg.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
+
+        // Available space in slide coordinates
+        var availW = slideW - 80;
+        var availH = slideH - 160; // title + padding
+        if (availH < 200) availH = 200;
+
+        // Scale to fit
+        var scale = Math.min(availW / svgW, availH / svgH, 1);
+        svg.setAttribute('width', svgW * scale);
+        svg.setAttribute('height', svgH * scale);
+    }});
+}}
 
 // Make Pandoc code block lines pointable
 document.addEventListener('DOMContentLoaded', function() {{
