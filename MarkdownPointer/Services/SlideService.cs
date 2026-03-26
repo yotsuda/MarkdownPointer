@@ -32,7 +32,7 @@ namespace MarkdownPointer.Services
             if (html == null) return null;
 
             html = AddLineTracking(html, markdown);
-            html = InjectPointingScripts(html);
+            html = InjectPointingScripts(html, theme);
             return html;
         }
 
@@ -319,7 +319,7 @@ namespace MarkdownPointer.Services
         /// <summary>
         /// Injects pointing-mode CSS and JavaScript into the reveal.js HTML.
         /// </summary>
-        private static string InjectPointingScripts(string html)
+        private static string InjectPointingScripts(string html, string theme = "black")
         {
             // Remove CSP if present
             html = CspMetaPattern.Replace(html, "");
@@ -360,10 +360,17 @@ section.pointing-highlight {
     overflow: visible !important;
 }
 </style>";
-            // Mermaid library + initialization
-            var mermaidSetup = @"
+            // Map reveal.js theme to Mermaid theme
+            var mermaidTheme = theme switch
+            {
+                "black" or "night" or "moon" or "league" or "blood" or "dracula" => "dark",
+                "beige" or "serif" => "neutral",
+                "solarized" or "sky" => "forest",
+                _ => "default"  // white, simple, etc.
+            };
+            var mermaidSetup = $@"
 <script src='https://cdn.jsdelivr.net/npm/mermaid@11.12.3/dist/mermaid.min.js'></script>
-<script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>";
+<script>mermaid.initialize({{ startOnLoad: false, theme: '{mermaidTheme}' }});</script>";
             html = html.Replace("</head>", mermaidSetup + "\n" + pointingCss + "\n</head>");
 
             var scripts = $@"
