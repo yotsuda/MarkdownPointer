@@ -37,7 +37,65 @@ namespace MarkdownPointer.Services
                         tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
                         Directory.CreateDirectory(tempDir);
 
+                        // Save current Mermaid theme and re-render with default for export
+                        var prevThemeJson = await webView.CoreWebView2.ExecuteScriptAsync(
+                            "window._mermaidExportPrevTheme = mermaid.mermaidAPI.getConfig().theme || 'default'");
+                        var prevTheme = prevThemeJson?.Trim('"') ?? "default";
+
+                        if (prevTheme != "default")
+                        {
+                            // Capture screenshot and overlay it to freeze the visual
+                            using var screenshotStream = new MemoryStream();
+                            await webView.CoreWebView2.CapturePreviewAsync(
+                                Microsoft.Web.WebView2.Core.CoreWebView2CapturePreviewImageFormat.Png,
+                                screenshotStream);
+                            var base64 = Convert.ToBase64String(screenshotStream.ToArray());
+                            await webView.CoreWebView2.ExecuteScriptAsync(
+                                "var _ov = document.createElement('div'); _ov.id='_export_overlay'; " +
+                                "_ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;" +
+                                "z-index:999999;background:url(data:image/png;base64," + base64 + ") no-repeat top left;" +
+                                "background-size:100% 100%'; document.body.appendChild(_ov)");
+
+                            await webView.CoreWebView2.ExecuteScriptAsync(
+                                "mermaid.initialize({ startOnLoad: false, theme: 'default' }); " +
+                                "(async()=>{ " +
+                                "var sections = document.querySelectorAll('section'); " +
+                                "var saved = []; sections.forEach(function(s){ " +
+                                "saved.push({d:s.style.display,v:s.style.visibility}); " +
+                                "s.style.display='block'; s.style.visibility='visible'; }); " +
+                                "var elems = document.querySelectorAll('.mermaid'); " +
+                                "for(var e of elems){ var svg = e.querySelector('svg'); if(!svg) continue; " +
+                                "var src = e.getAttribute('data-mermaid-source') || ''; " +
+                                "if(!src) continue; e.removeAttribute('data-processed'); e.textContent = src; " +
+                                "try { await mermaid.run({ nodes: [e] }); } catch(x){} } " +
+                                "sections.forEach(function(s,i){ s.style.display=saved[i].d; s.style.visibility=saved[i].v; }); " +
+                                "})()");
+                            await Task.Delay(500);
+                        }
+
                         var pngs = await mermaidExportService.CaptureAllMermaidPngsAsync(webView, tempDir);
+
+                        // Restore original Mermaid theme and show WebView
+                        if (prevTheme != "default")
+                        {
+                            await webView.CoreWebView2.ExecuteScriptAsync(
+                                $"mermaid.initialize({{ startOnLoad: false, theme: '{prevTheme}' }}); " +
+                                "(async()=>{ " +
+                                "var sections = document.querySelectorAll('section'); " +
+                                "var saved = []; sections.forEach(function(s){ " +
+                                "saved.push({d:s.style.display,v:s.style.visibility}); " +
+                                "s.style.display='block'; s.style.visibility='visible'; }); " +
+                                "var elems = document.querySelectorAll('.mermaid'); " +
+                                "for(var e of elems){ var src = e.getAttribute('data-mermaid-source') || ''; " +
+                                "if(!src) continue; e.removeAttribute('data-processed'); e.textContent = src; " +
+                                "try { await mermaid.run({ nodes: [e] }); } catch(x){} } " +
+                                "sections.forEach(function(s,i){ s.style.display=saved[i].d; s.style.visibility=saved[i].v; }); " +
+                                "})()");
+                            await Task.Delay(500);
+                            await webView.CoreWebView2.ExecuteScriptAsync(
+                                "var ov = document.getElementById('_export_overlay'); if(ov) ov.remove()");
+                        }
+
                         if (pngs.Count > 0)
                         {
                             mdContent = MermaidExportService.ReplaceMermaidBlocksWithImages(mdContent, pngs);

@@ -433,6 +433,8 @@ document.addEventListener('DOMContentLoaded', async function() {{
             pre.textContent = code.textContent;
         }}
         pre.textContent = _normalizeMermaidType(pre.textContent);
+        // Save source for export re-rendering
+        pre.setAttribute('data-mermaid-source', pre.textContent);
         try {{
             await mermaid.run({{ nodes: [pre] }});
         }} catch (e) {{
