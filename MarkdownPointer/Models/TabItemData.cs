@@ -88,10 +88,9 @@ namespace MarkdownPointer.Models
         public double SavedScrollPosition { get; set; }
 
         /// <summary>
-        /// Saved slide index for restoring after reload in slide view.
-        /// -1 means no saved position.
+        /// Saved Reveal.js slide indices (JSON {h,v}) for restoring after reload in slide view.
         /// </summary>
-        public int SavedSlideIndex { get; set; } = -1;
+        public string? SavedSlideIndices { get; set; }
 
         /// <summary>
         /// Current CSS zoom factor for this tab.

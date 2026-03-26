@@ -62,17 +62,8 @@ namespace MarkdownPointer
                     var userSelect = _isPointingMode ? "none" : "";
                     tab.WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
 
-                    // Restore saved position
-                    if (tab.IsSlideView && tab.SavedSlideIndex >= 0)
-                    {
-                        var idx = tab.SavedSlideIndex;
-                        tab.SavedSlideIndex = -1;
-                        tab.WebView.CoreWebView2.ExecuteScriptAsync(
-                            $"(function r(){{if(typeof Reveal==='undefined'){{setTimeout(r,50);return}}" +
-                            $"if(Reveal.isReady())Reveal.slide({idx});" +
-                            $"else Reveal.on('ready',function(){{Reveal.slide({idx})}});}})()");
-                    }
-                    else if (tab.SavedScrollPosition > 0)
+                    // Restore saved scroll position (slide position is restored in HandleRenderComplete)
+                    if (!tab.IsSlideView && tab.SavedScrollPosition > 0)
                     {
                         tab.WebView.CoreWebView2.ExecuteScriptAsync($"window.scrollTo(0, {tab.SavedScrollPosition})");
                     }
@@ -392,6 +383,15 @@ namespace MarkdownPointer
                 // Ignore malformed JSON - use empty error list
                 tab.LastRenderErrors = new List<string>();
                 tab.RenderCompletion?.TrySetResult(new List<string>());
+            }
+
+            // Restore slide position after render completion (all layout is done)
+            if (tab.IsSlideView && tab.SavedSlideIndices != null)
+            {
+                var indices = tab.SavedSlideIndices;
+                tab.SavedSlideIndices = null;
+                tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                    $"(function(){{var i={indices};Reveal.slide(i.h||0,i.v||0)}})()");
             }
 
             // Update error indicator if this is the selected tab

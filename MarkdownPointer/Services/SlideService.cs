@@ -551,11 +551,17 @@ function getSlideState() {{
 
 // Signal render completion and auto-fit
 window.addEventListener('load', function() {{
-    // Delay to ensure Reveal.js has fully laid out slides
-    setTimeout(function() {{
+    function onRevealReady() {{
         autoFitSlides();
         window.chrome.webview.postMessage('render-complete:[]');
-    }}, 300);
+    }}
+    if (typeof Reveal !== 'undefined' && Reveal.isReady()) {{
+        onRevealReady();
+    }} else if (typeof Reveal !== 'undefined') {{
+        Reveal.on('ready', onRevealReady);
+    }} else {{
+        window.chrome.webview.postMessage('render-complete:[]');
+    }}
 }});
 </script>";
 
