@@ -125,6 +125,8 @@ namespace MarkdownPointer
                         }
                         // Return existing tab (errors are cached from last render)
                         tab.RenderCompletion = null;
+                        _recentFiles.AddFile(filePath);
+                        RefreshSystemMenu();
                         return tab;
                     }
                 }
