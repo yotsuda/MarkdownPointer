@@ -351,6 +351,14 @@ section.pointing-highlight {
     0% { box-shadow: inset 0 0 0 100px rgba(0, 120, 212, 0.4); }
     100% { box-shadow: inset 0 0 0 100px transparent; }
 }
+/* Prevent reveal.js from clipping Mermaid diagram content */
+.mermaid, .mermaid svg {
+    overflow: visible !important;
+    max-height: none !important;
+}
+.mermaid svg foreignObject {
+    overflow: visible !important;
+}
 </style>";
             // Mermaid library + initialization
             var mermaidSetup = @"
