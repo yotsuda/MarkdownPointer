@@ -352,7 +352,11 @@ section.pointing-highlight {
     100% { box-shadow: inset 0 0 0 100px transparent; }
 }
 </style>";
-            html = html.Replace("</head>", pointingCss + "\n</head>");
+            // Mermaid library + initialization
+            var mermaidSetup = @"
+<script src='https://cdn.jsdelivr.net/npm/mermaid@11.12.3/dist/mermaid.min.js'></script>
+<script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>";
+            html = html.Replace("</head>", mermaidSetup + "\n" + pointingCss + "\n</head>");
 
             var scripts = $@"
 <script>
@@ -371,6 +375,41 @@ getPointableElement = function(element) {{
     }}
     return result;
 }};
+
+// Mermaid rendering
+// Pandoc wraps mermaid blocks in pre > code with HTML-escaped arrows.
+// We unwrap and decode so mermaid.run() can parse the raw source.
+// Mermaid detectors are case-sensitive; normalize common case variations.
+var _mermaidTypeMap = {{
+    'flowchart':'flowchart','graph':'graph','sequencediagram':'sequenceDiagram',
+    'classdiagram':'classDiagram','statediagram':'stateDiagram',
+    'erdiagram':'erDiagram','gitgraph':'gitGraph','gantt':'gantt',
+    'pie':'pie','mindmap':'mindmap','timeline':'timeline',
+    'journey':'journey','quadrantchart':'quadrantChart',
+    'architecture':'architecture','kanban':'kanban','treemap':'treemap','info':'info'
+}};
+function _normalizeMermaidType(text) {{
+    return text.replace(/^(\s*(?:%%\{{[^%]*%%\s*)*)(\S+)/, function(_, prefix, word) {{
+        var c = _mermaidTypeMap[word.toLowerCase()];
+        return c ? prefix + c : prefix + word;
+    }});
+}}
+document.addEventListener('DOMContentLoaded', async function() {{
+    if (typeof mermaid === 'undefined') return;
+    var pres = document.querySelectorAll('pre.mermaid');
+    for (var pre of pres) {{
+        var code = pre.querySelector('code');
+        if (code) {{
+            pre.textContent = code.textContent;
+        }}
+        pre.textContent = _normalizeMermaidType(pre.textContent);
+        try {{
+            await mermaid.run({{ nodes: [pre] }});
+        }} catch (e) {{
+            console.error('[Mermaid]', e);
+        }}
+    }}
+}});
 
 // Make Pandoc code block lines pointable
 document.addEventListener('DOMContentLoaded', function() {{

@@ -372,9 +372,6 @@ public class PipeServer : IDisposable
         if (string.IsNullOrEmpty(outputPath))
             outputPath = Path.ChangeExtension(sourcePath, ".docx");
 
-        if (!PandocService.IsPandocInstalled())
-            return new PipeResponse { Success = false, Error = "Pandoc is not installed" };
-
         var targetWindow = windows.FirstOrDefault();
         if (targetWindow == null)
             return new PipeResponse { Success = false, Error = "No window available" };

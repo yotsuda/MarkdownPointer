@@ -430,22 +430,6 @@ namespace MarkdownPointer
             if (FileTabControl.SelectedItem is not TabItemData tab || string.IsNullOrEmpty(tab.FilePath))
                 return;
 
-            if (!PandocService.IsPandocInstalled())
-            {
-                var result = MessageBox.Show(
-                    "Pandoc is required for export.\nWould you like to open the Pandoc download page?",
-                    "Pandoc not found",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Information);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    Process.Start(new ProcessStartInfo("https://pandoc.org/installing.html")
-                        { UseShellExecute = true });
-                }
-                return;
-            }
-
             var defaultExt = tab.IsSlideView ? ".pptx" : ".docx";
             var filter = "Word Document (*.docx)|*.docx|PowerPoint (*.pptx)|*.pptx";
             var filterIndex = tab.IsSlideView ? 2 : 1;
@@ -510,6 +494,20 @@ namespace MarkdownPointer
                         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
                         timer.Tick += (_, _) => { timer.Stop(); Process.Start("explorer.exe", $"/select,\"{exportedPath}\""); };
                         timer.Start();
+                    }
+                    else if (error == PandocService.PandocNotFound)
+                    {
+                        var answer = MessageBox.Show(
+                            "Pandoc is required for export.\nWould you like to open the Pandoc download page?",
+                            "Pandoc not found",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Information);
+
+                        if (answer == MessageBoxResult.Yes)
+                        {
+                            Process.Start(new ProcessStartInfo("https://pandoc.org/installing.html")
+                                { UseShellExecute = true });
+                        }
                     }
                     else
                     {

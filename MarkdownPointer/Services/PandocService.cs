@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
@@ -6,27 +7,7 @@ namespace MarkdownPointer.Services
 {
     public static class PandocService
     {
-        public static bool IsPandocInstalled()
-        {
-            try
-            {
-                using var process = Process.Start(new ProcessStartInfo
-                {
-                    FileName = "where",
-                    Arguments = "pandoc",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                });
-                process?.WaitForExit();
-                return process?.ExitCode == 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        public const string PandocNotFound = "PandocNotFound";
 
         public static async Task<(bool Success, string? Error)> ConvertAsync(
             string markdownPath, string outputPath, string? templatePath = null, string? resourceDir = null)
@@ -73,6 +54,10 @@ namespace MarkdownPointer.Services
                     return (false, string.IsNullOrWhiteSpace(stderr) ? "Pandoc exited with error" : stderr.Trim());
 
                 return (true, null);
+            }
+            catch (Win32Exception)
+            {
+                return (false, PandocNotFound);
             }
             catch (Exception ex)
             {

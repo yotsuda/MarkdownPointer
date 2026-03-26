@@ -51,11 +51,30 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Mermaid rendering
+    // Mermaid detectors are case-sensitive; normalize common case variations
+    var mermaidTypeMap = {
+        'flowchart': 'flowchart', 'graph': 'graph', 'sequencediagram': 'sequenceDiagram',
+        'classdiagram': 'classDiagram', 'statediagram': 'stateDiagram',
+        'erdiagram': 'erDiagram', 'gitgraph': 'gitGraph', 'gantt': 'gantt',
+        'pie': 'pie', 'mindmap': 'mindmap', 'timeline': 'timeline',
+        'journey': 'journey', 'quadrantchart': 'quadrantChart',
+        'architecture': 'architecture', 'kanban': 'kanban', 'treemap': 'treemap',
+        'info': 'info'
+    };
+    function normalizeMermaidType(text) {
+        // Skip %%{init:...}%% directives, then match the first word (diagram type)
+        return text.replace(/^(\s*(?:%%\{[^%]*%%\s*)*)(\S+)/, function(_, prefix, word) {
+            var canonical = mermaidTypeMap[word.toLowerCase()];
+            return canonical ? prefix + canonical : prefix + word;
+        });
+    }
+
     var hasMermaidContent = document.querySelectorAll('.mermaid').length > 0;
     if (typeof mermaid !== 'undefined') {
         var mermaidElements = document.querySelectorAll('.mermaid');
         for (var elem of mermaidElements) {
             try {
+                elem.textContent = normalizeMermaidType(elem.textContent);
                 await mermaid.run({ nodes: [elem] });
             } catch (e) {
                 var line = elem.getAttribute('data-line') || '?';
