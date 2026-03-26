@@ -360,10 +360,6 @@ section.pointing-highlight {
     display: flex !important;
     justify-content: center;
 }
-.mermaid svg {
-    max-height: var(--mermaid-max-h, 500px);
-    width: auto;
-}
 </style>";
             // Map reveal.js theme to Mermaid theme
             var mermaidTheme = theme switch
