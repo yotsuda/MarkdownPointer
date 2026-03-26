@@ -114,6 +114,8 @@ namespace MarkdownPointer.Services
             html = SectionTagPattern.Replace(html, match =>
             {
                 var attrs = match.Groups[1].Value;
+                // Skip wrapper sections (no attributes — used by Pandoc to group vertical slides)
+                if (string.IsNullOrWhiteSpace(attrs)) return match.Value;
                 // Skip auto-generated title slide from frontmatter
                 if (attrs.Contains("id=\"title-slide\"")) return match.Value;
                 // Skip sections that already have data-line
@@ -216,9 +218,10 @@ namespace MarkdownPointer.Services
         private static string AddElementLineTracking(string html, string[] lines, List<int> slideStartLines)
         {
             // Pre-compute section positions once for all slides
+            // Skip wrapper sections (just "<section>") and title slides
             var sectionMatches = SectionOpenPattern.Matches(html)
                 .Cast<Match>()
-                .Where(m => !m.Value.Contains("id=\"title-slide\""))
+                .Where(m => m.Value != "<section>" && !m.Value.Contains("id=\"title-slide\""))
                 .ToList();
 
             // Collect all blocks per section
@@ -384,6 +387,7 @@ section.pointing-highlight {
 {JsResources.PointingHelpers}
 {JsResources.GetElementContent}
 {JsResources.PointingEventHandlers}
+{JsResources.MermaidNodeProcessing}
 
 // Override: treat <section> as boundary, not pointable
 var _origGetPointableElement = getPointableElement;
@@ -450,6 +454,8 @@ document.addEventListener('DOMContentLoaded', async function() {{
 
     // Fit Mermaid SVGs within their slide's available height
     fitMermaidToSlides();
+    // Reuse document view's Mermaid node line tracking
+    processMermaidNodes();
 }});
 
 function fitMermaidToSlides() {{

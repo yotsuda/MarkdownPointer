@@ -239,10 +239,42 @@ namespace MarkdownPointer
             Topmost = TopmostToggle.IsChecked == true;
         }
 
-        private void SlideViewToggle_Click(object sender, RoutedEventArgs e)
+        private async void SlideViewToggle_Click(object sender, RoutedEventArgs e)
         {
             if (FileTabControl.SelectedItem is TabItemData tab)
             {
+                // Save cross-view position before toggling
+                if (tab.WebView.CoreWebView2 != null)
+                {
+                    try
+                    {
+                        if (tab.IsSlideView)
+                        {
+                            // Slide → Document: get source line of current slide
+                            var lineJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                                "typeof Reveal !== 'undefined' && Reveal.isReady() ? " +
+                                "(function(){var s=Reveal.getCurrentSlide();" +
+                                "var el=s.querySelector('[data-line]');" +
+                                "return el?el.getAttribute('data-line'):(s.getAttribute('data-line')||'0')" +
+                                "})() : '0'");
+                            if (int.TryParse(lineJson.Trim('"'), out var line) && line > 0)
+                                tab.SavedSourceLine = line;
+                        }
+                        else
+                        {
+                            // Document → Slide: get source line of first visible element
+                            var lineJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                                "(function(){var els=document.querySelectorAll('[data-line]');" +
+                                "for(var i=0;i<els.length;i++){var r=els[i].getBoundingClientRect();" +
+                                "if(r.bottom>0&&r.top<window.innerHeight)return els[i].getAttribute('data-line')}" +
+                                "return '0'})()");
+                            if (int.TryParse(lineJson.Trim('"'), out var line) && line > 0)
+                                tab.SavedSourceLine = line;
+                        }
+                    }
+                    catch { }
+                }
+
                 tab.IsSlideView = SlideViewToggle.IsChecked == true;
                 RenderMarkdown(tab, viewToggle: true);
                 ShowStatusMessage(tab.IsSlideView ? "🎞 Slide view" : "📄 Document view");

@@ -385,13 +385,25 @@ namespace MarkdownPointer
                 tab.RenderCompletion?.TrySetResult(new List<string>());
             }
 
-            // Restore slide position after render completion (all layout is done)
-            if (tab.IsSlideView && tab.SavedSlideIndices != null)
+            // Restore position using saved source line (theme switch, view switch)
+            if (tab.SavedSourceLine > 0)
             {
-                var indices = tab.SavedSlideIndices;
-                tab.SavedSlideIndices = null;
-                tab.WebView.CoreWebView2.ExecuteScriptAsync(
-                    $"(function(){{var i={indices};Reveal.slide(i.h||0,i.v||0)}})()");
+                var line = tab.SavedSourceLine;
+                tab.SavedSourceLine = 0;
+                if (tab.IsSlideView)
+                {
+                    // Find slide containing the source line and navigate by h/v indices
+                    tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                        $"(function(){{var slides=Reveal.getSlides();var best=null;" +
+                        $"for(var i=0;i<slides.length;i++){{var dl=slides[i].querySelector('[data-line]');" +
+                        $"var l=dl?parseInt(dl.getAttribute('data-line')):parseInt(slides[i].getAttribute('data-line')||'0');" +
+                        $"if(l>0&&l<={line})best=slides[i]}}" +
+                        $"if(best){{var idx=Reveal.getIndices(best);Reveal.slide(idx.h,idx.v)}}}})()");
+                }
+                else
+                {
+                    tab.WebView.CoreWebView2.ExecuteScriptAsync($"scrollToLine({line})");
+                }
             }
 
             // Update error indicator if this is the selected tab

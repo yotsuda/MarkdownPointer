@@ -602,10 +602,14 @@ namespace MarkdownPointer
                     {
                         if (tab.IsSlideView)
                         {
-                            var indicesJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
-                                "typeof Reveal !== 'undefined' && Reveal.isReady() ? Reveal.getIndices() : null");
-                            if (indicesJson != "null" && indicesJson != null)
-                                tab.SavedSlideIndices = indicesJson;
+                            var lineJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                                "typeof Reveal !== 'undefined' && Reveal.isReady() ? " +
+                                "(function(){var s=Reveal.getCurrentSlide();" +
+                                "var el=s.querySelector('[data-line]');" +
+                                "return el?el.getAttribute('data-line'):(s.getAttribute('data-line')||'0')" +
+                                "})() : '0'");
+                            if (int.TryParse(lineJson.Trim('"'), out var line) && line > 0)
+                                tab.SavedSourceLine = line;
                         }
                         else
                         {
