@@ -351,9 +351,12 @@ section.pointing-highlight {
     0% { box-shadow: inset 0 0 0 100px rgba(0, 120, 212, 0.4); }
     100% { box-shadow: inset 0 0 0 100px transparent; }
 }
-/* Prevent reveal.js from clipping Mermaid diagram text */
+/* Prevent reveal.js from affecting Mermaid diagram internals */
 .mermaid svg foreignObject {
     overflow: visible !important;
+}
+.mermaid svg foreignObject div {
+    text-align: center !important;
 }
 /* Fit Mermaid diagrams within the slide */
 .mermaid {

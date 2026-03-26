@@ -258,7 +258,7 @@ namespace MarkdownPointer
         }
 
         private static readonly string[] SlideThemes =
-            ["black", "white", "league", "beige", "sky", "night", "serif", "simple", "solarized", "moon", "blood", "dracula"];
+            ["beige", "black", "blood", "dracula", "league", "moon", "night", "serif", "simple", "sky", "solarized", "white"];
 
         private void SlideViewToggle_RightClick(object sender, MouseButtonEventArgs e)
         {
