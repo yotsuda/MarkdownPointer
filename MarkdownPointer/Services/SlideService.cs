@@ -397,6 +397,17 @@ function _normalizeMermaidType(text) {{
 document.addEventListener('DOMContentLoaded', async function() {{
     if (typeof mermaid === 'undefined') return;
     var pres = document.querySelectorAll('pre.mermaid');
+    if (pres.length === 0) return;
+
+    // Make all slides visible so Mermaid can calculate SVG dimensions
+    var sections = document.querySelectorAll('section');
+    var saved = [];
+    sections.forEach(function(s) {{
+        saved.push({{ display: s.style.display, visibility: s.style.visibility }});
+        s.style.display = 'block';
+        s.style.visibility = 'visible';
+    }});
+
     for (var pre of pres) {{
         var code = pre.querySelector('code');
         if (code) {{
@@ -409,6 +420,12 @@ document.addEventListener('DOMContentLoaded', async function() {{
             console.error('[Mermaid]', e);
         }}
     }}
+
+    // Restore original visibility
+    sections.forEach(function(s, i) {{
+        s.style.display = saved[i].display;
+        s.style.visibility = saved[i].visibility;
+    }});
 }});
 
 // Make Pandoc code block lines pointable
