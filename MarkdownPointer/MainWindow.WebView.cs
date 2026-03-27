@@ -141,12 +141,22 @@ namespace MarkdownPointer
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                var importableFiles = new List<string>();
                 foreach (var file in files)
                 {
                     if (IsSupportedFile(file))
                     {
                         LoadMarkdownFile(file);
                     }
+                    else if (IsImportableFile(file))
+                    {
+                        importableFiles.Add(file);
+                    }
+                }
+                if (importableFiles.Count > 0)
+                {
+                    var toImport = importableFiles;
+                    Dispatcher.BeginInvoke(() => ShowImportDialog(toImport));
                 }
                 e.Handled = true;
             }

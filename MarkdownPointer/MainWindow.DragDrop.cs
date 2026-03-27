@@ -541,12 +541,22 @@ namespace MarkdownPointer
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                var importableFiles = new List<string>();
                 foreach (var file in files)
                 {
                     if (IsSupportedFile(file))
                     {
                         LoadMarkdownFile(file);
                     }
+                    else if (IsImportableFile(file))
+                    {
+                        importableFiles.Add(file);
+                    }
+                }
+                if (importableFiles.Count > 0)
+                {
+                    var toImport = importableFiles;
+                    Dispatcher.BeginInvoke(() => ShowImportDialog(toImport));
                 }
             }
         }
@@ -581,6 +591,34 @@ namespace MarkdownPointer
         {
             var ext = Path.GetExtension(filePath);
             return !BinaryExtensions.Contains(ext);
+        }
+
+        private static bool IsImportableFile(string filePath)
+        {
+            var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            return ext is ".docx" or ".pptx";
+        }
+
+        private void ShowImportDialog(List<string> files)
+        {
+            var names = string.Join("\n", files.Select(Path.GetFileName));
+            var paths = string.Join("\n", files.Select(f => $"  \"{Path.GetFullPath(f)}\""));
+            var prompt = $"Use mdp import_document to import the following files to Markdown, then analyze the content and tag images.\n{paths}";
+
+            var answer = MessageBox.Show(
+                this,
+                (files.Count == 1 ? "This file" : "These files") + $" can be imported to Markdown by AI:\n\n{names}\n\n" +
+                "Yes — Copy AI prompt to clipboard\n" +
+                "No — Close",
+                "Import with AI",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (answer == MessageBoxResult.Yes)
+            {
+                Clipboard.SetText(prompt);
+                ShowStatusMessage("✓ Copied prompt to clipboard — paste into AI assistant");
+            }
         }
 
         #endregion
