@@ -395,50 +395,18 @@ namespace MarkdownPointer
             }
         }
 
-        private async void OpenInCodeButton_Click(object sender, RoutedEventArgs e)
+        private void OpenInEditorButton_Click(object sender, RoutedEventArgs e)
         {
             if (FileTabControl.SelectedItem is TabItemData tab && !string.IsNullOrEmpty(tab.FilePath))
             {
                 try
                 {
-                    var target = tab.FilePath;
-                    if (tab.WebView?.CoreWebView2 != null)
-                    {
-                        var result = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
-                            @"(function() {
-                                var elems = document.querySelectorAll('[data-line]');
-                                var mid = window.innerHeight / 2;
-                                var best = null;
-                                var bestDist = Infinity;
-                                for (var i = 0; i < elems.length; i++) {
-                                    var el = elems[i];
-                                    var rect = el.getBoundingClientRect();
-                                    if (rect.height === 0) continue;
-                                    if (el.querySelector('[data-line]')) continue;
-                                    var center = (rect.top + rect.bottom) / 2;
-                                    var dist = Math.abs(center - mid);
-                                    if (dist < bestDist) { bestDist = dist; best = el; }
-                                    if (rect.top > mid) break;
-                                }
-                                return best ? best.getAttribute('data-line') : null;
-                            })()");
-                        if (result != "null" && int.TryParse(result.Trim('"'), out var ln))
-                        {
-                            target = $"{tab.FilePath}:{ln}";
-                        }
-                    }
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c code -g \"{target}\"",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    });
-                    ShowStatusMessage($"✓ Opened in VS Code at L{(target.Contains(':') ? target.Substring(target.LastIndexOf(':') + 1) : "1")}");
+                    Process.Start(new ProcessStartInfo(tab.FilePath) { UseShellExecute = true });
+                    ShowStatusMessage("✓ Opened in editor");
                 }
                 catch (Exception ex)
                 {
-                    ShowStatusMessage($"✗ VS Code failed: {ex.Message}");
+                    ShowStatusMessage($"✗ Failed to open: {ex.Message}");
                 }
             }
         }
