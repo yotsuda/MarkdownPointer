@@ -633,8 +633,6 @@ namespace MarkdownPointer
                     {
                         tab.RenderedHtml = cached;
                         tab.WebView.NavigateToString(cached);
-                        if (tab.IsSlideView)
-                            ShowStatusMessage($"🎞 Slide view ({_slideTheme})");
                         return;
                     }
                 }
@@ -666,13 +664,10 @@ namespace MarkdownPointer
                 }
 
                 string html;
+                StartSpinner("Rendering");
                 if (tab.IsSlideView)
                 {
-                    StartSpinner("Rendering slides");
-
                     var slideHtml = await SlideService.RenderSlidesAsync(tab.FilePath, markdown, _slideTheme);
-
-                    StopSpinner();
 
                     if (slideHtml == null)
                     {
@@ -688,7 +683,6 @@ namespace MarkdownPointer
                     {
                         html = slideHtml;
                         tab.CachedSlideHtml = html;
-                        ShowStatusMessage($"🎞 Slide view ({_slideTheme})");
                     }
 
                     // Pre-cache document view

@@ -103,5 +103,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         renderErrors.push('[Mermaid] Failed to load library (check your network connection)');
     }
 
-    window.chrome.webview.postMessage('render-complete:' + JSON.stringify(renderErrors));
+    // Wait for actual paint before signaling completion
+    requestAnimationFrame(function() { requestAnimationFrame(function() {
+        window.chrome.webview.postMessage('render-complete:' + JSON.stringify(renderErrors));
+    }); });
 });

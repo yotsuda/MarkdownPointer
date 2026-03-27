@@ -96,7 +96,6 @@ namespace MarkdownPointer
             {
                 RenderMarkdown(tab);
             }
-            ShowStatusMessage($"✓ Source loaded - Last modified at {tab.LastFileWriteTime:HH:mm:ss}");
         }
 
         private void WebView_PreviewDragOver(object sender, DragEventArgs e)
@@ -406,6 +405,11 @@ namespace MarkdownPointer
                     tab.WebView.CoreWebView2.ExecuteScriptAsync($"scrollToLine({line})");
                 }
             }
+
+            // Stop spinner and show completion message
+            ShowStatusMessage(tab.IsSlideView
+                ? $"🎞 Slide view ({_slideTheme})"
+                : "📄 Document view");
 
             // Update error indicator if this is the selected tab
             if (FileTabControl.SelectedItem == tab)

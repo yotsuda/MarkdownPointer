@@ -566,16 +566,21 @@ function getSlideState() {{
 
 // Signal render completion and auto-fit
 window.addEventListener('load', function() {{
+    function signalComplete() {{
+        requestAnimationFrame(function() {{ requestAnimationFrame(function() {{
+            window.chrome.webview.postMessage('render-complete:[]');
+        }}); }});
+    }}
     function onRevealReady() {{
         autoFitSlides();
-        window.chrome.webview.postMessage('render-complete:[]');
+        signalComplete();
     }}
     if (typeof Reveal !== 'undefined' && Reveal.isReady()) {{
         onRevealReady();
     }} else if (typeof Reveal !== 'undefined') {{
         Reveal.on('ready', onRevealReady);
     }} else {{
-        window.chrome.webview.postMessage('render-complete:[]');
+        signalComplete();
     }}
 }});
 </script>";
