@@ -619,12 +619,17 @@ namespace MarkdownPointer
 
         private void Hyperlink_MouseEnter(object sender, MouseEventArgs e)
         {
-            if (sender is Hyperlink hl && hl.NavigateUri != null)
-                LinkStatusText.Text = hl.NavigateUri.AbsoluteUri;
+            if (sender is Hyperlink hl)
+            {
+                hl.TextDecorations = TextDecorations.Underline;
+                if (hl.NavigateUri != null)
+                    LinkStatusText.Text = hl.NavigateUri.AbsoluteUri;
+            }
         }
 
         private void Hyperlink_MouseLeave(object sender, MouseEventArgs e)
         {
+            if (sender is Hyperlink hl) hl.TextDecorations = null;
             LinkStatusText.Text = "";
         }
 
