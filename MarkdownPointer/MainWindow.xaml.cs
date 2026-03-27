@@ -262,9 +262,6 @@ namespace MarkdownPointer
                         if (args.Key == Key.Enter && s is StackPanel sp && sp.Tag is string f)
                             OpenRecentFile(f);
                     };
-                    panel.GotFocus += (s, _) => { if (s is StackPanel sp) sp.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE8, 0xEA, 0xED)); };
-                    panel.LostFocus += (s, _) => { if (s is StackPanel sp) sp.Background = System.Windows.Media.Brushes.Transparent; };
-
                     var pinned = entry.Pinned;
                     var pin = new TextBlock
                     {
@@ -295,6 +292,8 @@ namespace MarkdownPointer
                     tb.MouseEnter += RecentLink_MouseEnter;
                     tb.MouseLeave += RecentLink_MouseLeave;
                     tb.MouseLeftButtonUp += RecentFile_Click;
+                    panel.GotFocus += (_, _) => tb.TextDecorations = TextDecorations.Underline;
+                    panel.LostFocus += (_, _) => tb.TextDecorations = null;
 
                     var close = new TextBlock
                     {
@@ -344,9 +343,6 @@ namespace MarkdownPointer
                         if (args.Key == Key.Enter && s is StackPanel sp && sp.Tag is string f)
                             OpenRecentFolder(f);
                     };
-                    panel.GotFocus += (s, _) => { if (s is StackPanel sp) sp.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE8, 0xEA, 0xED)); };
-                    panel.LostFocus += (s, _) => { if (s is StackPanel sp) sp.Background = System.Windows.Media.Brushes.Transparent; };
-
                     var pin = new TextBlock
                     {
                         Text = "📌",
@@ -375,6 +371,8 @@ namespace MarkdownPointer
                     tb.MouseEnter += RecentLink_MouseEnter;
                     tb.MouseLeave += RecentLink_MouseLeave;
                     tb.MouseLeftButtonUp += RecentFolder_Click;
+                    panel.GotFocus += (_, _) => tb.TextDecorations = TextDecorations.Underline;
+                    panel.LostFocus += (_, _) => tb.TextDecorations = null;
 
                     var close = new TextBlock
                     {
