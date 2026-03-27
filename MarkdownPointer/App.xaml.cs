@@ -90,10 +90,19 @@ namespace MarkdownPointer
             // Show window immediately so the placeholder acts as a splash screen.
             // MCP commands arrive via PipeServer and reuse this window.
             var window = EnsureMainWindow();
-            foreach (var arg in e.Args)
+
+            // Open files after window is rendered (so splash screen appears first)
+            if (e.Args.Length > 0)
             {
-                if (File.Exists(arg))
-                    window.LoadMarkdownFile(arg);
+                var args = e.Args;
+                window.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
+                {
+                    foreach (var arg in args)
+                    {
+                        if (File.Exists(arg))
+                            window.LoadMarkdownFile(arg);
+                    }
+                });
             }
         }
 

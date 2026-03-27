@@ -54,7 +54,8 @@ namespace MarkdownPointer
         private HtmlGenerator? _htmlGenerator;
         private readonly ClipboardService _clipboardService;
         private readonly MermaidExportService _mermaidExportService = new();
-        private readonly RecentFilesService _recentFiles = new();
+        private readonly Lazy<RecentFilesService> _lazyRecentFiles = new();
+        private RecentFilesService _recentFiles => _lazyRecentFiles.Value;
         private readonly ObservableCollection<TabItemData> _tabs = new();
         private bool _suppressCtrlTab;
 
