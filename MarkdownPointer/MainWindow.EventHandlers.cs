@@ -317,8 +317,13 @@ namespace MarkdownPointer
                     foreach (var openTab in _tabs)
                         openTab.CachedSlideHtml = null;
 
-                    if (FileTabControl.SelectedItem is TabItemData tab && tab.IsSlideView)
+                    if (FileTabControl.SelectedItem is TabItemData tab)
                     {
+                        if (!tab.IsSlideView)
+                        {
+                            tab.IsSlideView = true;
+                            SlideViewToggle.IsChecked = true;
+                        }
                         StartSpinner($"Applying theme: {t}");
                         RenderMarkdown(tab);
                     }
@@ -534,15 +539,22 @@ namespace MarkdownPointer
                     else if (error == PandocService.PandocNotFound)
                     {
                         var answer = MessageBox.Show(
-                            "Pandoc is required for export.\nWould you like to open the Pandoc download page?",
+                            "Pandoc is required for export.\n\n" +
+                            "Yes — Open download page\n" +
+                            "No — Copy AI prompt to clipboard",
                             "Pandoc not found",
-                            MessageBoxButton.YesNo,
+                            MessageBoxButton.YesNoCancel,
                             MessageBoxImage.Information);
 
                         if (answer == MessageBoxResult.Yes)
                         {
-                            Process.Start(new ProcessStartInfo("https://pandoc.org/installing.html")
+                            Process.Start(new ProcessStartInfo("https://pandoc.org/")
                                 { UseShellExecute = true });
+                        }
+                        else if (answer == MessageBoxResult.No)
+                        {
+                            Clipboard.SetText("Install the latest version of Pandoc on this machine using winget.");
+                            ShowStatusMessage("✓ Copied prompt to clipboard — paste into AI assistant");
                         }
                     }
                     else
