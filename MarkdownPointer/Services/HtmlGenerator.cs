@@ -14,7 +14,7 @@ namespace MarkdownPointer.Services
         private readonly MarkdownPipeline _pipeline;
 
         // Pre-compiled regex patterns for image inlining
-        private static readonly Regex LocalImagePattern = new(
+        internal static readonly Regex LocalImagePattern = new(
             @"(<img\s+[^>]*?src\s*=\s*[""'])([^""']+?)([""'][^>]*?/?>)",
             RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
@@ -128,7 +128,7 @@ namespace MarkdownPointer.Services
         /// Inlines local images as base64 data URIs.
         /// NavigateToString() loads from about:blank, which blocks file:// access.
         /// </summary>
-        private static string InlineLocalImages(string html, string baseDir)
+        internal static string InlineLocalImages(string html, string baseDir)
         {
             return LocalImagePattern.Replace(html, match =>
             {

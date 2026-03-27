@@ -31,9 +31,14 @@ namespace MarkdownPointer.Services
             var html = await PandocToRevealJsAsync(markdownPath, theme);
             if (html == null) return null;
 
-            // Add <base> tag so relative image paths resolve from the markdown file's directory
-            var baseDir = Path.GetDirectoryName(markdownPath)!.Replace("\\", "/");
-            html = html.Replace("<head>", $"<head><base href=\"file:///{baseDir}/\">");
+            // Pandoc uses data-src for lazy loading in reveal.js; convert to src for WebView2
+            html = html.Replace("data-src=\"", "src=\"");
+            // Remove figcaption elements (Pandoc wraps images in <figure> with alt text as caption)
+            html = Regex.Replace(html, @"<figcaption[^>]*>.*?</figcaption>", "", RegexOptions.Singleline);
+
+            // Inline local images as base64 (NavigateToString blocks file:// access)
+            var baseDir = Path.GetDirectoryName(markdownPath)!;
+            html = HtmlGenerator.InlineLocalImages(html, baseDir);
 
             html = AddLineTracking(html, markdown);
             html = InjectPointingScripts(html, theme);
