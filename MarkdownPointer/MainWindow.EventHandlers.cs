@@ -292,8 +292,14 @@ namespace MarkdownPointer
         private static readonly string[] SlideThemes =
             ["beige", "black", "blood", "dracula", "league", "moon", "night", "serif", "simple", "sky", "solarized", "white"];
 
-        private void SlideThemeDropdown_Click(object sender, RoutedEventArgs e)
+        private void SlideThemeDropdown_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            e.Handled = true; // Prevent ToggleButton's default IsChecked toggle
+            if (SlideThemeDropdown.IsChecked == true)
+            {
+                // Menu is open — close it (Closed handler resets IsChecked)
+                return;
+            }
             ShowThemeMenu(SlideThemeDropdown);
         }
 
@@ -330,6 +336,8 @@ namespace MarkdownPointer
                 };
                 menu.Items.Add(item);
             }
+            menu.Closed += (_, _) => SlideThemeDropdown.IsChecked = false;
+            SlideThemeDropdown.IsChecked = true;
             menu.IsOpen = true;
         }
 
