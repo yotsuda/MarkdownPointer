@@ -601,6 +601,20 @@ namespace MarkdownPointer
             if (e.Key == Key.Enter) AiTip_Click(sender, null!);
         }
 
+        private void AiTipLink_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is Hyperlink hl) hl.TextDecorations = TextDecorations.Underline;
+            LinkStatusText.Text = "Click to copy AI prompt to clipboard";
+            UpdateFilePathVisibility();
+        }
+
+        private void AiTipLink_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is Hyperlink hl) hl.TextDecorations = null;
+            LinkStatusText.Text = "";
+            UpdateFilePathVisibility();
+        }
+
         private void Hyperlink_GotFocus(object sender, RoutedEventArgs e)
         {
             if (sender is Hyperlink hl) hl.TextDecorations = TextDecorations.Underline;
@@ -614,6 +628,7 @@ namespace MarkdownPointer
         private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
         {
             Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            ShowStatusMessage("✓ Opened in browser");
             e.Handled = true;
         }
 
@@ -623,7 +638,10 @@ namespace MarkdownPointer
             {
                 hl.TextDecorations = TextDecorations.Underline;
                 if (hl.NavigateUri != null)
+                {
                     LinkStatusText.Text = hl.NavigateUri.AbsoluteUri;
+                    UpdateFilePathVisibility();
+                }
             }
         }
 
@@ -631,6 +649,7 @@ namespace MarkdownPointer
         {
             if (sender is Hyperlink hl) hl.TextDecorations = null;
             LinkStatusText.Text = "";
+            UpdateFilePathVisibility();
         }
 
         #endregion

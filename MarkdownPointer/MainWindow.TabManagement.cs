@@ -110,7 +110,6 @@ namespace MarkdownPointer
                 return null;
             }
 
-            StartSpinner("Loading");
 
             // For temp files, always create a new tab (or reuse existing temp tab with same title)
             if (!isTemp)
@@ -513,6 +512,12 @@ namespace MarkdownPointer
                 LinkStatusText.Text = "";
                 UpdateFilePathVisibility();
                 WatchStatusText.Text = "👁 Watching";
+                _statusMessageTimer?.Stop();
+                _statusBlinkTimer?.Stop();
+                StatusText.BeginAnimation(OpacityProperty, null);
+                StatusText.Opacity = 1.0;
+                StatusText.Text = "Loading...";
+                StatusText.Visibility = Visibility.Visible;
             }
         }
 

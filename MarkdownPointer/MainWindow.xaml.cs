@@ -510,7 +510,10 @@ namespace MarkdownPointer
             {
                 tb.TextDecorations = TextDecorations.Underline;
                 if (tb.Tag is string path)
+                {
                     LinkStatusText.Text = path;
+                    UpdateFilePathVisibility();
+                }
             }
         }
 
@@ -520,6 +523,7 @@ namespace MarkdownPointer
             {
                 tb.TextDecorations = null;
                 LinkStatusText.Text = "";
+                UpdateFilePathVisibility();
             }
         }
 
@@ -534,7 +538,10 @@ namespace MarkdownPointer
         private void OpenRecentFolder(string folder)
         {
             if (Directory.Exists(folder))
+            {
+                ShowStatusMessage($"📁 {folder}");
                 OpenFileDialog(folder);
+            }
             else
                 ShowStatusMessage($"✗ Folder not found: {folder}");
         }

@@ -120,7 +120,7 @@
                     <!-- AI prompt tip -->
                     <TextBlock Grid.Row="5" FontSize="11" Foreground="#A0A8B4" HorizontalAlignment="Center"
                                Margin="0,4,0,0"
-                               xml:space="preserve"><Run Text="💡 Try asking AI: "/><Hyperlink Style="{StaticResource SubtleLink}" FocusVisualStyle="{x:Null}" GotFocus="Hyperlink_GotFocus" LostFocus="Hyperlink_LostFocus" MouseLeftButtonDown="AiTip_Click" KeyDown="AiTip_KeyDown" ToolTip="Click to copy prompt to clipboard">"Import my .docx/.pptx files to Markdown"</Hyperlink></TextBlock>
+                               xml:space="preserve"><Run Text="💡 Try asking AI: "/><Hyperlink Style="{StaticResource SubtleLink}" FocusVisualStyle="{x:Null}" GotFocus="Hyperlink_GotFocus" LostFocus="Hyperlink_LostFocus" MouseLeftButtonDown="AiTip_Click" KeyDown="AiTip_KeyDown" MouseEnter="AiTipLink_MouseEnter" MouseLeave="AiTipLink_MouseLeave" ToolTip="Click to copy prompt to clipboard">"Import my .docx/.pptx files to Markdown"</Hyperlink></TextBlock>
                 </Grid>
             </ScrollViewer>
         </Border>
