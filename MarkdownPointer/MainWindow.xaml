@@ -75,9 +75,10 @@
 
         <!-- Placeholder when no file is loaded -->
         <Border x:Name="PlaceholderPanel" Grid.Row="0" Background="#F6F8FA" Visibility="Visible">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" FocusVisualStyle="{x:Null}">
                 <Grid VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" Margin="40,20">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -97,14 +98,14 @@
                     <StackPanel x:Name="RecentFoldersPanel" Grid.Row="1" Visibility="Collapsed" Margin="20,0,0,16">
                         <TextBlock Text="📁 RECENT FOLDERS" FontSize="10" FontWeight="SemiBold"
                                    FontFamily="Segoe UI Emoji" Foreground="#8B949E" Margin="4,0,0,6"/>
-                        <ItemsControl x:Name="RecentFoldersList" Margin="16,0,0,0"/>
+                        <ItemsControl x:Name="RecentFoldersList" Margin="16,0,0,0" Focusable="False" FocusVisualStyle="{x:Null}" KeyboardNavigation.TabNavigation="Continue"/>
                     </StackPanel>
 
                     <!-- Recent Files -->
                     <StackPanel x:Name="RecentFilesPanel" Grid.Row="2" Visibility="Collapsed" Margin="20,0,0,24">
                         <TextBlock Text="📄 RECENT FILES" FontSize="10" FontWeight="SemiBold"
                                    FontFamily="Segoe UI Emoji" Foreground="#8B949E" Margin="4,0,0,6"/>
-                        <ItemsControl x:Name="RecentFilesList" Margin="16,0,0,0"/>
+                        <ItemsControl x:Name="RecentFilesList" Margin="16,0,0,0" Focusable="False" FocusVisualStyle="{x:Null}" KeyboardNavigation.TabNavigation="Continue"/>
                     </StackPanel>
 
                     <!-- Shortcuts (compact inline) -->
@@ -114,7 +115,12 @@
 
                     <!-- AI integration (subtle footer) -->
                     <TextBlock Grid.Row="4" FontSize="11" Foreground="#8B949E" HorizontalAlignment="Center"
-                               xml:space="preserve"><Run Text="🤖 "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/MarkdownPointer#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">MCP server</Hyperlink><Run Text=" built in — AI can open files and control slides. "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/PowerShell.MCP#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">PowerShell.MCP</Hyperlink><Run Text=" + "/><Hyperlink Style="{StaticResource SubtleLink}" NavigateUri="https://github.com/yotsuda/Speech#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave">Speech</Hyperlink><Run Text=" for voice presentations."/></TextBlock>
+                               xml:space="preserve"><Run Text="🤖 "/><Hyperlink Style="{StaticResource SubtleLink}" FocusVisualStyle="{x:Null}" NavigateUri="https://github.com/yotsuda/MarkdownPointer#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave" GotFocus="Hyperlink_GotFocus" LostFocus="Hyperlink_LostFocus">MCP server</Hyperlink><Run Text=" built in — AI can open files and control slides. "/><Hyperlink Style="{StaticResource SubtleLink}" FocusVisualStyle="{x:Null}" NavigateUri="https://github.com/yotsuda/PowerShell.MCP#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave" GotFocus="Hyperlink_GotFocus" LostFocus="Hyperlink_LostFocus">PowerShell.MCP</Hyperlink><Run Text=" + "/><Hyperlink Style="{StaticResource SubtleLink}" FocusVisualStyle="{x:Null}" NavigateUri="https://github.com/yotsuda/Speech#readme" RequestNavigate="Hyperlink_RequestNavigate" MouseEnter="Hyperlink_MouseEnter" MouseLeave="Hyperlink_MouseLeave" GotFocus="Hyperlink_GotFocus" LostFocus="Hyperlink_LostFocus">Speech</Hyperlink><Run Text=" for voice presentations."/></TextBlock>
+
+                    <!-- AI prompt tip -->
+                    <TextBlock Grid.Row="5" FontSize="11" Foreground="#A0A8B4" HorizontalAlignment="Center"
+                               Margin="0,4,0,0"
+                               xml:space="preserve"><Run Text="💡 Try asking AI: "/><Hyperlink Style="{StaticResource SubtleLink}" FocusVisualStyle="{x:Null}" GotFocus="Hyperlink_GotFocus" LostFocus="Hyperlink_LostFocus" MouseLeftButtonDown="AiTip_Click" KeyDown="AiTip_KeyDown" ToolTip="Click to copy prompt to clipboard">"Import my .docx/.pptx files to Markdown"</Hyperlink></TextBlock>
                 </Grid>
             </ScrollViewer>
         </Border>

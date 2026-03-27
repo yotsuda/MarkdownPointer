@@ -590,6 +590,27 @@ namespace MarkdownPointer
 
         #region Hyperlink
 
+        private void AiTip_Click(object sender, MouseButtonEventArgs e)
+        {
+            Clipboard.SetText("Use mdp import_document to import all .docx and .pptx files to Markdown, then analyze the content and tag images. Folder: <paste your folder path here>");
+            ShowStatusMessage("✓ Copied prompt to clipboard — paste into AI assistant");
+        }
+
+        private void AiTip_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) AiTip_Click(sender, null!);
+        }
+
+        private void Hyperlink_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is Hyperlink hl) hl.TextDecorations = TextDecorations.Underline;
+        }
+
+        private void Hyperlink_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is Hyperlink hl) hl.TextDecorations = null;
+        }
+
         private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
         {
             Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });

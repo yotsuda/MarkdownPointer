@@ -249,7 +249,21 @@ namespace MarkdownPointer
                 RecentFilesList.Items.Clear();
                 foreach (var entry in files)
                 {
-                    var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                    var panel = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Margin = new Thickness(0, 2, 0, 2),
+                        Focusable = true,
+                        FocusVisualStyle = null,
+                        Tag = entry.Path
+                    };
+                    panel.KeyDown += (s, args) =>
+                    {
+                        if (args.Key == Key.Enter && s is StackPanel sp && sp.Tag is string f)
+                            OpenRecentFile(f);
+                    };
+                    panel.GotFocus += (s, _) => { if (s is StackPanel sp) sp.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE8, 0xEA, 0xED)); };
+                    panel.LostFocus += (s, _) => { if (s is StackPanel sp) sp.Background = System.Windows.Media.Brushes.Transparent; };
 
                     var pinned = entry.Pinned;
                     var pin = new TextBlock
@@ -317,7 +331,21 @@ namespace MarkdownPointer
                 RecentFoldersList.Items.Clear();
                 foreach (var (folder, pinned) in folders)
                 {
-                    var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                    var panel = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Margin = new Thickness(0, 2, 0, 2),
+                        Focusable = true,
+                        FocusVisualStyle = null,
+                        Tag = folder
+                    };
+                    panel.KeyDown += (s, args) =>
+                    {
+                        if (args.Key == Key.Enter && s is StackPanel sp && sp.Tag is string f)
+                            OpenRecentFolder(f);
+                    };
+                    panel.GotFocus += (s, _) => { if (s is StackPanel sp) sp.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE8, 0xEA, 0xED)); };
+                    panel.LostFocus += (s, _) => { if (s is StackPanel sp) sp.Background = System.Windows.Media.Brushes.Transparent; };
 
                     var pin = new TextBlock
                     {
