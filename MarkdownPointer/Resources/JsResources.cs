@@ -47,6 +47,15 @@ namespace MarkdownPointer.Resources
         /// </summary>
         public static string MermaidNodeProcessing => GetScript("MermaidNodeProcessing.js");
 
+        /// <summary>
+        /// Slide view CSS styles (pointing, mermaid, layout).
+        /// </summary>
+        public static string SlideStyles => GetScript("SlideStyles.css");
+
+        /// <summary>
+        /// Slide view handlers: mermaid rendering, autofit, code line tracking, state query, render-complete.
+        /// </summary>
+        public static string SlideHandlers => GetScript("SlideHandlers.js");
 
         /// <summary>
         /// Reads an embedded JavaScript resource.
