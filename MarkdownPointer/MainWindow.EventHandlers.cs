@@ -17,6 +17,7 @@ namespace MarkdownPointer
 
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            StopSpinner();
             if (FileTabControl.SelectedItem is TabItemData tab)
             {
                 UpdateWindowTitle();

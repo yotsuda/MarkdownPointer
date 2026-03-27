@@ -129,6 +129,7 @@ namespace MarkdownPointer
                         tab.RenderCompletion = null;
                         _recentFiles.AddFile(filePath);
                         RefreshSystemMenu();
+                        StopSpinner();
                         return tab;
                     }
                 }
@@ -627,6 +628,8 @@ namespace MarkdownPointer
                     }
                 }
 
+                StartSpinner("Rendering");
+
                 // Fast path: view toggle with cached HTML
                 if (viewToggle)
                 {
@@ -666,7 +669,6 @@ namespace MarkdownPointer
                 }
 
                 string html;
-                StartSpinner("Rendering");
                 if (tab.IsSlideView)
                 {
                     var slideHtml = await SlideService.RenderSlidesAsync(tab.FilePath, markdown, _slideTheme);
