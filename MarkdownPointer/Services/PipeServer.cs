@@ -443,9 +443,9 @@ public class PipeServer : IDisposable
         {
             "next" => "Reveal.next()",
             "prev" => "Reveal.prev()",
-            "goto" => $"Reveal.slide({message.SlideIndex ?? 0})",
+            "goto" => $"(function(){{var s=Reveal.getSlides()[{message.SlideIndex ?? 0}];if(s){{var i=Reveal.getIndices(s);Reveal.slide(i.h,i.v)}}}})()",
             "first" => "Reveal.slide(0)",
-            "last" => "Reveal.slide(Reveal.getTotalSlides() - 1)",
+            "last" => "(function(){var s=Reveal.getSlides();var last=s[s.length-1];if(last){var i=Reveal.getIndices(last);Reveal.slide(i.h,i.v)}})()",
             _ => null
         };
 

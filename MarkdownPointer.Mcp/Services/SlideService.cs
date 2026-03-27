@@ -16,10 +16,16 @@ public class SlideService
     private readonly MarkdownToDeckConverter _mdConverter = new();
     private readonly PptxRenderer _renderer = new();
     private readonly PptxImporter _importer = new();
+    private readonly NamedPipeClient _pipeClient;
 
     private Deck? _deck;
     private string _sourceFile = "";
     private string _outputDir = "";
+
+    public SlideService(NamedPipeClient pipeClient)
+    {
+        _pipeClient = pipeClient;
+    }
 
     public Deck? CurrentDeck => _deck;
 
@@ -54,8 +60,39 @@ public class SlideService
 
     private const long EmuPerPt = 12700;
 
+    private void AutoLoadIfNeeded()
+    {
+        if (_deck is not null) return;
+        try
+        {
+            var response = _pipeClient.SendCommandAsync(new PipeCommand { Command = "status" }).GetAwaiter().GetResult();
+            if (response == null) return;
+            var root = response.RootElement;
+            if (!root.TryGetProperty("windows", out var windows)) return;
+            foreach (var win in windows.EnumerateArray())
+            {
+                if (!win.TryGetProperty("tabs", out var tabs)) continue;
+                foreach (var tab in tabs.EnumerateArray())
+                {
+                    if (tab.TryGetProperty("isSelected", out var sel) && sel.GetBoolean() &&
+                        tab.TryGetProperty("path", out var pathProp))
+                    {
+                        var path = pathProp.GetString();
+                        if (!string.IsNullOrEmpty(path) && Path.GetExtension(path).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                        {
+                            Load(path);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
     public string GetSlideInfo(int? slideIndex = null)
     {
+        AutoLoadIfNeeded();
         if (_deck is null) return "No deck loaded. Call load_deck first.";
 
         var sb = new StringBuilder();
@@ -184,6 +221,7 @@ public class SlideService
 
     public byte[]? GetSlideImage(int slideIndex, int width = 480)
     {
+        AutoLoadIfNeeded();
         if (_deck is null || slideIndex < 0 || slideIndex >= _deck.Slides.Count)
             return null;
 
