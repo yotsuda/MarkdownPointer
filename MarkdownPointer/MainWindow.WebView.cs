@@ -408,7 +408,7 @@ namespace MarkdownPointer
 
             // Stop spinner and show completion message
             ShowStatusMessage(tab.IsSlideView
-                ? $"🎞 Slide view ({_slideTheme})"
+                ? "🎞 Slide view"
                 : "📄 Document view");
 
             // Update error indicator if this is the selected tab

@@ -110,6 +110,8 @@ namespace MarkdownPointer
                 return null;
             }
 
+            StartSpinner("Loading");
+
             // For temp files, always create a new tab (or reuse existing temp tab with same title)
             if (!isTemp)
             {

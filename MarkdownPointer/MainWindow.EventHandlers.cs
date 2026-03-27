@@ -277,7 +277,6 @@ namespace MarkdownPointer
 
                 tab.IsSlideView = SlideViewToggle.IsChecked == true;
                 RenderMarkdown(tab, viewToggle: true);
-                ShowStatusMessage(tab.IsSlideView ? "🎞 Slide view" : "📄 Document view");
             }
         }
 
