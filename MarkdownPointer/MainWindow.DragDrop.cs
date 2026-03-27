@@ -565,10 +565,13 @@ namespace MarkdownPointer
                 }
             }
 
-            // Accept file drops from Explorer
+            // Accept file drops from Explorer (only supported file types)
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
-                e.Effects = DragDropEffects.Copy;
+                var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                e.Effects = files.Any(f => IsSupportedFile(f))
+                    ? DragDropEffects.Copy
+                    : DragDropEffects.None;
             }
             else
             {
