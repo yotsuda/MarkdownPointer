@@ -243,12 +243,6 @@ public class SlideService
         return ms.ToArray();
     }
 
-    public string UpdateContent(string path, string newContent)
-    {
-        File.WriteAllText(path, newContent);
-        return Load(path);
-    }
-
     public void ExportPptx(string mdPath, string outputPath)
     {
         var deck = _mdConverter.ConvertFile(mdPath);
@@ -266,9 +260,191 @@ public class SlideService
         return md;
     }
 
+    public string ImportDocx(string docxPath, string? outputMdPath = null)
+    {
+        outputMdPath ??= Path.ChangeExtension(docxPath, ".md");
+        var assetsDir = Path.Combine(Path.GetDirectoryName(docxPath)!, "assets");
+
+        // Use Pandoc to convert docx → markdown with image extraction
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "pandoc",
+            Arguments = $"-f docx -t markdown --extract-media=\"{assetsDir}\" -o \"{outputMdPath}\" \"{docxPath}\"",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = true
+        };
+
+        using var process = System.Diagnostics.Process.Start(psi)
+            ?? throw new InvalidOperationException("Failed to start Pandoc");
+        var stderr = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"Pandoc failed: {stderr.Trim()}");
+
+        // Build image index for extracted media
+        BuildImageIndex(assetsDir);
+
+        return File.ReadAllText(outputMdPath);
+    }
+
+    private static void BuildImageIndex(string assetsDir)
+    {
+        if (!Directory.Exists(assetsDir)) return;
+        var imageFiles = Directory.GetFiles(assetsDir, "*.*", SearchOption.AllDirectories)
+            .Where(f => IsImageFile(f))
+            .ToList();
+        if (imageFiles.Count == 0) return;
+
+        var index = new Dictionary<string, ImageIndexInfo>();
+        foreach (var file in imageFiles)
+        {
+            var relativePath = Path.GetRelativePath(assetsDir, file).Replace('\\', '/');
+            var bytes = File.ReadAllBytes(file);
+            var (w, h) = GetImageDimensions(bytes);
+            index[relativePath] = new ImageIndexInfo
+            {
+                Format = Path.GetExtension(file).TrimStart('.'),
+                WidthPx = w,
+                HeightPx = h,
+                SizeKb = (int)(bytes.Length / 1024),
+                Tags = InferTags(w, h, bytes.Length)
+            };
+        }
+
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            new { images = index },
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault,
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+        File.WriteAllText(Path.Combine(assetsDir, "index.json"), json);
+    }
+
+    private static bool IsImageFile(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".svg" or ".emf" or ".wmf" or ".tiff";
+    }
+
+    private static List<string> InferTags(int width, int height, long sizeBytes)
+    {
+        var tags = new List<string>();
+        if (width > 0 && height > 0)
+        {
+            var aspect = (double)width / height;
+            if (aspect > 2.0) tags.Add("wide");
+            else if (aspect < 0.5) tags.Add("tall");
+            if (width >= 1920) tags.Add("high-res");
+            else if (width <= 200) tags.Add("icon");
+            else if (width <= 64) tags.Add("thumbnail");
+        }
+        if (sizeBytes > 1024 * 1024) tags.Add("large-file");
+        return tags;
+    }
+
+    private static (int Width, int Height) GetImageDimensions(byte[] bytes)
+    {
+        try
+        {
+            if (bytes.Length > 24 && bytes[0] == 0x89 && bytes[1] == 0x50) // PNG
+            {
+                int w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+                int h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+                return (w, h);
+            }
+            if (bytes.Length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8) // JPEG
+            {
+                int i = 2;
+                while (i < bytes.Length - 9)
+                {
+                    if (bytes[i] != 0xFF) { i++; continue; }
+                    if (bytes[i + 1] is 0xC0 or 0xC2)
+                    {
+                        int h = (bytes[i + 5] << 8) | bytes[i + 6];
+                        int w = (bytes[i + 7] << 8) | bytes[i + 8];
+                        return (w, h);
+                    }
+                    int len = (bytes[i + 2] << 8) | bytes[i + 3];
+                    i += 2 + len;
+                }
+            }
+        }
+        catch { }
+        return (0, 0);
+    }
+
+    public string TagAsset(string assetsDir, string image, string[] tags, string? description = null)
+    {
+        var indexPath = Path.Combine(assetsDir, "index.json");
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault,
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        Dictionary<string, ImageIndexInfo> index;
+        if (File.Exists(indexPath))
+        {
+            var existing = System.Text.Json.JsonDocument.Parse(File.ReadAllText(indexPath));
+            var imagesNode = existing.RootElement.GetProperty("images");
+            index = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, ImageIndexInfo>>(
+                imagesNode.GetRawText(), jsonOptions) ?? [];
+        }
+        else
+        {
+            index = [];
+        }
+
+        if (index.TryGetValue(image, out var entry))
+        {
+            entry.Tags = tags.ToList();
+            entry.Description = description;
+        }
+        else
+        {
+            // Create new entry with basic metadata
+            var filePath = Path.Combine(assetsDir, image);
+            var info = new ImageIndexInfo { Tags = tags.ToList(), Description = description };
+            if (File.Exists(filePath))
+            {
+                var bytes = File.ReadAllBytes(filePath);
+                var (w, h) = GetImageDimensions(bytes);
+                info.Format = Path.GetExtension(image).TrimStart('.');
+                info.WidthPx = w;
+                info.HeightPx = h;
+                info.SizeKb = (int)(bytes.Length / 1024);
+            }
+            index[image] = info;
+        }
+
+        var json = System.Text.Json.JsonSerializer.Serialize(new { images = index }, jsonOptions);
+        Directory.CreateDirectory(assetsDir);
+        File.WriteAllText(indexPath, json);
+
+        return $"Tagged '{image}': [{string.Join(", ", tags)}]" +
+               (description != null ? $" — {description}" : "");
+    }
+
     private static string Truncate(string? s, int maxLen)
     {
         if (s is null) return "";
         return s.Length <= maxLen ? s : s[..(maxLen - 3)] + "...";
+    }
+
+    private class ImageIndexInfo
+    {
+        public string Format { get; set; } = "";
+        public int WidthPx { get; set; }
+        public int HeightPx { get; set; }
+        public int SizeKb { get; set; }
+        public string? Description { get; set; }
+        public List<string> Tags { get; set; } = [];
     }
 }

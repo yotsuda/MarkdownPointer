@@ -31,6 +31,10 @@ namespace MarkdownPointer.Services
             var html = await PandocToRevealJsAsync(markdownPath, theme);
             if (html == null) return null;
 
+            // Add <base> tag so relative image paths resolve from the markdown file's directory
+            var baseDir = Path.GetDirectoryName(markdownPath)!.Replace("\\", "/");
+            html = html.Replace("<head>", $"<head><base href=\"file:///{baseDir}/\">");
+
             html = AddLineTracking(html, markdown);
             html = InjectPointingScripts(html, theme);
             return html;
