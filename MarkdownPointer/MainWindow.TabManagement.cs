@@ -484,6 +484,7 @@ namespace MarkdownPointer
                     FileTabControl.Visibility = Visibility.Collapsed;
                     PlaceholderPanel.Visibility = Visibility.Visible;
                     SlideViewToggle.IsEnabled = false;
+                    SlideThemeDropdown.IsEnabled = false;
                     Title = "Markdown Pointer";
                     RefreshRecentFiles();
                     LinkStatusText.Text = "";

@@ -292,9 +292,14 @@ namespace MarkdownPointer
         private static readonly string[] SlideThemes =
             ["beige", "black", "blood", "dracula", "league", "moon", "night", "serif", "simple", "sky", "solarized", "white"];
 
-        private void SlideViewToggle_RightClick(object sender, MouseButtonEventArgs e)
+        private void SlideThemeDropdown_Click(object sender, RoutedEventArgs e)
         {
-            var menu = new ContextMenu();
+            ShowThemeMenu(SlideThemeDropdown);
+        }
+
+        private void ShowThemeMenu(UIElement placementTarget)
+        {
+            var menu = new ContextMenu { PlacementTarget = placementTarget, Placement = System.Windows.Controls.Primitives.PlacementMode.Top };
             foreach (var theme in SlideThemes)
             {
                 var item = new MenuItem
@@ -321,7 +326,6 @@ namespace MarkdownPointer
                 menu.Items.Add(item);
             }
             menu.IsOpen = true;
-            e.Handled = true;
         }
 
         private void PointingModeToggle_Click(object sender, RoutedEventArgs e)

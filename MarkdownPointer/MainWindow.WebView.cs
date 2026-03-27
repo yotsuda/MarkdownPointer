@@ -54,6 +54,7 @@ namespace MarkdownPointer
                         PlaceholderPanel.Visibility = Visibility.Collapsed;
                         FileTabControl.Visibility = Visibility.Visible;
                         SlideViewToggle.IsEnabled = true;
+                        SlideThemeDropdown.IsEnabled = true;
                     }
 
                     tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");

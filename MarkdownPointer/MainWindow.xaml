@@ -222,16 +222,24 @@
                                   Margin="4,0,0,0"
                                   Background="Transparent"
                                   BorderThickness="1"/>
-                    <ToggleButton x:Name="SlideViewToggle" FontFamily="Segoe UI Emoji"
-                                  Content="🎞" IsEnabled="False"
-                                  ToolTip="Slide view (right-click: theme)"
-                                  Click="SlideViewToggle_Click"
-                                  MouseRightButtonUp="SlideViewToggle_RightClick"
-                                  Width="24" Height="20"
-                                  FontSize="10"
-                                  Margin="4,0,0,0"
-                                  Background="Transparent"
-                                  BorderThickness="1"/>
+                    <StackPanel Orientation="Horizontal" Margin="4,0,0,0">
+                        <ToggleButton x:Name="SlideViewToggle" FontFamily="Segoe UI Emoji"
+                                      Content="🎞" IsEnabled="False"
+                                      ToolTip="Slide view"
+                                      Click="SlideViewToggle_Click"
+                                      Width="22" Height="20"
+                                      FontSize="10"
+                                      Background="Transparent"
+                                      BorderThickness="1,1,0,1"/>
+                        <Button x:Name="SlideThemeDropdown"
+                                Content="▾" IsEnabled="False"
+                                ToolTip="Slide theme"
+                                Click="SlideThemeDropdown_Click"
+                                Width="14" Height="20"
+                                FontSize="8" Padding="0"
+                                Background="Transparent"
+                                BorderThickness="1"/>
+                    </StackPanel>
                     <!-- Toggle buttons -->
                     <ToggleButton x:Name="TopmostToggle" FontFamily="Segoe UI Emoji"
                                   Content="📌"
