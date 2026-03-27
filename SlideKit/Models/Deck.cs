@@ -1,5 +1,3 @@
-using YamlDotNet.Serialization;
-
 namespace SlideKit.Models;
 
 public class Deck
@@ -37,34 +35,21 @@ public class Shape
 
     // TextBox
     public string? Text { get; set; }
-
-    [YamlMember(Alias = "font_size")]
     public int? FontSize { get; set; }          // pt (e.g., 24)
-
     public bool Bold { get; set; }
     public string? Color { get; set; }          // RGB hex
     public string? Alignment { get; set; }      // left, center, right
 
     // Bullet list
     public List<string>? Bullets { get; set; }
-
-    [YamlMember(Alias = "bullet_char")]
     public string? BulletChar { get; set; }
 
     // Table
     public List<string>? Headers { get; set; }
     public List<List<string>>? Rows { get; set; }
-
-    [YamlMember(Alias = "header_fill")]
     public string? HeaderFill { get; set; }
-
-    [YamlMember(Alias = "header_color")]
     public string? HeaderColor { get; set; }
-
-    [YamlMember(Alias = "alt_row_fill")]
     public string? AltRowFill { get; set; }
-
-    [YamlMember(Alias = "border_color")]
     public string? BorderColor { get; set; }
 
     // Image

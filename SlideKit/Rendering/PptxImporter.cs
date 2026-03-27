@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using DocumentFormat.OpenXml.Packaging;
 using SlideKit.Models;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 using P = DocumentFormat.OpenXml.Presentation;
 using D = DocumentFormat.OpenXml.Drawing;
 
@@ -11,11 +11,6 @@ namespace SlideKit.Rendering;
 public class PptxImporter
 {
     private const long EmuPerPt = 12700;
-
-    private static readonly ISerializer YamlSerializer = new SerializerBuilder()
-        .WithNamingConvention(UnderscoredNamingConvention.Instance)
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitDefaults)
-        .Build();
 
     public Deck Convert(string pptxPath, string? assetsDir = null)
     {
@@ -45,14 +40,6 @@ public class PptxImporter
         imageCtx?.SaveIndex();
 
         return deck;
-    }
-
-    public string ConvertToYaml(string pptxPath, string? assetsDir = null)
-    {
-        // If assetsDir not specified, create assets/ next to the PPTX
-        assetsDir ??= Path.Combine(Path.GetDirectoryName(pptxPath)!, "assets");
-        var deck = Convert(pptxPath, assetsDir);
-        return YamlSerializer.Serialize(deck);
     }
 
     private static void ExtractTheme(PresentationPart presentationPart, Deck deck)
@@ -425,21 +412,18 @@ internal class ImageExportContext
     private readonly Dictionary<string, ImageIndexEntry> _index;
     private readonly string _indexPath;
 
-    private static readonly ISerializer IndexSerializer = new SerializerBuilder()
-        .WithNamingConvention(UnderscoredNamingConvention.Instance)
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitDefaults)
-        .Build();
-
-    private static readonly IDeserializer IndexDeserializer = new DeserializerBuilder()
-        .WithNamingConvention(UnderscoredNamingConvention.Instance)
-        .IgnoreUnmatchedProperties()
-        .Build();
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+        WriteIndented = true
+    };
 
     public ImageExportContext(string assetsDir, string pptxPath)
     {
         _assetsDir = assetsDir;
         _pptxFileName = Path.GetFileName(pptxPath);
-        _indexPath = Path.Combine(assetsDir, "index.yaml");
+        _indexPath = Path.Combine(assetsDir, "index.json");
         _index = LoadExistingIndex();
     }
 
@@ -498,8 +482,8 @@ internal class ImageExportContext
         Directory.CreateDirectory(_assetsDir);
 
         var wrapper = new ImageIndex { Images = _index };
-        var yaml = IndexSerializer.Serialize(wrapper);
-        File.WriteAllText(_indexPath, yaml);
+        var json = JsonSerializer.Serialize(wrapper, JsonOptions);
+        File.WriteAllText(_indexPath, json);
     }
 
     private Dictionary<string, ImageIndexEntry> LoadExistingIndex()
@@ -509,8 +493,8 @@ internal class ImageExportContext
 
         try
         {
-            var yaml = File.ReadAllText(_indexPath);
-            var index = IndexDeserializer.Deserialize<ImageIndex>(yaml);
+            var json = File.ReadAllText(_indexPath);
+            var index = JsonSerializer.Deserialize<ImageIndex>(json, JsonOptions);
             return index?.Images ?? [];
         }
         catch
@@ -579,16 +563,9 @@ internal class ImageIndex
 internal class ImageIndexEntry
 {
     public string Format { get; set; } = "";
-
-    [YamlMember(Alias = "width_px")]
     public int WidthPx { get; set; }
-
-    [YamlMember(Alias = "height_px")]
     public int HeightPx { get; set; }
-
-    [YamlMember(Alias = "size_kb")]
     public int SizeKb { get; set; }
-
     public string? Context { get; set; }
     public List<ImageSource> Sources { get; set; } = [];
     public List<string> Tags { get; set; } = [];

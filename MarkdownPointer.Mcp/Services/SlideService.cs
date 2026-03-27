@@ -12,7 +12,6 @@ namespace MarkdownPointer.Mcp.Services;
 
 public class SlideService
 {
-    private readonly DeckParser _yamlParser = new();
     private readonly MarkdownToDeckConverter _mdConverter = new();
     private readonly PptxRenderer _renderer = new();
     private readonly PptxImporter _importer = new();
@@ -31,12 +30,7 @@ public class SlideService
 
     public string Load(string path)
     {
-        var ext = Path.GetExtension(path).ToLowerInvariant();
-        _deck = ext switch
-        {
-            ".md" => _mdConverter.ConvertFile(path),
-            _ => _yamlParser.ParseFile(path),
-        };
+        _deck = _mdConverter.ConvertFile(path);
         _sourceFile = path;
         _outputDir = Path.Combine(Path.GetDirectoryName(path)!, ".pinpoint");
         Directory.CreateDirectory(_outputDir);
@@ -257,12 +251,7 @@ public class SlideService
 
     public void ExportPptx(string mdPath, string outputPath)
     {
-        var ext = Path.GetExtension(mdPath).ToLowerInvariant();
-        var deck = ext switch
-        {
-            ".md" => _mdConverter.ConvertFile(mdPath),
-            _ => _yamlParser.ParseFile(mdPath),
-        };
+        var deck = _mdConverter.ConvertFile(mdPath);
         _renderer.Render(deck, outputPath, basePath: Path.GetDirectoryName(mdPath));
     }
 

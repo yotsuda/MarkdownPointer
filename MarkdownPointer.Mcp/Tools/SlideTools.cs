@@ -11,10 +11,10 @@ namespace MarkdownPointer.Mcp.Tools;
 public class SlideTools
 {
     [McpServerTool]
-    [Description("Load a Markdown or YAML deck file and generate PPTX + preview images. Returns slide count and structure info.")]
+    [Description("Load a Markdown deck file and generate PPTX + preview images. Returns slide count and structure info.")]
     public static string LoadDeck(
         SlideService service,
-        [Description("Absolute path to a .md or .yaml file")] string path)
+        [Description("Absolute path to a .md file")] string path)
     {
         try
         {
@@ -59,10 +59,10 @@ public class SlideTools
     }
 
     [McpServerTool]
-    [Description("Update a Markdown or YAML deck file and regenerate PPTX + previews. Returns updated slide info.")]
+    [Description("Update a Markdown deck file and regenerate PPTX + previews. Returns updated slide info.")]
     public static string UpdateDeck(
         SlideService service,
-        [Description("Absolute path to the .md or .yaml file")] string path,
+        [Description("Absolute path to the .md file")] string path,
         [Description("New full content of the file")] string content)
     {
         try
