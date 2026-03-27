@@ -424,7 +424,7 @@ internal class ImageExportContext
     {
         _assetsDir = assetsDir;
         _pptxFileName = Path.GetFileName(pptxPath);
-        _indexPath = Path.Combine(assetsDir, "index.json");
+        _indexPath = Path.Combine(Path.GetDirectoryName(assetsDir)!, "index.json");
         _index = LoadExistingIndex();
     }
 
@@ -448,9 +448,9 @@ internal class ImageExportContext
             File.WriteAllBytes(filePath, bytes);
 
         // Update index
-        var relativePath = $"assets/{fileName}";
+        var relativePath = $"media/{fileName}";
 
-        if (_index.TryGetValue(fileName, out var entry))
+        if (_index.TryGetValue(relativePath, out var entry))
         {
             // Add source if not already present
             if (!entry.Sources.Any(s => s.File == _pptxFileName && s.Slide == slideIndex))
@@ -463,7 +463,7 @@ internal class ImageExportContext
             // Get image dimensions from file header
             var (widthPx, heightPx) = GetImageDimensions(bytes);
 
-            _index[fileName] = new ImageIndexEntry
+            _index[relativePath] = new ImageIndexEntry
             {
                 Format = ext.TrimStart('.'),
                 WidthPx = widthPx,

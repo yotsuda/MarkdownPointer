@@ -249,11 +249,25 @@ public class SlideService
         _renderer.Render(deck, outputPath, basePath: Path.GetDirectoryName(mdPath));
     }
 
+    private static string GetImportedDir(string sourcePath)
+    {
+        return Path.Combine(Path.GetDirectoryName(sourcePath)!, ".imported");
+    }
+
+    private static string GetImportedMdPath(string sourcePath)
+    {
+        var importedDir = GetImportedDir(sourcePath);
+        return Path.Combine(importedDir, Path.GetFileName(sourcePath) + ".md");
+    }
+
     public string ImportPptx(string pptxPath, string? outputMdPath = null)
     {
-        outputMdPath ??= Path.ChangeExtension(pptxPath, ".md");
-        var assetsDir = Path.Combine(Path.GetDirectoryName(pptxPath)!, "assets");
-        var deck = _importer.Convert(pptxPath, assetsDir);
+        var importedDir = GetImportedDir(pptxPath);
+        outputMdPath ??= GetImportedMdPath(pptxPath);
+        var mediaDir = Path.Combine(importedDir, "media");
+        Directory.CreateDirectory(mediaDir);
+
+        var deck = _importer.Convert(pptxPath, mediaDir);
         var mdConverter = new SlideKit.Parsing.DeckToMarkdownConverter();
         var md = mdConverter.Convert(deck);
         File.WriteAllText(outputMdPath, md);
@@ -262,14 +276,16 @@ public class SlideService
 
     public string ImportDocx(string docxPath, string? outputMdPath = null)
     {
-        outputMdPath ??= Path.ChangeExtension(docxPath, ".md");
-        var assetsDir = Path.Combine(Path.GetDirectoryName(docxPath)!, "assets");
+        var importedDir = GetImportedDir(docxPath);
+        outputMdPath ??= GetImportedMdPath(docxPath);
+        var mediaDir = Path.Combine(importedDir, "media");
+        Directory.CreateDirectory(mediaDir);
 
         // Use Pandoc to convert docx → markdown with image extraction
         var psi = new System.Diagnostics.ProcessStartInfo
         {
             FileName = "pandoc",
-            Arguments = $"-f docx -t markdown --extract-media=\"{assetsDir}\" -o \"{outputMdPath}\" \"{docxPath}\"",
+            Arguments = $"-f docx -t markdown --extract-media=\"{mediaDir}\" -o \"{outputMdPath}\" \"{docxPath}\"",
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardError = true
@@ -283,13 +299,13 @@ public class SlideService
         if (process.ExitCode != 0)
             throw new InvalidOperationException($"Pandoc failed: {stderr.Trim()}");
 
-        // Build image index for extracted media
-        BuildImageIndex(assetsDir);
+        // Build media index
+        BuildImageIndex(importedDir, mediaDir);
 
         return File.ReadAllText(outputMdPath);
     }
 
-    private static void BuildImageIndex(string assetsDir)
+    private static void BuildImageIndex(string baseDir, string assetsDir)
     {
         if (!Directory.Exists(assetsDir)) return;
         var imageFiles = Directory.GetFiles(assetsDir, "*.*", SearchOption.AllDirectories)
@@ -300,7 +316,7 @@ public class SlideService
         var index = new Dictionary<string, ImageIndexInfo>();
         foreach (var file in imageFiles)
         {
-            var relativePath = Path.GetRelativePath(assetsDir, file).Replace('\\', '/');
+            var relativePath = Path.GetRelativePath(baseDir, file).Replace('\\', '/');
             var bytes = File.ReadAllBytes(file);
             var (w, h) = GetImageDimensions(bytes);
             index[relativePath] = new ImageIndexInfo
@@ -322,7 +338,7 @@ public class SlideService
                 WriteIndented = true,
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
-        File.WriteAllText(Path.Combine(assetsDir, "index.json"), json);
+        File.WriteAllText(Path.Combine(baseDir, "index.json"), json);
     }
 
     private static bool IsImageFile(string path)
@@ -378,9 +394,9 @@ public class SlideService
         return (0, 0);
     }
 
-    public string TagAsset(string assetsDir, string image, string[] tags, string? description = null)
+    public string TagAsset(string dir, string file, string[] tags, string? description = null)
     {
-        var indexPath = Path.Combine(assetsDir, "index.json");
+        var indexPath = Path.Combine(dir, "index.json");
         var jsonOptions = new System.Text.Json.JsonSerializerOptions
         {
             PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower,
@@ -389,46 +405,58 @@ public class SlideService
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
 
-        Dictionary<string, ImageIndexInfo> index;
+        // Load existing index
+        var images = new Dictionary<string, ImageIndexInfo>();
+        var documents = new Dictionary<string, DocumentIndexInfo>();
         if (File.Exists(indexPath))
         {
             var existing = System.Text.Json.JsonDocument.Parse(File.ReadAllText(indexPath));
-            var imagesNode = existing.RootElement.GetProperty("images");
-            index = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, ImageIndexInfo>>(
-                imagesNode.GetRawText(), jsonOptions) ?? [];
-        }
-        else
-        {
-            index = [];
+            if (existing.RootElement.TryGetProperty("images", out var imagesNode))
+                images = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, ImageIndexInfo>>(
+                    imagesNode.GetRawText(), jsonOptions) ?? [];
+            if (existing.RootElement.TryGetProperty("documents", out var docsNode))
+                documents = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, DocumentIndexInfo>>(
+                    docsNode.GetRawText(), jsonOptions) ?? [];
         }
 
-        if (index.TryGetValue(image, out var entry))
+        var isDocument = Path.GetExtension(file).ToLowerInvariant() is ".md";
+
+        if (isDocument)
         {
-            entry.Tags = tags.ToList();
-            entry.Description = description;
-        }
-        else
-        {
-            // Create new entry with basic metadata
-            var filePath = Path.Combine(assetsDir, image);
-            var info = new ImageIndexInfo { Tags = tags.ToList(), Description = description };
-            if (File.Exists(filePath))
+            documents[file] = new DocumentIndexInfo
             {
-                var bytes = File.ReadAllBytes(filePath);
-                var (w, h) = GetImageDimensions(bytes);
-                info.Format = Path.GetExtension(image).TrimStart('.');
-                info.WidthPx = w;
-                info.HeightPx = h;
-                info.SizeKb = (int)(bytes.Length / 1024);
+                Description = description,
+                Tags = tags.ToList()
+            };
+        }
+        else
+        {
+            if (images.TryGetValue(file, out var entry))
+            {
+                entry.Tags = tags.ToList();
+                entry.Description = description;
             }
-            index[image] = info;
+            else
+            {
+                var filePath = Path.Combine(dir, file);
+                var info = new ImageIndexInfo { Tags = tags.ToList(), Description = description };
+                if (File.Exists(filePath))
+                {
+                    var bytes = File.ReadAllBytes(filePath);
+                    var (w, h) = GetImageDimensions(bytes);
+                    info.Format = Path.GetExtension(file).TrimStart('.');
+                    info.WidthPx = w;
+                    info.HeightPx = h;
+                    info.SizeKb = (int)(bytes.Length / 1024);
+                }
+                images[file] = info;
+            }
         }
 
-        var json = System.Text.Json.JsonSerializer.Serialize(new { images = index }, jsonOptions);
-        Directory.CreateDirectory(assetsDir);
+        var json = System.Text.Json.JsonSerializer.Serialize(new { documents, images }, jsonOptions);
         File.WriteAllText(indexPath, json);
 
-        return $"Tagged '{image}': [{string.Join(", ", tags)}]" +
+        return $"Tagged '{file}': [{string.Join(", ", tags)}]" +
                (description != null ? $" — {description}" : "");
     }
 
@@ -436,6 +464,12 @@ public class SlideService
     {
         if (s is null) return "";
         return s.Length <= maxLen ? s : s[..(maxLen - 3)] + "...";
+    }
+
+    private class DocumentIndexInfo
+    {
+        public string? Description { get; set; }
+        public List<string> Tags { get; set; } = [];
     }
 
     private class ImageIndexInfo

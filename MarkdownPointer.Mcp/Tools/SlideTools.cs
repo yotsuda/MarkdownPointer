@@ -41,22 +41,22 @@ public class SlideTools
     }
 
     [McpServerTool]
-    [Description("Add or update tags for an image in assets/index.json. Use this to annotate extracted images with content type, subject, and usage hints. Always use this tool (not manual file edits) to ensure consistent index format.")]
+    [Description("Add or update tags and description for a file in index.json. Works for both images (stored in 'images' section) and .md files (stored in 'documents' section). Always use this tool (not manual file edits) to ensure consistent index format.")]
     public static string TagAsset(
         SlideService service,
-        [Description("Path to the assets/ directory containing index.json")] string assets_dir,
-        [Description("Image filename relative to assets/ (e.g. 'abc123.png' or 'media/image1.png')")] string image,
-        [Description("Comma-separated tags: content type (screenshot/diagram/chart/photo/logo/icon), subject (architecture-diagram, login-screen), usage (hero/inline/background/decorative)")] string tags,
-        [Description("Optional short description of the image content")] string? description = null)
+        [Description("Path to the .imported/ directory containing index.json")] string dir,
+        [Description("Filename: .md filename (e.g. 'slides.pptx.md') for document summaries, or media path relative to dir (e.g. 'media/abc123.png')")] string file,
+        [Description("Comma-separated tags. For images: content type (screenshot/diagram/chart/photo/logo/icon), subject, usage (hero/inline/background/decorative). For .md: topic tags (e.g. 'setup-guide, orchestrator, powershell')")] string tags,
+        [Description("Short description. For images: what the image shows. For .md: summary of the document content.")] string? description = null)
     {
         try
         {
             var tagArray = tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return service.TagAsset(assets_dir, image, tagArray, description);
+            return service.TagAsset(dir, file, tagArray, description);
         }
         catch (Exception ex)
         {
-            return $"Error tagging {image}: {ex.Message}";
+            return $"Error tagging {file}: {ex.Message}";
         }
     }
 
@@ -95,11 +95,14 @@ public class SlideTools
             var results = new System.Text.StringBuilder();
             var skipped = new List<string>();
             var imported = new List<string>();
-            var allImageFiles = new List<(string assetsDir, List<string> images)>();
+            string? importedDir = null;
+            var allMediaFiles = new List<string>();
 
             foreach (var file in files)
             {
-                var mdPath = output_path ?? Path.ChangeExtension(file, ".md");
+                var impDir = Path.Combine(Path.GetDirectoryName(file)!, ".imported");
+                importedDir ??= impDir;
+                var mdPath = output_path ?? Path.Combine(impDir, Path.GetFileName(file) + ".md");
 
                 // Skip if .md exists and is newer than source
                 if (File.Exists(mdPath))
@@ -116,34 +119,30 @@ public class SlideTools
                 var ext = Path.GetExtension(file).ToLowerInvariant();
                 var md = ext switch
                 {
-                    ".pptx" => service.ImportPptx(file, output_path),
-                    ".docx" => service.ImportDocx(file, output_path),
+                    ".pptx" => service.ImportPptx(file, null),
+                    ".docx" => service.ImportDocx(file, null),
                     _ => throw new ArgumentException($"Unsupported file type '{ext}'. Use .pptx or .docx.")
                 };
 
                 imported.Add(Path.GetFileName(file));
 
-                var assetsDir = Path.Combine(Path.GetDirectoryName(file)!, "assets");
-
                 results.AppendLine($"=== Import Complete: {Path.GetFileName(file)} ===");
                 results.AppendLine($"Source: {file}");
                 results.AppendLine($"Markdown: {mdPath}");
 
-                // List extracted images
-                var imageFiles = new List<string>();
-                if (Directory.Exists(assetsDir))
+                // List extracted media
+                var mediaDir = Path.Combine(impDir, "media");
+                if (Directory.Exists(mediaDir))
                 {
-                    imageFiles = Directory.GetFiles(assetsDir, "*.*", SearchOption.AllDirectories)
-                        .Where(f => !f.EndsWith("index.json", StringComparison.OrdinalIgnoreCase))
-                        .Select(f => Path.GetRelativePath(Path.GetDirectoryName(file)!, f).Replace('\\', '/'))
+                    var mediaFiles = Directory.GetFiles(mediaDir, "*.*", SearchOption.AllDirectories)
+                        .Select(f => Path.GetRelativePath(impDir, f).Replace('\\', '/'))
                         .ToList();
-                    if (imageFiles.Count > 0)
+                    if (mediaFiles.Count > 0)
                     {
-                        results.AppendLine($"Assets directory: {assetsDir}");
-                        results.AppendLine($"Extracted images ({imageFiles.Count}):");
-                        foreach (var img in imageFiles)
-                            results.AppendLine($"  - {img}");
-                        allImageFiles.Add((assetsDir, imageFiles));
+                        results.AppendLine($"Extracted media ({mediaFiles.Count}):");
+                        foreach (var m in mediaFiles)
+                            results.AppendLine($"  - {m}");
+                        allMediaFiles.AddRange(mediaFiles);
                     }
                 }
 
@@ -161,17 +160,25 @@ public class SlideTools
                 summary.AppendLine($"Skipped: {string.Join(", ", skipped)}");
             summary.AppendLine();
 
-            // Instructions for AI to tag images
-            if (allImageFiles.Count > 0)
+            // Instructions for AI to tag assets
+            if (imported.Count > 0 && importedDir != null)
             {
                 summary.AppendLine("=== ACTION REQUIRED ===");
-                summary.AppendLine("Read each image listed above and call tag_asset for each with:");
-                summary.AppendLine("  - tags: content type (screenshot/diagram/chart/photo/logo/icon),");
-                summary.AppendLine("          subject (e.g. architecture-diagram, login-screen),");
-                summary.AppendLine("          usage hint (hero/inline/background/decorative)");
-                summary.AppendLine("  - description: short description of the image content");
-                foreach (var (assetsDir, _) in allImageFiles)
-                    summary.AppendLine($"  - assets_dir: {assetsDir}");
+                summary.AppendLine($"dir: {importedDir}");
+                summary.AppendLine();
+                summary.AppendLine("1. For each .md file created, call tag_asset with:");
+                summary.AppendLine("   - file: the .md filename (e.g. 'slides.pptx.md')");
+                summary.AppendLine("   - tags: topic tags (e.g. 'setup-guide, orchestrator')");
+                summary.AppendLine("   - description: one-line summary of the document");
+                if (allMediaFiles.Count > 0)
+                {
+                    summary.AppendLine();
+                    summary.AppendLine("2. Read each media file and call tag_asset with:");
+                    summary.AppendLine("   - file: media path (e.g. 'media/abc123.png')");
+                    summary.AppendLine("   - tags: content type (screenshot/diagram/chart/photo/logo/icon),");
+                    summary.AppendLine("           subject, usage (hero/inline/background/decorative)");
+                    summary.AppendLine("   - description: what the file contains");
+                }
             }
 
             return summary.ToString() + results.ToString();
