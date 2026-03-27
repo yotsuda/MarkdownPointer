@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -590,21 +591,48 @@ namespace MarkdownPointer
 
         #region Hyperlink
 
-        private void AiTip_Click(object sender, MouseButtonEventArgs e)
+        private void AiImport_Click(object sender, RoutedEventArgs e)
         {
-            Clipboard.SetText("Use mdp import_document to import all .docx and .pptx files to Markdown, then analyze the content and tag images. Folder: <paste your folder path here>");
-            ShowStatusMessage("✓ Copied prompt to clipboard — paste into AI assistant");
-        }
-
-        private void AiTip_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter) AiTip_Click(sender, null!);
+            var menu = new ContextMenu
+            {
+                PlacementTarget = this,
+                Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint
+            };
+            var folderItem = new MenuItem { Header = "📁 Select folder" };
+            folderItem.Click += (_, _) =>
+            {
+                var dlg = new OpenFolderDialog { Title = "Select folder to import" };
+                if (dlg.ShowDialog() == true)
+                {
+                    Clipboard.SetText($"Use mdp import_document to import all .docx and .pptx files to Markdown, then analyze the content and tag images. Folder: \"{dlg.FolderName}\"");
+                    ShowStatusMessage("✓ Copied prompt to clipboard — paste into AI assistant");
+                }
+            };
+            var fileItem = new MenuItem { Header = "📄 Select files" };
+            fileItem.Click += (_, _) =>
+            {
+                var dlg = new OpenFileDialog
+                {
+                    Title = "Select files to import",
+                    Filter = "Documents (*.docx;*.pptx)|*.docx;*.pptx",
+                    Multiselect = true
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    var paths = string.Join("\n", dlg.FileNames.Select(f => $"  \"{f}\""));
+                    Clipboard.SetText($"Use mdp import_document to import the following files to Markdown, then analyze the content and tag images.\n{paths}");
+                    ShowStatusMessage("✓ Copied prompt to clipboard — paste into AI assistant");
+                }
+            };
+            menu.Items.Add(folderItem);
+            menu.Items.Add(fileItem);
+            menu.IsOpen = true;
         }
 
         private void AiTipLink_MouseEnter(object sender, MouseEventArgs e)
         {
             if (sender is Hyperlink hl) hl.TextDecorations = TextDecorations.Underline;
-            LinkStatusText.Text = "Click to copy AI prompt to clipboard";
+            LinkStatusText.Text = "🗨 Click to copy AI prompt to clipboard";
             UpdateFilePathVisibility();
         }
 
@@ -639,7 +667,7 @@ namespace MarkdownPointer
                 hl.TextDecorations = TextDecorations.Underline;
                 if (hl.NavigateUri != null)
                 {
-                    LinkStatusText.Text = hl.NavigateUri.AbsoluteUri;
+                    LinkStatusText.Text = $"🔗 {hl.NavigateUri.AbsoluteUri}";
                     UpdateFilePathVisibility();
                 }
             }

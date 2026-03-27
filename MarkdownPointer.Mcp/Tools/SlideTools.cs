@@ -124,11 +124,7 @@ public class SlideTools
                     _ => throw new ArgumentException($"Unsupported file type '{ext}'. Use .pptx or .docx.")
                 };
 
-                imported.Add(Path.GetFileName(file));
-
-                results.AppendLine($"=== Import Complete: {Path.GetFileName(file)} ===");
-                results.AppendLine($"Source: {file}");
-                results.AppendLine($"Markdown: {mdPath}");
+                imported.Add(mdPath);
 
                 // List extracted media
                 var mediaDir = Path.Combine(impDir, "media");
@@ -137,51 +133,55 @@ public class SlideTools
                     var mediaFiles = Directory.GetFiles(mediaDir, "*.*", SearchOption.AllDirectories)
                         .Select(f => Path.GetRelativePath(impDir, f).Replace('\\', '/'))
                         .ToList();
-                    if (mediaFiles.Count > 0)
-                    {
-                        results.AppendLine($"Extracted media ({mediaFiles.Count}):");
-                        foreach (var m in mediaFiles)
-                            results.AppendLine($"  - {m}");
-                        allMediaFiles.AddRange(mediaFiles);
-                    }
+                    allMediaFiles.AddRange(mediaFiles);
                 }
-
-                results.AppendLine();
-                results.AppendLine("=== Markdown Content ===");
-                results.AppendLine(md);
-                results.AppendLine();
             }
 
-            // Summary
-            var summary = new System.Text.StringBuilder();
-            summary.AppendLine($"=== Summary ===");
-            summary.AppendLine($"Imported: {imported.Count}, Skipped (up-to-date): {skipped.Count}");
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"=== Summary ===");
+            sb.AppendLine($"Imported: {imported.Count}, Skipped (up-to-date): {skipped.Count}");
             if (skipped.Count > 0)
-                summary.AppendLine($"Skipped: {string.Join(", ", skipped)}");
-            summary.AppendLine();
+                sb.AppendLine($"Skipped: {string.Join(", ", skipped)}");
+            sb.AppendLine();
+
+            if (imported.Count > 0)
+            {
+                sb.AppendLine("=== Imported ===");
+                foreach (var mdPath in imported)
+                    sb.AppendLine($"  {mdPath}");
+                sb.AppendLine();
+            }
+
+            if (allMediaFiles.Count > 0)
+            {
+                sb.AppendLine($"=== Media ({allMediaFiles.Count} files) ===");
+                foreach (var m in allMediaFiles)
+                    sb.AppendLine($"  {m}");
+                sb.AppendLine();
+            }
 
             // Instructions for AI to tag assets
             if (imported.Count > 0 && importedDir != null)
             {
-                summary.AppendLine("=== ACTION REQUIRED ===");
-                summary.AppendLine($"dir: {importedDir}");
-                summary.AppendLine();
-                summary.AppendLine("1. For each .md file created, call tag_asset with:");
-                summary.AppendLine("   - file: the .md filename (e.g. 'slides.pptx.md')");
-                summary.AppendLine("   - tags: topic tags (e.g. 'setup-guide, orchestrator')");
-                summary.AppendLine("   - description: one-line summary of the document");
+                sb.AppendLine("=== ACTION REQUIRED ===");
+                sb.AppendLine($"dir: {importedDir}");
+                sb.AppendLine();
+                sb.AppendLine("1. Read each .md file above, then call tag_asset with:");
+                sb.AppendLine("   - file: the .md filename (e.g. 'slides.pptx.md')");
+                sb.AppendLine("   - tags: topic tags (e.g. 'setup-guide, orchestrator')");
+                sb.AppendLine("   - description: one-line summary of the document");
                 if (allMediaFiles.Count > 0)
                 {
-                    summary.AppendLine();
-                    summary.AppendLine("2. Read each media file and call tag_asset with:");
-                    summary.AppendLine("   - file: media path (e.g. 'media/abc123.png')");
-                    summary.AppendLine("   - tags: content type (screenshot/diagram/chart/photo/logo/icon),");
-                    summary.AppendLine("           subject, usage (hero/inline/background/decorative)");
-                    summary.AppendLine("   - description: what the file contains");
+                    sb.AppendLine();
+                    sb.AppendLine("2. Read each media file, then call tag_asset with:");
+                    sb.AppendLine("   - file: media path (e.g. 'media/abc123.png')");
+                    sb.AppendLine("   - tags: content type (screenshot/diagram/chart/photo/logo/icon),");
+                    sb.AppendLine("           subject, usage (hero/inline/background/decorative)");
+                    sb.AppendLine("   - description: what the file contains");
                 }
             }
 
-            return summary.ToString() + results.ToString();
+            return sb.ToString();
         }
         catch (Exception ex)
         {

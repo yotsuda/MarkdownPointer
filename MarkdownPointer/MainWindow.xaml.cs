@@ -511,7 +511,8 @@ namespace MarkdownPointer
                 tb.TextDecorations = TextDecorations.Underline;
                 if (tb.Tag is string path)
                 {
-                    LinkStatusText.Text = path;
+                    var icon = Directory.Exists(path) ? "📁" : "📄";
+                    LinkStatusText.Text = $"{icon} {path}";
                     UpdateFilePathVisibility();
                 }
             }
@@ -539,7 +540,7 @@ namespace MarkdownPointer
         {
             if (Directory.Exists(folder))
             {
-                ShowStatusMessage($"📁 {folder}");
+                ShowStatusMessage("📁 Open file from folder");
                 OpenFileDialog(folder);
             }
             else
