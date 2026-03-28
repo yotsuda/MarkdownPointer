@@ -184,16 +184,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
 
             var outputPath = output != null ? Path.GetFullPath(output) : Path.ChangeExtension(fullPath, ext);
 
-            // PPTX: use SlideKit directly (no Pandoc needed)
-            if (ext == ".pptx")
-            {
-                slideService.ExportPptx(fullPath, outputPath);
-                return WithVersionWarning(JsonSerializer.Serialize(
-                    new ExportResponse { Success = true, Output = outputPath },
-                    PipeJsonContext.Default.ExportResponse));
-            }
-
-            // DOCX: try routing through MarkdownPointer app for Mermaid/SVG conversion
+            // Route through MarkdownPointer app for Mermaid/SVG preprocessing
             try
             {
                 var templatePath = template != null ? Path.GetFullPath(template) : null;
@@ -225,10 +216,18 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
             }
             catch
             {
-                // Fall through to direct Pandoc call
+                // Fall through to direct export (no Mermaid/SVG conversion)
             }
 
-            // Fallback: direct Pandoc (no Mermaid/SVG conversion)
+            // Fallback: PPTX via SlideKit, DOCX via Pandoc
+            if (ext == ".pptx")
+            {
+                slideService.ExportPptx(fullPath, outputPath);
+                return WithVersionWarning(JsonSerializer.Serialize(
+                    new ExportResponse { Success = true, Output = outputPath },
+                    PipeJsonContext.Default.ExportResponse));
+            }
+
             var templateFullPath = template != null ? Path.GetFullPath(template) : null;
             var refDoc = templateFullPath != null && File.Exists(templateFullPath)
                 ? $"--reference-doc=\"{templateFullPath}\" "

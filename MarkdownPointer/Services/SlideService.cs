@@ -58,7 +58,8 @@ namespace MarkdownPointer.Services
                     var converter = new SlideKit.Parsing.MarkdownToDeckConverter();
                     var deck = converter.ConvertFile(markdownPath);
                     var renderer = new SlideKit.Rendering.PptxRenderer();
-                    renderer.Render(deck, outputPath, templatePath);
+                    var basePath = resourceDir ?? Path.GetDirectoryName(markdownPath);
+                    renderer.Render(deck, outputPath, templatePath, basePath);
                     return ((bool Success, string? Error))(true, null);
                 });
             }
