@@ -540,7 +540,6 @@ namespace MarkdownPointer
         {
             if (Directory.Exists(folder))
             {
-                ShowStatusMessage("📁 Open file from folder");
                 OpenFileDialog(folder);
             }
             else
