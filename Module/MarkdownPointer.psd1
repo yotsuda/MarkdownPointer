@@ -58,6 +58,10 @@ Example prompts for AI:
 - Generic Edit button (replaces VS Code-specific button)
 - Improved splash screen: keyboard navigation, hover underline, AI import tip
 - Faster startup by deferring work after window display
+- Fix PPTX export not rendering Mermaid diagrams and images
+- Fix SVG to PNG export producing tiny images when width/height differ from viewBox
+- Suppress image alt text captions in docx/pptx export (disable implicit_figures)
+- Wait for slide view render completion before returning MCP response
 - Extract inline JS/CSS into embedded resource files
 
 0.11.0
