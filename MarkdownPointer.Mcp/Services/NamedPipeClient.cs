@@ -112,7 +112,8 @@ public class NamedPipeClient
             throw new InvalidOperationException(
                 $"Version mismatch: running mdp.exe is at '{runningPath}', " +
                 $"but this MCP server expects '{expectedPath}'. " +
-                $"Kill the running mdp.exe or update the MCP client configuration.");
+                $"Kill the running mdp.exe, then run Register-MdpToClaudeCode or Register-MdpToClaudeDesktop to update. " +
+                $"For other MCP clients, run Get-MarkdownPointerMCPPath -Escape to get the JSON-escaped executable path.");
         }
     }
 

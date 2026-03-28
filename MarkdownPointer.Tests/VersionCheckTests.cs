@@ -56,6 +56,7 @@ public class VersionCheckTests : IDisposable
         Assert.Contains("v0.10.0", result);
         Assert.Contains("v0.11.0", result);
         Assert.Contains("MCP config is outdated", result);
+        Assert.Contains("Register-MdpToClaudeCode", result);
     }
 
     [Fact]
@@ -125,7 +126,7 @@ public class VersionCheckTests : IDisposable
                 @"D:\OldTools\mdp.exe"));
 
         Assert.Contains("Version mismatch", ex.Message);
-        Assert.Contains("Kill the running mdp.exe", ex.Message);
+        Assert.Contains("Register-MdpToClaudeCode", ex.Message);
     }
 
     // --- Helpers ---

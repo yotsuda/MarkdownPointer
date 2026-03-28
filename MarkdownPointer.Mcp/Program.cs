@@ -59,23 +59,19 @@ public class Program
             if (!Version.TryParse(myVersionStr, out var myVersion)) return null;
 
             Version? latestVersion = null;
-            string? latestDir = null;
             foreach (var dir in Directory.GetDirectories(moduleRoot))
             {
                 if (Version.TryParse(Path.GetFileName(dir), out var v) && v > myVersion)
                 {
                     if (latestVersion == null || v > latestVersion)
-                    {
                         latestVersion = v;
-                        latestDir = dir;
-                    }
                 }
             }
-            if (latestVersion != null && latestDir != null)
+            if (latestVersion != null)
             {
-                var newExePath = Path.Combine(latestDir, "bin", "mdp-mcp.exe");
                 return $"Tell the user: MCP config is outdated (v{myVersionStr} → v{latestVersion}). " +
-                       $"Update path to: {newExePath}";
+                       $"Run Register-MdpToClaudeCode or Register-MdpToClaudeDesktop in PowerShell to update. " +
+                       $"For other MCP clients, run Get-MarkdownPointerMCPPath -Escape to get the JSON-escaped executable path.";
             }
             return null;
         }
