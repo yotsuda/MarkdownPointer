@@ -290,19 +290,22 @@ namespace MarkdownPointer.Services
 
                     var originalSrc = svg.getAttribute('data-original-src') || '';
 
-                    var vb = svg.getAttribute('viewBox');
-                    var width, height;
-                    if (vb) {{
-                        var parts = vb.split(/[\s,]+/);
-                        width = Math.ceil(parseFloat(parts[2]));
-                        height = Math.ceil(parseFloat(parts[3]));
+                    var width = parseFloat(svg.getAttribute('width')) || 0;
+                    var height = parseFloat(svg.getAttribute('height')) || 0;
+                    if (!width || !height) {{
+                        var vb = svg.getAttribute('viewBox');
+                        if (vb) {{
+                            var parts = vb.split(/[\s,]+/);
+                            width = Math.ceil(parseFloat(parts[2]));
+                            height = Math.ceil(parseFloat(parts[3]));
+                        }}
                     }}
                     if (!width || !height) {{
-                        width = parseFloat(svg.getAttribute('width')) || svg.getBoundingClientRect().width;
-                        height = parseFloat(svg.getAttribute('height')) || svg.getBoundingClientRect().height;
-                        width = Math.ceil(width);
-                        height = Math.ceil(height);
+                        width = svg.getBoundingClientRect().width;
+                        height = svg.getBoundingClientRect().height;
                     }}
+                    width = Math.ceil(width);
+                    height = Math.ceil(height);
 
                     if (width <= 0 || height <= 0) {{
                         window.chrome.webview.postMessage('SVG_EXPORT:{index}:' + originalSrc + '|0|');
