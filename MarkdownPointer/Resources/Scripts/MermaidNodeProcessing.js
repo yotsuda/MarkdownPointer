@@ -99,6 +99,15 @@ function parseSourceLines(sourceLines, baseLine, nodeLineMap, arrowLineMap, mess
             nodeLineMap[seqMatch[1]] = lineNum;
         }
 
+        // Sequence block keywords: alt, else, loop, opt, par, critical, break, rect, Note
+        var seqBlockMatch = line.match(/^\s*(alt|else|loop|opt|par|critical|break|rect|Note\s+(?:over|left|right))\s*(.*)/i);
+        if (seqBlockMatch) {
+            var keyword = seqBlockMatch[1].toLowerCase();
+            var label = seqBlockMatch[2] ? seqBlockMatch[2].trim() : '';
+            var seqKey = 'seq-block:' + keyword + ':' + label;
+            nodeLineMap[seqKey] = lineNum;
+        }
+
         // Class diagram, state diagram, ER diagram, Gantt, Pie, Git graph patterns
         // (Additional pattern matching for various Mermaid diagram types)
         parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeLabelLineMap, diagramType);
@@ -374,6 +383,49 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
                 if (nodeLineMap[actorName]) {
                     parent.setAttribute('data-source-line', String(nodeLineMap[actorName]));
                 }
+            }
+        }
+    });
+
+    // Sequence block labels (alt, else, loop, opt, par, critical, break)
+    // Search all text elements since Mermaid CSS class names vary by version
+    svg.querySelectorAll('text').forEach(function(text) {
+        if (text.hasAttribute('data-source-line')) return;
+        var label = text.textContent.trim();
+        // Try matching: "alt 認証成功", "[認証成功]", "認証成功", "else 認証失敗", etc.
+        var blockMatch = label.match(/^(alt|else|loop|opt|par|critical|break)\s*(.*)/i);
+        if (blockMatch) {
+            var keyword = blockMatch[1].toLowerCase();
+            var blockLabel = blockMatch[2] ? blockMatch[2].trim() : '';
+            var seqKey = 'seq-block:' + keyword + ':' + blockLabel;
+            if (nodeLineMap[seqKey]) {
+                text.style.cursor = 'pointer';
+                text.setAttribute('data-mermaid-node', 'true');
+                text.setAttribute('data-source-line', String(nodeLineMap[seqKey]));
+                return;
+            }
+            // Keyword only (e.g. just "alt") — find first matching seq-block:alt:*
+            if (!blockLabel) {
+                for (var k in nodeLineMap) {
+                    if (k.indexOf('seq-block:' + keyword + ':') === 0) {
+                        text.style.cursor = 'pointer';
+                        text.setAttribute('data-mermaid-node', 'true');
+                        text.setAttribute('data-source-line', String(nodeLineMap[k]));
+                        return;
+                    }
+                }
+            }
+        }
+        // Try label without keyword prefix (Mermaid may render just the condition text)
+        var cleanLabel = label.replace(/^\[|\]$/g, '').trim();
+        var keywords = ['alt', 'else', 'loop', 'opt', 'par', 'critical', 'break'];
+        for (var ki = 0; ki < keywords.length; ki++) {
+            var key = 'seq-block:' + keywords[ki] + ':' + cleanLabel;
+            if (nodeLineMap[key]) {
+                text.style.cursor = 'pointer';
+                text.setAttribute('data-mermaid-node', 'true');
+                text.setAttribute('data-source-line', String(nodeLineMap[key]));
+                return;
             }
         }
     });
