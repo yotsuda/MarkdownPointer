@@ -101,10 +101,38 @@ public class DeckToMarkdownConverter
         {
             if (isHeading)
                 sb.AppendLine($"## {shape.Text}");
+            else if (LooksLikeMermaid(shape.Text))
+            {
+                sb.AppendLine("```mermaid");
+                sb.AppendLine(shape.Text);
+                sb.AppendLine("```");
+            }
             else
                 sb.AppendLine(shape.Text);
             sb.AppendLine();
         }
+    }
+
+    private static readonly HashSet<string> MermaidKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "flowchart", "graph", "sequenceDiagram", "classDiagram", "stateDiagram",
+        "stateDiagram-v2", "erDiagram", "gitGraph", "gitgraph", "gantt", "pie",
+        "mindmap", "timeline", "journey", "quadrantChart", "architecture",
+        "kanban", "treemap", "info"
+    };
+
+    private static bool LooksLikeMermaid(string text)
+    {
+        var firstLine = text.TrimStart();
+        // Skip %%{init:...}%% directives
+        if (firstLine.StartsWith("%%{"))
+        {
+            var endIdx = firstLine.IndexOf("}%%");
+            if (endIdx >= 0)
+                firstLine = firstLine[(endIdx + 3)..].TrimStart();
+        }
+        var firstWord = firstLine.Split([' ', '\n', '\r'], 2)[0];
+        return MermaidKeywords.Contains(firstWord);
     }
 
     private static void RenderTable(StringBuilder sb, Shape shape)

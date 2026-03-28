@@ -27,8 +27,11 @@ section.pointing-highlight {
 .mermaid svg foreignObject {
     overflow: visible !important;
 }
-.mermaid svg foreignObject div {
+.mermaid svg foreignObject div,
+.mermaid svg foreignObject span {
     text-align: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 /* Fit Mermaid diagrams within the slide */
 .mermaid {

@@ -93,9 +93,9 @@ function fitMermaidToSlides() {
         if (!vb) svg.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
 
         // Available space in slide coordinates
-        var availW = slideW - 80;
-        var availH = slideH - 160; // title + padding
-        if (availH < 200) availH = 200;
+        var hasTitle = section.querySelector('h1, h2, h3');
+        var availW = slideW - 40;
+        var availH = hasTitle ? slideH - 120 : slideH - 40;
 
         // Scale to fit
         var scale = Math.min(availW / svgW, availH / svgH, 1);
