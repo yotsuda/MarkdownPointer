@@ -26,12 +26,9 @@ Quick start:
   ConvertTo-Docx .\*.md       # Convert to .docx via Pandoc
   ConvertTo-Pptx .\slides.md  # Convert to .pptx
 
-MCP setup for Claude Code:
-  claude mcp add mdp -s user -- "$(Get-MarkdownPointerMCPPath)"
-
-MCP setup for Claude Desktop (add to claude_desktop_config.json):
-  { "mcpServers": { "mdp": { "command": "C:\\...\\mdp-mcp.exe" } } }
-  Use Get-MarkdownPointerMCPPath -Escape to get the path with escaped backslashes.
+MCP setup:
+  Register-MdpToClaudeCode       # Register in Claude Code
+  Register-MdpToClaudeDesktop    # Register in Claude Desktop
 
 Example prompts for AI:
   "open README.md in mdp"
@@ -49,6 +46,20 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.12.0
+- Mermaid diagrams in slide view: auto-fit, theme matching, text clipping fix
+- Slide theme dropdown with alphabetical sorting
+- Heading-based slide splitting with image support and aspect ratio preservation
+- New MCP tools: import_document, tag_asset (replaces load_deck/update_deck)
+- import_document: extract text and images from .docx/.pptx to Markdown + .imported/media/
+- Register-MdpToClaudeDesktop / Register-MdpToClaudeCode convenience functions
+- Fix Get-MarkdownPointerMCPPath failing when called from within the module
+- Pointing fixes: class diagram `class Name {`, sequence alt/else/loop, composite states
+- Generic Edit button (replaces VS Code-specific button)
+- Improved splash screen: keyboard navigation, hover underline, AI import tip
+- Faster startup by deferring work after window display
+- Extract inline JS/CSS into embedded resource files
+
 0.11.0
 - High-quality PPTX export using Open XML SDK (replaces Pandoc for .pptx)
 - New MCP tools: load_deck, get_slide_info, get_slide_image, update_deck, import_pptx
