@@ -60,12 +60,13 @@ mdp                # Just launch the viewer
 
 ## MCP Server Setup
 
-Connect MarkdownPointer to Claude Code so your AI can open and navigate documents directly.
+Connect MarkdownPointer to Claude so your AI can open and navigate documents directly.
 
-### Claude Code
+Run these in PowerShell 7:
 
 ```powershell
-claude mcp add mdp -s user -- "$(Get-MarkdownPointerMCPPath)"
+Register-MdpToClaudeCode       # Claude Code
+Register-MdpToClaudeDesktop    # Claude Desktop
 ```
 
 Then just ask Claude:
@@ -77,26 +78,6 @@ Then just ask Claude:
 - "import presentation.pptx to markdown"
 - "show me slide 3 of slides.md"
 
-### Claude Desktop
-
-Run this in PowerShell to get the path for your environment:
-
-```powershell
-Get-MarkdownPointerMCPPath -Escape
-```
-
-Then add to `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "mdp": {
-      "command": "<paste the output here>"
-    }
-  }
-}
-```
-
 ### MCP Tools
 
 | Tool | Description |
@@ -104,8 +85,11 @@ Then add to `claude_desktop_config.json`:
 | `show_markdown` | Open files and scroll to a line |
 | `get_status` | Get current window/tab state |
 | `slide_control` | Navigate reveal.js slides |
+| `get_slide_info` | Get slide shapes and content as text |
+| `get_slide_image` | Get a slide as PNG image (requires PowerPoint) |
 | `export_document` | Export to .pptx (built-in) or .docx (Pandoc) |
-| `import_pptx` | Import PPTX to Markdown + extract images to assets/ |
+| `import_document` | Import .docx/.pptx to Markdown + extract images |
+| `tag_asset` | Tag imported files and images in index.json |
 
 ## Keyboard Shortcuts
 
