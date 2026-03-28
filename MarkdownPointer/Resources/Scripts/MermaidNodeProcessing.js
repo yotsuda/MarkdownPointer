@@ -142,6 +142,12 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         }
     }
 
+    // Class diagram: "class ClassName {" or "class ClassName"
+    var classDefMatch = line.match(/^\s*class\s+(\S+)/);
+    if (classDefMatch) {
+        if (!nodeLineMap['class:' + classDefMatch[1]]) nodeLineMap['class:' + classDefMatch[1]] = lineNum;
+    }
+
     // Class diagram class name from member definition: ClassName : member
     var classNameMatch = line.match(/^\s*(\S+)\s*:\s*.+$/);
     if (classNameMatch) {
