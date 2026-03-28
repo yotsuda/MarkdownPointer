@@ -604,7 +604,7 @@ namespace MarkdownPointer
                 var dlg = new OpenFolderDialog { Title = "Select folder to import" };
                 if (dlg.ShowDialog() == true)
                 {
-                    Clipboard.SetText($"Use mdp import_document to import all .docx and .pptx files to Markdown, then analyze the content and tag images. Folder: \"{dlg.FolderName}\"");
+                    Clipboard.SetText($"Use mdp import_document to import all .docx and .pptx files to Markdown, then analyze the content and tag images.\n  \"{dlg.FolderName}\"");
                     ShowStatusMessage("✓ Copied prompt to clipboard — paste into AI assistant");
                 }
             };
