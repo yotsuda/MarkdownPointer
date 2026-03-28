@@ -237,7 +237,7 @@ public class MarkdownPointerTools(NamedPipeClient pipeClient)
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "pandoc",
-                    Arguments = $"-f markdown -t docx {refDoc}-o \"{outputPath}\" \"{fullPath}\"",
+                    Arguments = $"-f markdown-implicit_figures -t docx {refDoc}-o \"{outputPath}\" \"{fullPath}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardError = true

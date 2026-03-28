@@ -35,7 +35,7 @@ namespace MarkdownPointer.Services
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "pandoc",
-                        Arguments = $"-f markdown -t {format} {refDoc}{resPath}-o \"{outputPath}\" \"{markdownPath}\"",
+                        Arguments = $"-f markdown-implicit_figures -t {format} {refDoc}{resPath}-o \"{outputPath}\" \"{markdownPath}\"",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardError = true

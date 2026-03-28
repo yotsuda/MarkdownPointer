@@ -33,8 +33,6 @@ namespace MarkdownPointer.Services
 
             // Pandoc uses data-src for lazy loading in reveal.js; convert to src for WebView2
             html = html.Replace("data-src=\"", "src=\"");
-            // Remove figcaption elements (Pandoc wraps images in <figure> with alt text as caption)
-            html = Regex.Replace(html, @"<figcaption[^>]*>.*?</figcaption>", "", RegexOptions.Singleline);
 
             // Inline local images as base64 (NavigateToString blocks file:// access)
             var baseDir = Path.GetDirectoryName(markdownPath)!;
@@ -82,7 +80,7 @@ namespace MarkdownPointer.Services
                     var psi = new ProcessStartInfo
                     {
                         FileName = "pandoc",
-                        Arguments = $"-f markdown -t revealjs -s " +
+                        Arguments = $"-f markdown-implicit_figures -t revealjs -s " +
                                     $"--variable revealjs-url=https://cdn.jsdelivr.net/npm/reveal.js@5.2.1 " +
                                     $"--variable theme={theme} " +
                                     $"-o \"{outputPath}\" \"{markdownPath}\"",
