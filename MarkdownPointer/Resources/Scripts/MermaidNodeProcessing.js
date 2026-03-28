@@ -163,6 +163,12 @@ function parseAdditionalPatterns(line, lineNum, nodeLineMap, arrowLineMap, edgeL
         }
     }
 
+    // State diagram: "state StateName {" or "state StateName"
+    var stateDefMatch = line.match(/^\s*state\s+(\S+)/);
+    if (stateDefMatch) {
+        if (!nodeLineMap['state:' + stateDefMatch[1]]) nodeLineMap['state:' + stateDefMatch[1]] = lineNum;
+    }
+
     // State diagram transition with optional label
     var stateTransMatch = line.match(/^\s*(\[\*\]|[^\s-]+)\s*-->\s*(\[\*\]|[^\s:]+)(?:\s*:\s*(.+))?/);
     if (stateTransMatch) {
@@ -315,13 +321,17 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
             return;
         }
 
-        // Flowchart subgraph (cluster)
+        // Flowchart subgraph / state diagram composite state (cluster)
         if (node.classList && node.classList.contains('cluster')) {
             var clusterLabel = node.querySelector('.nodeLabel, text');
             if (clusterLabel) {
                 var subgraphName = clusterLabel.textContent.trim();
                 if (nodeLineMap['subgraph:' + subgraphName]) {
                     node.setAttribute('data-source-line', String(nodeLineMap['subgraph:' + subgraphName]));
+                    return;
+                }
+                if (nodeLineMap['state:' + subgraphName]) {
+                    node.setAttribute('data-source-line', String(nodeLineMap['state:' + subgraphName]));
                     return;
                 }
             }
@@ -348,6 +358,12 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
                 node.setAttribute('data-state-node', stateName);
                 if (nodeLineMap['state:' + stateName]) {
                     node.setAttribute('data-source-line', String(nodeLineMap['state:' + stateName]));
+                } else {
+                    // Try matching by text content (for non-ASCII state names that may be encoded in ID)
+                    var stateText = node.querySelector('text, .nodeLabel');
+                    if (stateText && nodeLineMap['state:' + stateText.textContent.trim()]) {
+                        node.setAttribute('data-source-line', String(nodeLineMap['state:' + stateText.textContent.trim()]));
+                    }
                 }
             }
             return;
@@ -377,6 +393,21 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
+    // Fallback: match unresolved nodes by text content
+    svg.querySelectorAll('[data-mermaid-node]').forEach(function(node) {
+        if (node.hasAttribute('data-source-line')) return;
+        var textEl = node.querySelector('text, .nodeLabel');
+        if (!textEl) return;
+        var label = textEl.textContent.trim();
+        var prefixes = ['state:', 'class:', 'subgraph:', ''];
+        for (var pi = 0; pi < prefixes.length; pi++) {
+            if (nodeLineMap[prefixes[pi] + label]) {
+                node.setAttribute('data-source-line', String(nodeLineMap[prefixes[pi] + label]));
+                return;
+            }
+        }
+    });
+
     // Sequence diagram: mark bottom actors
     svg.querySelectorAll('rect.actor-bottom').forEach(function(rect) {
         var parent = rect.parentElement;
@@ -393,9 +424,8 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
         }
     });
 
-    // Sequence block labels (alt, else, loop, opt, par, critical, break)
-    // Search all text elements since Mermaid CSS class names vary by version
-    svg.querySelectorAll('text').forEach(function(text) {
+    // Sequence block labels, state/class names — search text and span.nodeLabel
+    svg.querySelectorAll('text, span.nodeLabel').forEach(function(text) {
         if (text.hasAttribute('data-source-line')) return;
         var label = text.textContent.trim();
         // Try matching: "alt 認証成功", "[認証成功]", "認証成功", "else 認証失敗", etc.
@@ -431,6 +461,16 @@ function applyMappingsToSvg(svg, nodeLineMap, arrowLineMap, messageLineNums, edg
                 text.style.cursor = 'pointer';
                 text.setAttribute('data-mermaid-node', 'true');
                 text.setAttribute('data-source-line', String(nodeLineMap[key]));
+                return;
+            }
+        }
+        // Fallback: try state name, class name, or flowchart node
+        var prefixes = ['state:', 'class:', ''];
+        for (var pi = 0; pi < prefixes.length; pi++) {
+            if (nodeLineMap[prefixes[pi] + cleanLabel]) {
+                text.style.cursor = 'pointer';
+                text.setAttribute('data-mermaid-node', 'true');
+                text.setAttribute('data-source-line', String(nodeLineMap[prefixes[pi] + cleanLabel]));
                 return;
             }
         }
