@@ -230,7 +230,7 @@ public class PipeServer : IDisposable
             targetWindow.SetSlideView(openedTab, true);
         }
 
-        // Wait for render if it's a new tab
+        // Wait for render completion (new tab or slide view switch)
         if (openedTab.RenderCompletion != null)
         {
             try

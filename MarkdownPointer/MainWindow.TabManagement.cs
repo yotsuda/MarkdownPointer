@@ -71,6 +71,7 @@ namespace MarkdownPointer
         {
             if (tab.IsSlideView == slideView) return;
             tab.IsSlideView = slideView;
+            tab.RenderCompletion = new TaskCompletionSource<List<string>>();
             UpdateSlideViewButton(tab);
             SlideViewToggle.IsChecked = slideView;
             RenderMarkdown(tab, viewToggle: true);
