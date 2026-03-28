@@ -643,7 +643,7 @@ namespace MarkdownPointer
                     if (cached != null)
                     {
                         tab.RenderedHtml = cached;
-                        tab.WebView.NavigateToString(cached);
+                        NavigateToHtml(tab, cached);
                         return;
                     }
                 }
@@ -714,13 +714,26 @@ namespace MarkdownPointer
 
                 tab.RenderedHtml = html;  // Cache for fast window detach
 
-                tab.WebView.NavigateToString(html);
+                NavigateToHtml(tab, html);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Markdown rendering error: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Navigates the tab's WebView to the given HTML via a temp file.
+        /// This avoids the ~2MB limit of NavigateToString.
+        /// </summary>
+        private static void NavigateToHtml(TabItemData tab, string html)
+        {
+            tab.CleanupTempFile();
+            var tempPath = Path.Combine(Path.GetTempPath(), $"mdp-{Guid.NewGuid():N}.html");
+            File.WriteAllText(tempPath, html, Encoding.UTF8);
+            tab.TempHtmlPath = tempPath;
+            tab.WebView.CoreWebView2.Navigate(new Uri(tempPath).AbsoluteUri);
         }
 
         #endregion

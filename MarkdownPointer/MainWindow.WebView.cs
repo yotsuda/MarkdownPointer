@@ -90,7 +90,7 @@ namespace MarkdownPointer
             if (tab.RenderedHtml != null)
             {
                 // Use cached HTML for fast display (e.g., when detaching tab to new window)
-                tab.WebView.NavigateToString(tab.RenderedHtml);
+                NavigateToHtml(tab, tab.RenderedHtml);
             }
             else
             {

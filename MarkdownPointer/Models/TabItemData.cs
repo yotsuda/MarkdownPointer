@@ -130,6 +130,12 @@ namespace MarkdownPointer.Models
         public string? CachedDocHtml { get; set; }
 
         /// <summary>
+        /// Temp file path used for NavigateToFile (avoids NavigateToString 2MB limit).
+        /// Cleaned up on Dispose.
+        /// </summary>
+        public string? TempHtmlPath { get; set; }
+
+        /// <summary>
         /// INotifyPropertyChanged implementation.
         /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -145,7 +151,20 @@ namespace MarkdownPointer.Models
             Watcher?.Dispose();
             DebounceTimer?.Stop();
             WebView?.Dispose();
+            CleanupTempFile();
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Deletes the temp HTML file if it exists.
+        /// </summary>
+        public void CleanupTempFile()
+        {
+            if (TempHtmlPath != null)
+            {
+                try { File.Delete(TempHtmlPath); } catch { }
+                TempHtmlPath = null;
+            }
         }
     }
 }
