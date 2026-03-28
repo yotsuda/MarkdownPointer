@@ -39,7 +39,7 @@ Example prompts for AI:
   "export report.md to docx"
 '@
     PowerShellVersion = '7.4'
-    FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerMCPPath', 'ConvertTo-Docx', 'ConvertTo-Pptx')
+    FunctionsToExport = @('Show-MarkdownPointer', 'Get-MarkdownPointerMCPPath', 'ConvertTo-Docx', 'ConvertTo-Pptx', 'Register-MdpToClaudeDesktop', 'Register-MdpToClaudeCode')
     CmdletsToExport = @()
     VariablesToExport = @()
     AliasesToExport = @('mdp')

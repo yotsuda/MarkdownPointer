@@ -303,7 +303,7 @@ function Get-MarkdownPointerMCPPath {
         [switch]$Escape
     )
 
-    $mcpPath = Join-Path (Get-Module MarkdownPointer).ModuleBase "bin\mdp-mcp.exe"
+    $mcpPath = Join-Path $PSScriptRoot "bin\mdp-mcp.exe"
     if (-not (Test-Path $mcpPath)) {
         throw "mdp-mcp.exe not found at: $mcpPath"
     }
@@ -311,6 +311,90 @@ function Get-MarkdownPointerMCPPath {
         return $mcpPath -replace '\\', '\\'
     }
     return $mcpPath
+}
+
+<#
+.SYNOPSIS
+    Registers MarkdownPointer as an MCP server in Claude Desktop.
+
+.DESCRIPTION
+    Adds or updates the "mdp" entry in Claude Desktop's
+    claude_desktop_config.json. Existing settings in the file are preserved.
+    If "mdp" is already registered, the command path is updated
+    to the current module's MCP executable.
+
+.EXAMPLE
+    Register-MdpToClaudeDesktop
+    Registers MarkdownPointer MCP in Claude Desktop configuration.
+
+.OUTPUTS
+    None. Writes status messages to the host.
+#>
+function Register-MdpToClaudeDesktop {
+    [CmdletBinding()]
+    param()
+
+    $serverName = 'mdp'
+    $command = Get-MarkdownPointerMCPPath
+
+    # Determine config file path per platform
+    $configPath = if ($IsWindows) {
+        Join-Path $env:APPDATA 'Claude\claude_desktop_config.json'
+    } elseif ($IsMacOS) {
+        Join-Path $HOME 'Library/Application Support/Claude/claude_desktop_config.json'
+    } elseif ($IsLinux) {
+        Join-Path $HOME '.config/Claude/claude_desktop_config.json'
+    } else {
+        throw "Unsupported platform."
+    }
+
+    # Load or create config
+    if (Test-Path $configPath) {
+        $json = Get-Content -Path $configPath -Raw -Encoding UTF8
+        $config = $json | ConvertFrom-Json -AsHashtable
+    } else {
+        $configDir = Split-Path $configPath -Parent
+        if (-not (Test-Path $configDir)) {
+            New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+        }
+        $config = @{}
+    }
+
+    if (-not $config.ContainsKey('mcpServers')) {
+        $config['mcpServers'] = @{}
+    }
+
+    $action = if ($config['mcpServers'].ContainsKey($serverName)) { 'Updated' } else { 'Added' }
+    $config['mcpServers'][$serverName] = @{ command = $command }
+
+    $config | ConvertTo-Json -Depth 10 | Set-Content -Path $configPath -Encoding UTF8 -NoNewline
+    Write-Host "$action '$serverName' in $configPath" -ForegroundColor Green
+    Write-Host "  command: $command" -ForegroundColor Gray
+    if ($action -eq 'Added') {
+        Write-Host "Restart Claude Desktop to apply changes." -ForegroundColor Yellow
+    }
+}
+
+<#
+.SYNOPSIS
+    Registers MarkdownPointer as an MCP server in Claude Code.
+
+.DESCRIPTION
+    Runs 'claude mcp add mdp -s user' with the current module's
+    MCP executable path. Requires the Claude Code CLI to be installed.
+
+.EXAMPLE
+    Register-MdpToClaudeCode
+
+.OUTPUTS
+    None. Passes through output from the claude CLI.
+#>
+function Register-MdpToClaudeCode {
+    [CmdletBinding()]
+    param()
+
+    $mcpPath = Get-MarkdownPointerMCPPath
+    claude mcp add mdp -s user -- $mcpPath
 }
 
 $script:ConvertToFormat = {
@@ -497,4 +581,4 @@ function ConvertTo-Pptx {
 
 New-Alias -Name mdp -Value Show-MarkdownPointer
 
-Export-ModuleMember -Function Show-MarkdownPointer, Get-MarkdownPointerMCPPath, ConvertTo-Docx, ConvertTo-Pptx -Alias mdp
+Export-ModuleMember -Function Show-MarkdownPointer, Get-MarkdownPointerMCPPath, ConvertTo-Docx, ConvertTo-Pptx, Register-MdpToClaudeDesktop, Register-MdpToClaudeCode -Alias mdp
