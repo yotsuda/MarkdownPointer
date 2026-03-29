@@ -122,7 +122,7 @@ namespace MarkdownPointer
                 {
                     var line = lines.Lines[i];
                     var lineContent = System.Web.HttpUtility.HtmlEncode(line.Slice.ToString());
-                    var sourceLine = obj.Line + 1 + (obj is FencedCodeBlock ? 1 : 0) + i + 1;
+                    var sourceLine = obj.Line + 1 + (obj is FencedCodeBlock ? 1 : 0) + i;
                     renderer.Write($"<span class=\"code-line\" data-line=\"{sourceLine}\">{lineContent}</span>");
                 }
                 
