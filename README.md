@@ -69,6 +69,8 @@ Register-MdpToClaudeCode       # Claude Code
 Register-MdpToClaudeDesktop    # Claude Desktop
 ```
 
+> **Troubleshooting:** If the MCP client fails to connect to the server, [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) may not be installed. .NET 10 is not included with Windows — install it and try again.
+
 Then just ask Claude:
 
 - "open README.md in mdp"
