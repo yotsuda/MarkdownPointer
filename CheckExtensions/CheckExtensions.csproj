@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -9,6 +9,14 @@
 
   <ItemGroup>
     <PackageReference Include="Markdig" Version="0.44.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\MarkdownPointer\LineTrackingRenderer.cs" Link="LineTrackingRenderer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="TestFixtures\**\*.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
