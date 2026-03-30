@@ -1,4 +1,6 @@
 using System.IO;
+using System.Net.Http;
+using System.Text.RegularExpressions;
 using Microsoft.Web.WebView2.Wpf;
 
 namespace MarkdownPointer.Services
@@ -104,14 +106,38 @@ namespace MarkdownPointer.Services
                     }
 
                     // YouTube iframes → thumbnail images
-                    var ytReplaced = HtmlGenerator.YouTubeIframePattern.Replace(mdContent, match =>
+                    var ytMatches = HtmlGenerator.YouTubeIframePattern.Matches(mdContent);
+                    if (ytMatches.Count > 0)
                     {
-                        var videoId = match.Groups[1].Value;
-                        return $"[![YouTube video](https://img.youtube.com/vi/{videoId}/maxresdefault.jpg)](https://www.youtube.com/watch?v={videoId})";
-                    });
-                    if (ytReplaced != mdContent)
-                    {
-                        mdContent = ytReplaced;
+                        if (tempDir == null)
+                        {
+                            tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
+                            Directory.CreateDirectory(tempDir);
+                        }
+
+                        foreach (System.Text.RegularExpressions.Match ytMatch in ytMatches)
+                        {
+                            var videoId = ytMatch.Groups[1].Value;
+                            var thumbUrl = $"https://img.youtube.com/vi/{videoId}/maxresdefault.jpg";
+                            var localPath = Path.Combine(tempDir, $"yt_{videoId}.jpg");
+
+                            // Download thumbnail for pptx (SlideKit only supports local files)
+                            try
+                            {
+                                using var http = new HttpClient();
+                                var bytes = await http.GetByteArrayAsync(thumbUrl);
+                                await File.WriteAllBytesAsync(localPath, bytes);
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+
+                            var imgMarkdown = ext == ".pptx"
+                                ? $"\n---\n![YouTube video]({localPath})\n---\n"
+                                : $"![YouTube video]({localPath})";
+                            mdContent = mdContent.Replace(ytMatch.Value, imgMarkdown);
+                        }
                         modified = true;
                     }
 
@@ -130,6 +156,12 @@ namespace MarkdownPointer.Services
                             mdContent = MermaidExportService.ReplaceSvgImagesWithPngs(mdContent, svgPngs);
                             modified = true;
                         }
+                    }
+
+                    // Download external images to local files for pptx (SlideKit only supports local files)
+                    if (ext == ".pptx")
+                    {
+                        (mdContent, modified, tempDir) = await DownloadExternalImagesAsync(mdContent, modified, tempDir);
                     }
 
                     if (modified)
@@ -172,5 +204,46 @@ namespace MarkdownPointer.Services
             }
         }
 
+        private static readonly Regex MarkdownImagePattern = new(
+            @"!\[[^\]]*\]\((https?://[^)\s]+)\)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Downloads external (http/https) images to local temp files and replaces URLs in markdown.
+        /// </summary>
+        private static async Task<(string Content, bool Modified, string? TempDir)> DownloadExternalImagesAsync(
+            string mdContent, bool modified, string? tempDir)
+        {
+            var matches = MarkdownImagePattern.Matches(mdContent);
+            if (matches.Count == 0) return (mdContent, modified, tempDir);
+
+            if (tempDir == null)
+            {
+                tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
+                Directory.CreateDirectory(tempDir);
+            }
+
+            using var http = new HttpClient();
+            int index = 0;
+            foreach (Match match in matches)
+            {
+                var url = match.Groups[1].Value;
+                var uri = new Uri(url);
+                var ext = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
+                if (string.IsNullOrEmpty(ext) || ext.Length > 5) ext = ".png";
+                var localPath = Path.Combine(tempDir, $"img_{index++}{ext}");
+
+                try
+                {
+                    var bytes = await http.GetByteArrayAsync(url);
+                    await File.WriteAllBytesAsync(localPath, bytes);
+                    mdContent = mdContent.Replace(url, localPath);
+                    modified = true;
+                }
+                catch { }
+            }
+
+            return (mdContent, modified, tempDir);
+        }
     }
 }

@@ -265,8 +265,8 @@ public partial class MarkdownToDeckConverter
                 continue;
             }
 
-            // Plain text (subtitle for title slides)
-            if (!string.IsNullOrWhiteSpace(trimmed) && title != null)
+            // Plain text
+            if (!string.IsNullOrWhiteSpace(trimmed))
                 subtitle = (subtitle == null ? "" : subtitle + " ") + trimmed;
         }
 
@@ -348,22 +348,40 @@ public partial class MarkdownToDeckConverter
         long cY = title != null ? ContentY : 40 * Emu;
         long cH = SlideH - cY - 30 * Emu;
 
+        // Determine if we have both image and text content
+        bool hasImage = imagePath != null;
+        bool hasText = bullets.Count > 0 || !string.IsNullOrWhiteSpace(subtitle);
+        bool hasTable = tableHeaders.Count > 0;
+        bool hasCode = codeLines.Count > 0;
+
+        // When image + text coexist: left text, right image
+        long textW = 864 * Emu;
+        long imgX = ContentLeft;
+        long imgW = 852 * Emu;
+        if (hasImage && (hasText || hasTable || hasCode))
+        {
+            textW = 420 * Emu;
+            imgX = ContentLeft + 440 * Emu;
+            imgW = 412 * Emu;
+        }
+
         // Image
-        if (imagePath != null)
+        if (hasImage)
         {
             slide.Shapes.Add(new Shape
             {
-                Type = "image", X = ContentLeft, Y = cY + 10 * Emu,
-                Width = 852 * Emu, Height = cH - 10 * Emu,
+                Type = "image", X = imgX, Y = cY + 10 * Emu,
+                Width = imgW, Height = cH - 10 * Emu,
                 Source = imagePath
             });
         }
+
         // Table
-        else if (tableHeaders.Count > 0)
+        if (hasTable)
         {
             slide.Shapes.Add(new Shape
             {
-                Type = "table", X = ContentLeft, Y = cY + 10 * Emu, Width = 852 * Emu,
+                Type = "table", X = ContentLeft, Y = cY + 10 * Emu, Width = textW,
                 Height = Math.Min(cH, 50 * Emu * (tableRows.Count + 1)),
                 FontSize = TableFontSize,
                 Headers = tableHeaders, Rows = tableRows,
@@ -372,29 +390,33 @@ public partial class MarkdownToDeckConverter
             });
         }
         // Code block
-        else if (codeLines.Count > 0)
+        else if (hasCode)
         {
             long codeH = Math.Min(cH, 30 * Emu * codeLines.Count + 30 * Emu);
             slide.Shapes.Add(new Shape
             {
                 Type = "rectangle", X = ContentLeft, Y = cY + 10 * Emu,
-                Width = 852 * Emu, Height = codeH, Fill = "F5F5F5"
+                Width = textW, Height = codeH, Fill = "F5F5F5"
             });
             slide.Shapes.Add(new Shape
             {
                 Type = "textbox", X = ContentLeft + 24 * Emu, Y = cY + 25 * Emu,
-                Width = 804 * Emu, Height = codeH - 30 * Emu,
+                Width = textW - 48 * Emu, Height = codeH - 30 * Emu,
                 Text = string.Join("\n", codeLines), FontSize = 2200, Color = "333333"
             });
         }
-        // Bullets
+        // Bullets (with optional subtitle as leading text)
         else if (bullets.Count > 0)
         {
+            var allBullets = new List<string>();
+            if (!string.IsNullOrWhiteSpace(subtitle))
+                allBullets.Add(subtitle);
+            allBullets.AddRange(bullets);
             slide.Shapes.Add(new Shape
             {
                 Type = "textbox", X = ContentLeft, Y = cY,
-                Width = 864 * Emu, Height = cH,
-                Bullets = bullets, FontSize = ContentFontSize
+                Width = textW, Height = cH,
+                Bullets = allBullets, FontSize = ContentFontSize
             });
         }
         // Plain text
@@ -403,7 +425,7 @@ public partial class MarkdownToDeckConverter
             slide.Shapes.Add(new Shape
             {
                 Type = "textbox", X = ContentLeft, Y = cY,
-                Width = 864 * Emu, Height = cH,
+                Width = textW, Height = cH,
                 Text = subtitle, FontSize = ContentFontSize
             });
         }
@@ -414,7 +436,7 @@ public partial class MarkdownToDeckConverter
     [GeneratedRegex(@"^-{3,}\s*$")]
     private static partial Regex HrPattern();
 
-    [GeneratedRegex(@"^#{1,2}\s+")]
+    [GeneratedRegex(@"^#{1,3}\s+")]
     private static partial Regex SlideHeadingPattern();
 
     [GeneratedRegex(@"<!--\s*slide:\s*(.+?)\s*-->")]
