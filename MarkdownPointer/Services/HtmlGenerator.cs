@@ -25,6 +25,10 @@ namespace MarkdownPointer.Services
         private static readonly Regex XmlDeclarationPattern = new(
             @"<\?xml[^?]*\?>\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        private static readonly Regex YouTubeIframePattern = new(
+            @"<iframe\s[^>]*src\s*=\s*[""']https?://(?:www\.)?youtube(?:-nocookie)?\.com/embed/([a-zA-Z0-9_-]{11})[^""']*[""'][^>]*/?>(?:\s*</iframe>)?",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+
         private static readonly Regex AltAttributePattern = new(
             @"alt\s*=\s*[""']([^""']*)[""']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -54,6 +58,10 @@ namespace MarkdownPointer.Services
             renderer.ReplaceExtensionRenderers();
             renderer.Render(document);
             var htmlContent = writer.ToString();
+
+            // Replace YouTube iframes with clickable thumbnails
+            // (YouTube embeds don't work from file:// origins)
+            htmlContent = ReplaceYouTubeIframes(htmlContent);
 
             // Inline SVG images to enable embedded fonts
             htmlContent = InlineSvgImages(htmlContent, baseDir);
@@ -246,5 +254,23 @@ namespace MarkdownPointer.Services
         }
 
 
+        /// <summary>
+        /// Replaces YouTube iframe embeds with clickable thumbnails.
+        /// YouTube embeds don't work from file:// origins.
+        /// </summary>
+        internal static string ReplaceYouTubeIframes(string html)
+        {
+            return YouTubeIframePattern.Replace(html, match =>
+            {
+                var videoId = match.Groups[1].Value;
+                var thumbUrl = $"https://img.youtube.com/vi/{videoId}/maxresdefault.jpg";
+                var watchUrl = $"https://www.youtube.com/watch?v={videoId}";
+                return $"<a href=\"{watchUrl}\" style=\"display:inline-block;position:relative;max-width:560px\">"
+                     + $"<img src=\"{thumbUrl}\" alt=\"YouTube video\" style=\"width:100%;border-radius:8px\"/>"
+                     + "<span style=\"position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"
+                     + "font-size:64px;color:#fff;text-shadow:0 0 8px rgba(0,0,0,.6);pointer-events:none\">&#9654;</span>"
+                     + "</a>";
+            });
+        }
     }
 }
