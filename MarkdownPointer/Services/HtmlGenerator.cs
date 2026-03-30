@@ -25,7 +25,7 @@ namespace MarkdownPointer.Services
         private static readonly Regex XmlDeclarationPattern = new(
             @"<\?xml[^?]*\?>\s*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        private static readonly Regex YouTubeIframePattern = new(
+        internal static readonly Regex YouTubeIframePattern = new(
             @"<iframe\s[^>]*src\s*=\s*[""']https?://(?:www\.)?youtube(?:-nocookie)?\.com/embed/([a-zA-Z0-9_-]{11})[^""']*[""'][^>]*/?>(?:\s*</iframe>)?",
             RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 

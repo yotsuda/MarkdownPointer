@@ -103,6 +103,18 @@ namespace MarkdownPointer.Services
                         }
                     }
 
+                    // YouTube iframes → thumbnail images
+                    var ytReplaced = HtmlGenerator.YouTubeIframePattern.Replace(mdContent, match =>
+                    {
+                        var videoId = match.Groups[1].Value;
+                        return $"[![YouTube video](https://img.youtube.com/vi/{videoId}/maxresdefault.jpg)](https://www.youtube.com/watch?v={videoId})";
+                    });
+                    if (ytReplaced != mdContent)
+                    {
+                        mdContent = ytReplaced;
+                        modified = true;
+                    }
+
                     // SVG images → PNG
                     if (MermaidExportService.ContainsSvgImages(mdContent))
                     {
@@ -122,7 +134,12 @@ namespace MarkdownPointer.Services
 
                     if (modified)
                     {
-                        markdownPath = Path.Combine(tempDir!, "export.md");
+                        if (tempDir == null)
+                        {
+                            tempDir = Path.Combine(Path.GetTempPath(), $"mdp_export_{Guid.NewGuid():N}");
+                            Directory.CreateDirectory(tempDir);
+                        }
+                        markdownPath = Path.Combine(tempDir, "export.md");
                         await File.WriteAllTextAsync(markdownPath, mdContent);
                     }
                 }
