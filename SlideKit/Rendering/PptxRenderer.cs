@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using SlideKit.Models;
@@ -144,37 +145,30 @@ public class PptxRenderer
             string bulletChar = shape.BulletChar ?? "\u2022";
             foreach (var item in shape.Bullets)
             {
-                var runProps = new D.RunProperties { Language = "ja-JP", FontSize = fontSize, Bold = shape.Bold };
-                runProps.Append(new D.SolidFill(new D.RgbColorModelHex { Val = color }));
-                runProps.Append(new D.LatinFont { Typeface = font });
-                runProps.Append(new D.EastAsianFont { Typeface = font });
-
-                body.Append(new D.Paragraph(
+                var para = new D.Paragraph(
                     new D.ParagraphProperties(
                         new D.SpaceAfter(new D.SpacingPoints { Val = 600 }),
                         new D.BulletFont { Typeface = "Arial" },
                         new D.CharacterBullet { Char = bulletChar }
-                    ) { LeftMargin = 342900, Indent = -342900, Alignment = alignment },
-                    new D.Run(runProps, new D.Text { Text = item })));
+                    ) { LeftMargin = 342900, Indent = -342900, Alignment = alignment });
+
+                foreach (var run in CreateRuns(item, fontSize, color, font, shape.Bold))
+                    para.Append(run);
+
+                body.Append(para);
             }
         }
         else
         {
-            var runProps = new D.RunProperties(new D.SolidFill(new D.RgbColorModelHex { Val = color }))
-            {
-                Language = "ja-JP",
-                FontSize = fontSize,
-                Bold = shape.Bold,
-            };
-            runProps.Append(new D.LatinFont { Typeface = font });
-            runProps.Append(new D.EastAsianFont { Typeface = font });
+            var para = new D.Paragraph(
+                new D.ParagraphProperties { Alignment = alignment });
+            foreach (var run in CreateRuns(shape.Text ?? "", fontSize, color, font, shape.Bold))
+                para.Append(run);
 
             body = new D.TextBody(
                 new D.BodyProperties { Wrap = D.TextWrappingValues.Square, Anchor = D.TextAnchoringTypeValues.Top },
                 new D.ListStyle(),
-                new D.Paragraph(
-                    new D.ParagraphProperties { Alignment = alignment },
-                    new D.Run(runProps, new D.Text { Text = shape.Text ?? "" })));
+                para);
         }
 
         var sp = new P.Shape(
@@ -456,6 +450,46 @@ public class PptxRenderer
 
     private static string Hex(string? color, string fallback = "FFFFFF")
         => (color ?? fallback).TrimStart('#');
+
+    // Inline markdown: **bold**, *italic*, __bold__, _italic_ (and nesting like **_both_**)
+    private static readonly Regex InlinePattern = new(
+        @"(\*{1,3}|_{1,3})(.+?)\1",
+        RegexOptions.Compiled);
+
+    /// <summary>
+    /// Creates D.Run elements from text with inline markdown, supporting nesting.
+    /// </summary>
+    private static IEnumerable<D.Run> CreateRuns(string text, int fontSize, string color, string font,
+        bool shapeBold, bool shapeItalic = false)
+    {
+        int pos = 0;
+        foreach (Match m in InlinePattern.Matches(text))
+        {
+            if (m.Index > pos)
+                yield return MakeRun(text[pos..m.Index], fontSize, color, font, shapeBold, shapeItalic);
+
+            bool isBold = m.Groups[1].Value.Length >= 2;
+            bool isItalic = m.Groups[1].Value.Length == 1 || m.Groups[1].Value.Length == 3;
+
+            // Recurse into inner text to handle nesting (e.g. **_both_**)
+            foreach (var run in CreateRuns(m.Groups[2].Value, fontSize, color, font,
+                shapeBold || isBold, shapeItalic || isItalic))
+                yield return run;
+
+            pos = m.Index + m.Length;
+        }
+        if (pos < text.Length)
+            yield return MakeRun(text[pos..], fontSize, color, font, shapeBold, shapeItalic);
+    }
+
+    private static D.Run MakeRun(string text, int fontSize, string color, string font, bool bold, bool italic)
+    {
+        var props = new D.RunProperties { Language = "ja-JP", FontSize = fontSize, Bold = bold, Italic = italic };
+        props.Append(new D.SolidFill(new D.RgbColorModelHex { Val = color }));
+        props.Append(new D.LatinFont { Typeface = font });
+        props.Append(new D.EastAsianFont { Typeface = font });
+        return new D.Run(props, new D.Text { Text = text });
+    }
 
     // ---- Presentation initialization (fallback when no template) ----
 
