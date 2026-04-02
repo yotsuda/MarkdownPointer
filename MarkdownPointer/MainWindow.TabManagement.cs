@@ -517,14 +517,13 @@ namespace MarkdownPointer
                 _statusBlinkTimer?.Stop();
                 StatusText.BeginAnimation(OpacityProperty, null);
                 StatusText.Opacity = 1.0;
-                StatusText.Text = "Loading...";
-                StatusText.Visibility = Visibility.Visible;
+                StatusText.Text = "";
             }
         }
 
         private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-        private void StartSpinner(string label)
+        private void StartSpinner(string label, double timeoutSeconds = 5.0)
         {
             _statusMessageTimer?.Stop();
             _statusBlinkTimer?.Stop();
@@ -542,12 +541,24 @@ namespace MarkdownPointer
                 StatusText.Text = $"{SpinnerFrames[_spinnerFrame]} {label}";
             };
             _spinnerTimer.Start();
+
+            _spinnerTimeoutTimer?.Stop();
+            _spinnerTimeoutTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(timeoutSeconds) };
+            _spinnerTimeoutTimer.Tick += (_, _) =>
+            {
+                _spinnerTimeoutTimer!.Stop();
+                _spinnerTimeoutTimer = null;
+                StopSpinner();
+            };
+            _spinnerTimeoutTimer.Start();
         }
 
         private void StopSpinner()
         {
             _spinnerTimer?.Stop();
             _spinnerTimer = null;
+            _spinnerTimeoutTimer?.Stop();
+            _spinnerTimeoutTimer = null;
             StatusText.Text = "";
         }
 
@@ -603,6 +614,7 @@ namespace MarkdownPointer
 
         private async void RenderMarkdown(TabItemData tab, bool viewToggle = false)
         {
+            StartSpinner("Rendering");
             try
             {
                 // Save current position before re-rendering
@@ -634,8 +646,6 @@ namespace MarkdownPointer
                     }
                 }
 
-                StartSpinner("Rendering");
-
                 // Fast path: view toggle with cached HTML
                 if (viewToggle)
                 {
@@ -664,8 +674,8 @@ namespace MarkdownPointer
                 }
 
                 // Check if tab still exists after async operation
-                if (!_tabs.Contains(tab)) return;
-                if (markdown == null) return;
+                if (!_tabs.Contains(tab)) { StopSpinner(); return; }
+                if (markdown == null) { StopSpinner(); return; }
 
                 // Invalidate caches on file change (not on view toggle)
                 if (!viewToggle)
@@ -710,7 +720,7 @@ namespace MarkdownPointer
                 }
 
                 // Check if tab still exists after async rendering
-                if (!_tabs.Contains(tab)) return;
+                if (!_tabs.Contains(tab)) { StopSpinner(); return; }
 
                 tab.RenderedHtml = html;  // Cache for fast window detach
 
@@ -718,6 +728,7 @@ namespace MarkdownPointer
             }
             catch (Exception ex)
             {
+                StopSpinner();
                 MessageBox.Show($"Markdown rendering error: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }

@@ -73,6 +73,7 @@ namespace MarkdownPointer
         private DispatcherTimer? _statusMessageTimer;
         private DispatcherTimer? _statusBlinkTimer;
         private DispatcherTimer? _spinnerTimer;
+        private DispatcherTimer? _spinnerTimeoutTimer;
         private int _spinnerFrame;
         private Point _contextMenuPosition;
 
