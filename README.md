@@ -4,6 +4,10 @@
 
 MarkdownPointer renders your Markdown and lets you click any element - headings, code blocks, table cells, Mermaid diagram nodes, KaTeX math - to copy a `filepath:line` reference. Paste it into your AI prompt, and the AI knows exactly where to look.
 
+<div align="center">
+  <img width="640" alt="social-image" src="https://github.com/user-attachments/assets/cdae3548-1e23-4639-9b38-3e03c5c2a337" />
+</div>
+
 **To change a node's color:**
 
 <p align="center">
