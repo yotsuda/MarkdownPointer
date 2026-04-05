@@ -73,10 +73,7 @@ Register-MdpToClaudeCode       # Claude Code
 Register-MdpToClaudeDesktop    # Claude Desktop
 ```
 
-> **⚠️ MSIX (Microsoft Store) installs:** `Register-MdpToClaudeDesktop` may write to the wrong config path due to MSIX filesystem virtualization. If MCP tools don't appear after restart, open Claude Desktop's **Settings → Developer → Edit Config** to find the actual config path, then manually add:
-> ```json
-> { "mcpServers": { "mdp": { "command": "<paste output of Get-MarkdownPointerMCPPath -Escape>" } } }
-> ```
+> **Other MCP clients:** Add the output of `Get-MarkdownPointerMCPPath -Escape` as the command in your MCP client's configuration file.
 
 > **Troubleshooting:** If the MCP client fails to connect to the server, [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) may not be installed. .NET 10 is not included with Windows — install it and try again.
 
