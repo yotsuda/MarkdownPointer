@@ -186,6 +186,8 @@ namespace MarkdownPointer
                         if (!element) return 'none';
                         if (element.closest('.mermaid')) return 'mermaid';
                         if (element.closest('.katex') || element.closest('.math')) return 'math';
+                        var pre = element.closest('pre');
+                        if (pre && pre.querySelector('code')) return 'code';
                         return 'none';
                     }})()";
 
@@ -196,7 +198,11 @@ namespace MarkdownPointer
                 e.MenuItems.Clear();
                 e.Handled = true;
 
-                if (elementType == "mermaid" || elementType == "math")
+                if (elementType == "code")
+                {
+                    await CopyCodeBlockToClipboard(tab, e.Location.X, e.Location.Y);
+                }
+                else if (elementType == "mermaid" || elementType == "math")
                 {
                     ShowDiagramContextMenu(tab, elementType);
                 }
@@ -204,6 +210,28 @@ namespace MarkdownPointer
             finally
             {
                 deferral.Complete();
+            }
+        }
+
+        private async Task CopyCodeBlockToClipboard(TabItemData tab, int x, int y)
+        {
+            var script = $@"
+                (function() {{
+                    var element = document.elementFromPoint({x}, {y});
+                    if (!element) return '';
+                    var pre = element.closest('pre');
+                    if (pre && pre.querySelector('code')) {{
+                        return pre.querySelector('code').textContent;
+                    }}
+                    return '';
+                }})()";
+            var result = await tab.WebView.CoreWebView2.ExecuteScriptAsync(script);
+            // ExecuteScriptAsync returns JSON-encoded string, so deserialize it
+            var codeText = JsonSerializer.Deserialize<string>(result) ?? "";
+            if (!string.IsNullOrEmpty(codeText))
+            {
+                Clipboard.SetText(codeText);
+                ShowStatusMessage("✓ Code copied to clipboard");
             }
         }
 

@@ -287,6 +287,8 @@ namespace MarkdownPointer
         /// </summary>
         internal void UpdateSlideViewButton(TabItemData tab)
         {
+            var isNonMarkdown = IsHtmlFile(tab.FilePath) || IsEmlFile(tab.FilePath);
+            SlideViewToggle.IsEnabled = !isNonMarkdown;
             SlideViewToggle.IsChecked = tab.IsSlideView;
         }
 
@@ -358,16 +360,18 @@ namespace MarkdownPointer
 
         /// <summary>
         /// Updates pointing mode availability based on file type.
-        /// SVG files don't support pointing mode since they are typically auto-generated.
+        /// SVG and HTML files don't support pointing mode.
         /// </summary>
         private void UpdatePointingModeAvailability(TabItemData tab)
         {
-            var isSvgFile = !string.IsNullOrEmpty(tab.FilePath) && 
-                           tab.FilePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
-            
-            PointingModeToggle.IsEnabled = !isSvgFile;
-            
-            if (isSvgFile)
+            var isNonPointable = !string.IsNullOrEmpty(tab.FilePath) &&
+                           (tab.FilePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) ||
+                            IsHtmlFile(tab.FilePath) ||
+                            IsEmlFile(tab.FilePath));
+
+            PointingModeToggle.IsEnabled = !isNonPointable;
+
+            if (isNonPointable)
             {
                 if (_isPointingMode)
                 {

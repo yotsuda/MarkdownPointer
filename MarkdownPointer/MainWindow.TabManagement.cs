@@ -646,6 +646,39 @@ namespace MarkdownPointer
                     }
                 }
 
+                // HTML files: display directly in WebView2 without markdown processing
+                if (IsHtmlFile(tab.FilePath))
+                {
+                    tab.CleanupTempFile();
+                    tab.RenderedHtml = null;
+                    tab.WebView.CoreWebView2.Navigate(new Uri(tab.FilePath).AbsoluteUri);
+                    return;
+                }
+
+                // EML files: extract HTML body via MimeKit and display
+                // CSP blocks scripts and external resources (tracking pixels, etc.)
+                if (IsEmlFile(tab.FilePath))
+                {
+                    const string csp = "<meta http-equiv=\"Content-Security-Policy\" "
+                        + "content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data:;\">";
+                    var message = await MimeKit.MimeMessage.LoadAsync(tab.FilePath);
+                    var emlHtml = message.HtmlBody;
+                    if (emlHtml != null)
+                    {
+                        // Inject CSP into <head>, or prepend if no <head> tag
+                        var headIndex = emlHtml.IndexOf("<head>", StringComparison.OrdinalIgnoreCase);
+                        emlHtml = headIndex >= 0
+                            ? emlHtml.Insert(headIndex + "<head>".Length, csp)
+                            : csp + emlHtml;
+                    }
+                    else
+                    {
+                        emlHtml = $"<html><head>{csp}</head><body><pre>{System.Net.WebUtility.HtmlEncode(message.TextBody ?? "(empty)")}</pre></body></html>";
+                    }
+                    NavigateToHtml(tab, emlHtml);
+                    return;
+                }
+
                 // Fast path: view toggle with cached HTML
                 if (viewToggle)
                 {

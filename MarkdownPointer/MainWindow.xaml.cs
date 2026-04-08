@@ -46,6 +46,20 @@ namespace MarkdownPointer
             ".nupkg",
         };
 
+        private static bool IsHtmlFile(string? filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return false;
+            var ext = Path.GetExtension(filePath);
+            return ext.Equals(".html", StringComparison.OrdinalIgnoreCase) ||
+                   ext.Equals(".htm", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsEmlFile(string? filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return false;
+            return Path.GetExtension(filePath).Equals(".eml", StringComparison.OrdinalIgnoreCase);
+        }
+
         #endregion
 
         #region Fields
@@ -660,7 +674,7 @@ namespace MarkdownPointer
         {
             var dialog = new OpenFileDialog
             {
-                Filter = "Markdown files|*.md;*.markdown;*.txt|SVG files|*.svg|All files|*.*",
+                Filter = "Markdown files|*.md;*.markdown;*.txt|HTML files|*.html;*.htm|Email files|*.eml|SVG files|*.svg|All files|*.*",
                 Multiselect = true
             };
             if (initialDirectory != null)
