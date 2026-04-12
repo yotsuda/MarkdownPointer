@@ -1,0 +1,40 @@
+{
+  "name": "markdown-pointer",
+  "version": "0.13.1",
+  "description": "MCP server for MarkdownPointer - A Markdown viewer with point-and-prompt, Mermaid, KaTeX, and PPTX export",
+  "license": "MIT",
+  "author": "Yoshifumi Tsuda",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yotsuda/MarkdownPointer.git"
+  },
+  "homepage": "https://github.com/yotsuda/MarkdownPointer",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "markdown",
+    "viewer",
+    "preview",
+    "mermaid",
+    "katex",
+    "pptx",
+    "slides",
+    "claude"
+  ],
+  "type": "module",
+  "os": [
+    "win32"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "markdown-pointer": "cli.mjs"
+  },
+  "files": [
+    "cli.mjs",
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ]
+}
