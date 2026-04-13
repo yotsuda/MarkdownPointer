@@ -6,6 +6,9 @@ namespace MarkdownPointer.Resources
     public static class CssResources
     {
         public const string MainStyles = @"
+html {
+    color-scheme: light;
+}
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     line-height: 1.6;
