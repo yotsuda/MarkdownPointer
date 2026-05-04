@@ -1,6 +1,6 @@
 @{
     RootModule = 'MarkdownPointer.psm1'
-    ModuleVersion = '0.13.1'
+    ModuleVersion = '0.13.2'
     GUID = '4c50c9c4-d155-457d-a3a3-e3952253b51d'
     Author = 'Yoshifumi Tsuda'
     Copyright = '(c) 2025-2026 Yoshifumi Tsuda. All rights reserved.'
@@ -46,6 +46,14 @@ Example prompts for AI:
             LicenseUri = 'https://github.com/yotsuda/MarkdownPointer/blob/master/LICENSE'
             ProjectUri = 'https://github.com/yotsuda/MarkdownPointer'
             ReleaseNotes = @'
+0.13.2
+- Email rendering: relax .eml CSP to allow external HTTPS images and fonts so
+  legitimate sender logos (Microsoft, Google, etc.) render. Scripts and form
+  submissions remain blocked; tracking pixels can load (opening the message
+  has typically already signalled "read" to the IMAP server).
+- WebView2: render scrollbars in light theme to match the white markdown
+  background instead of Chromium's default dark scrollbar.
+
 0.13.1
 - HTML/HTM file viewing: open and display HTML files directly in WebView2
 - EML file viewing: extract and display email HTML body with CSP sandboxing (via MimeKit)
