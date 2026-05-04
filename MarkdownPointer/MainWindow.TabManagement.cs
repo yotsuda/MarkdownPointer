@@ -656,11 +656,19 @@ namespace MarkdownPointer
                 }
 
                 // EML files: extract HTML body via MimeKit and display
-                // CSP blocks scripts and external resources (tracking pixels, etc.)
+                // CSP blocks scripts and forms; allows inline styles, fonts and
+                // external HTTPS images (so legitimate sender logos render).
+                // Tracking pixels still load — opening the message has already
+                // signalled "read" to the IMAP server in most flows.
                 if (IsEmlFile(tab.FilePath))
                 {
                     const string csp = "<meta http-equiv=\"Content-Security-Policy\" "
-                        + "content=\"default-src 'none'; style-src 'unsafe-inline'; img-src data:;\">";
+                        + "content=\"default-src 'none'; "
+                        + "img-src data: https:; "
+                        + "style-src 'unsafe-inline' https:; "
+                        + "font-src https: data:; "
+                        + "script-src 'none'; "
+                        + "form-action 'none';\">";
                     var message = await MimeKit.MimeMessage.LoadAsync(tab.FilePath);
                     var emlHtml = message.HtmlBody;
                     if (emlHtml != null)
