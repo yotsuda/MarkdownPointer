@@ -17,16 +17,22 @@ namespace MarkdownPointer.Services
             {
                 ".docx" => "docx",
                 ".pptx" => "pptx",
+                ".html" => "html",
+                ".htm" => "html",
                 _ => "docx"
             };
 
-            var refDoc = !string.IsNullOrEmpty(templatePath) && File.Exists(templatePath)
+            var isHtml = format == "html";
+
+            var refDoc = !isHtml && !string.IsNullOrEmpty(templatePath) && File.Exists(templatePath)
                 ? $"--reference-doc=\"{templatePath}\" "
                 : "";
 
             var resPath = !string.IsNullOrEmpty(resourceDir)
                 ? $"--resource-path=\"{resourceDir}\" "
                 : "";
+
+            var htmlFlags = isHtml ? "-s --embed-resources " : "";
 
             try
             {
@@ -35,7 +41,7 @@ namespace MarkdownPointer.Services
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "pandoc",
-                        Arguments = $"-f markdown-implicit_figures -t {format} {refDoc}{resPath}-o \"{outputPath}\" \"{markdownPath}\"",
+                        Arguments = $"-f markdown-implicit_figures -t {format} {htmlFlags}{refDoc}{resPath}-o \"{outputPath}\" \"{markdownPath}\"",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardError = true

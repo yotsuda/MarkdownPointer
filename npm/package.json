@@ -6,7 +6,7 @@
   "author": "Yoshifumi Tsuda",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yotsuda/MarkdownPointer.git"
+    "url": "git+https://github.com/yotsuda/MarkdownPointer.git"
   },
   "homepage": "https://github.com/yotsuda/MarkdownPointer",
   "keywords": [

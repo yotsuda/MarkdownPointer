@@ -73,3 +73,6 @@ Deploy-Local.ps1
 bug_*.md
 svg-font-fix-proposal.md
 
+
+# npm pack artifacts
+npm/*.tgz

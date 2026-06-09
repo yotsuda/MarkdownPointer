@@ -28,7 +28,7 @@ namespace MarkdownPointer.Services
 
             try
             {
-                if ((ext == ".docx" || ext == ".pptx") && webView?.CoreWebView2 != null)
+                if ((ext == ".docx" || ext == ".pptx" || ext == ".html" || ext == ".htm") && webView?.CoreWebView2 != null)
                 {
                     var mdContent = await File.ReadAllTextAsync(sourcePath);
                     bool modified = false;

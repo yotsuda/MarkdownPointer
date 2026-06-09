@@ -453,7 +453,7 @@ namespace MarkdownPointer
                 return;
 
             var defaultExt = tab.IsSlideView ? ".pptx" : ".docx";
-            var filter = "Word Document (*.docx)|*.docx|PowerPoint (*.pptx)|*.pptx";
+            var filter = "Word Document (*.docx)|*.docx|PowerPoint (*.pptx)|*.pptx|HTML (*.html)|*.html";
             var filterIndex = tab.IsSlideView ? 2 : 1;
             var fileName = Path.GetFileNameWithoutExtension(tab.FilePath) + defaultExt;
 
