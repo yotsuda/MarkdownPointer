@@ -38,8 +38,18 @@ namespace MarkdownPointer.Models
 
         /// <summary>
         /// WebView2 instance for rendering HTML.
+        /// Used directly only for Windows/WebView2-specific features (context menu,
+        /// print, image clipboard, WPF drag/drop). Cross-platform core access goes
+        /// through <see cref="Host"/>.
         /// </summary>
         public WebView2 WebView { get; set; } = null!;
+
+        /// <summary>
+        /// Platform-agnostic webview contract wrapping <see cref="WebView"/>.
+        /// Navigation, script execution, and host messages route through this so
+        /// the shell can swap in WKWebView/WebKitGTK hosts later.
+        /// </summary>
+        public Services.WebViewHosting.IWebViewHost Host { get; set; } = null!;
 
         /// <summary>
         /// File system watcher for auto-reload on file changes.

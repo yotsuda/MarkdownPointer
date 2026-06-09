@@ -20,31 +20,28 @@ namespace MarkdownPointer
             tab.WebView.PreviewDragOver += WebView_PreviewDragOver;
             tab.WebView.PreviewDrop += WebView_PreviewDrop;
 
-            await tab.WebView.EnsureCoreWebView2Async(await App.GetOrCreateWebView2EnvironmentAsync());
+            // Wrap the WebView2 control in the platform-agnostic host. EnsureReadyAsync
+            // initializes the engine, applies settings, and wires the core events
+            // (MessageReceived / NavigationCompleted / NewWindowRequested).
+            tab.Host = new Services.WebViewHosting.WebView2WebViewHost(tab.WebView);
+            await tab.Host.EnsureReadyAsync();
 
             // Check if tab still exists
             if (!_tabs.Contains(tab)) return;
 
-            // Configure WebView2 settings for security
-            tab.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
-            tab.WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
-            tab.WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
-            tab.WebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
-            tab.WebView.CoreWebView2.Settings.AreHostObjectsAllowed = false;
-
             // Custom context menu for Mermaid diagrams and math
+            // (WebView2-specific; stays on the concrete control)
             tab.WebView.CoreWebView2.ContextMenuRequested += async (s, e) =>
                 await HandleContextMenuRequestedAsync(tab, e);
 
-            // Prevent dropped files from opening in new window
-            tab.WebView.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
+            // Prevent dropped files from opening in new window; open supported files instead
+            tab.Host.NewWindowRequested += HandleNewWindowRequested;
 
-            // Handle messages from JavaScript (link clicks and hovers)
-            tab.WebView.CoreWebView2.WebMessageReceived += (s, e) =>
-                HandleWebMessageReceived(tab, e);
+            // Handle messages from JavaScript (link clicks, hovers, pointing)
+            tab.Host.MessageReceived += message => HandleWebMessageReceived(tab, message);
 
             // Apply pointing mode and drag mode state after navigation
-            tab.WebView.CoreWebView2.NavigationCompleted += (s, e) =>
+            tab.Host.NavigationCompleted += () =>
             {
                 if (tab.IsInitialized)
                 {
@@ -57,16 +54,16 @@ namespace MarkdownPointer
                         SlideThemeDropdown.IsEnabled = true;
                     }
 
-                    tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
+                    tab.Host.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
 
                     // Also update text selection style
                     var userSelect = _isPointingMode ? "none" : "";
-                    tab.WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
+                    tab.Host.ExecuteScriptAsync($"document.body.style.userSelect = '{userSelect}'");
 
                     // Restore saved scroll position (slide position is restored in HandleRenderComplete)
                     if (!tab.IsSlideView && tab.SavedScrollPosition > 0)
                     {
-                        tab.WebView.CoreWebView2.ExecuteScriptAsync($"window.scrollTo(0, {tab.SavedScrollPosition})");
+                        tab.Host.ExecuteScriptAsync($"window.scrollTo(0, {tab.SavedScrollPosition})");
                     }
 
                     // Restore CSS zoom
@@ -155,12 +152,12 @@ namespace MarkdownPointer
             }
         }
 
-        private void CoreWebView2_NewWindowRequested(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2NewWindowRequestedEventArgs e)
+        private void HandleNewWindowRequested(string requestedUri)
         {
-            e.Handled = true;
-            if (e.Uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+            // The host already suppressed the new window; open supported local files in a tab.
+            if (requestedUri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
             {
-                var uri = new Uri(e.Uri);
+                var uri = new Uri(requestedUri);
                 var path = uri.LocalPath;
                 if (IsSupportedFile(path))
                 {
@@ -262,16 +259,14 @@ namespace MarkdownPointer
             contextMenu.IsOpen = true;
         }
 
-        private void HandleWebMessageReceived(TabItemData tab, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+        private void HandleWebMessageReceived(TabItemData tab, string message)
         {
             // Redirect to the correct owner window if tab was moved
             if (tab.OwnerWindow is MainWindow owner && owner != this)
             {
-                owner.HandleWebMessageReceived(tab, e);
+                owner.HandleWebMessageReceived(tab, message);
                 return;
             }
-
-            var message = e.TryGetWebMessageAsString();
 
             if (string.IsNullOrEmpty(message))
             {
@@ -424,7 +419,7 @@ namespace MarkdownPointer
                 if (tab.IsSlideView)
                 {
                     // Find slide containing the source line and navigate by h/v indices
-                    tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                    tab.Host.ExecuteScriptAsync(
                         $"(function(){{var slides=Reveal.getSlides();var best=null;" +
                         $"for(var i=0;i<slides.length;i++){{var dl=slides[i].querySelector('[data-line]');" +
                         $"var l=dl?parseInt(dl.getAttribute('data-line')):parseInt(slides[i].getAttribute('data-line')||'0');" +
@@ -433,7 +428,7 @@ namespace MarkdownPointer
                 }
                 else
                 {
-                    tab.WebView.CoreWebView2.ExecuteScriptAsync($"scrollToLine({line})");
+                    tab.Host.ExecuteScriptAsync($"scrollToLine({line})");
                 }
             }
 
