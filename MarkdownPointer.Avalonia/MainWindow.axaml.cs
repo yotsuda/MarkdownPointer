@@ -1,5 +1,6 @@
 using System;
 using Avalonia.Controls;
+using Avalonia.Input.Platform; // ClipboardExtensions.SetTextAsync
 using Markdig;
 using MarkdownPointer.Services;             // HtmlGenerator (shared rendering core)
 using MarkdownPointer.Services.WebViewHosting;
@@ -56,7 +57,7 @@ public partial class MainWindow : Window
         _host.NavigateToString(html, new Uri(AppContext.BaseDirectory));
     }
 
-    private void OnHostMessage(string message)
+    private async void OnHostMessage(string message)
     {
         if (message.StartsWith("point:", StringComparison.Ordinal))
         {
@@ -66,10 +67,12 @@ public partial class MainWindow : Window
             var content = parts.Length > 1 ? parts[1] : "";
             var reference = $"[sample.md:{line}] {content}";
 
-            // Proves the message flow (shared core -> IWebViewHost -> shell). Writing to the
-            // OS clipboard uses Avalonia 12's IClipboard.SetDataAsync(IAsyncDataTransfer) and
-            // is wired alongside the real shell, not this proof.
-            StatusText.Text = "✓ ref: " + reference;
+            // Copy the filepath:line reference to the OS clipboard — the point-and-prompt payload.
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+                await clipboard.SetTextAsync(reference);
+
+            StatusText.Text = "✓ copied: " + reference;
         }
         else if (message.StartsWith("pointhover:", StringComparison.Ordinal))
         {
