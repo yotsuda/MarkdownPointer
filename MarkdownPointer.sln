@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlideKit.Tests", "SlideKit.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownPointer.Rendering", "MarkdownPointer.Rendering\MarkdownPointer.Rendering.csproj", "{5DA3D03B-D00D-45DC-B5D8-AD46FB9DBBCD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarkdownPointer.Avalonia", "MarkdownPointer.Avalonia\MarkdownPointer.Avalonia.csproj", "{AE861F64-5235-4DD8-AC0F-F5017ED0A615}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,18 @@ Global
 		{5DA3D03B-D00D-45DC-B5D8-AD46FB9DBBCD}.Release|x64.Build.0 = Release|Any CPU
 		{5DA3D03B-D00D-45DC-B5D8-AD46FB9DBBCD}.Release|x86.ActiveCfg = Release|Any CPU
 		{5DA3D03B-D00D-45DC-B5D8-AD46FB9DBBCD}.Release|x86.Build.0 = Release|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Debug|x64.Build.0 = Debug|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Debug|x86.Build.0 = Debug|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Release|x64.ActiveCfg = Release|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Release|x64.Build.0 = Release|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Release|x86.ActiveCfg = Release|Any CPU
+		{AE861F64-5235-4DD8-AC0F-F5017ED0A615}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

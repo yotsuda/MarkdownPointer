@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+        x:Class="MarkdownPointer.Avalonia.MainWindow"
+        Width="900" Height="700"
+        Title="MarkdownPointer (Avalonia shell — proof)">
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Background="#222222" Padding="8,4">
+            <TextBlock x:Name="StatusText" Foreground="#33FF66"
+                       FontFamily="Consolas,Menlo,monospace" Text="starting…"/>
+        </Border>
+        <Panel x:Name="WebViewHostPanel"/>
+    </DockPanel>
+</Window>
