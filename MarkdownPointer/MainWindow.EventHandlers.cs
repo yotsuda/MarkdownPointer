@@ -124,10 +124,10 @@ namespace MarkdownPointer
                      && Keyboard.Modifiers == ModifierKeys.None)
             {
                 if (FileTabControl.SelectedItem is TabItemData tab && tab.IsSlideView
-                    && tab.WebView?.CoreWebView2 != null)
+                    && tab.Host is { IsReady: true })
                 {
                     var direction = (e.Key == Key.Left || e.Key == Key.Up) ? "prev" : "next";
-                    tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                    tab.Host.ExecuteScriptAsync(
                         $"if(typeof Reveal!=='undefined')Reveal.{direction}()");
                     e.Handled = true;
                 }
@@ -203,9 +203,9 @@ namespace MarkdownPointer
                 {
                     if (int.TryParse(input.Text.Trim(), out int line) && line > 0 &&
                         FileTabControl.SelectedItem is TabItemData tab &&
-                        tab.WebView?.CoreWebView2 != null)
+                        tab.Host is { IsReady: true })
                     {
-                        tab.WebView.CoreWebView2.ExecuteScriptAsync($"scrollToLine({line})");
+                        tab.Host.ExecuteScriptAsync($"scrollToLine({line})");
                     }
                     CloseDialog();
                     ev.Handled = true;
@@ -246,14 +246,14 @@ namespace MarkdownPointer
             if (FileTabControl.SelectedItem is TabItemData tab)
             {
                 // Save cross-view position before toggling
-                if (tab.WebView.CoreWebView2 != null)
+                if (tab.Host.IsReady)
                 {
                     try
                     {
                         if (tab.IsSlideView)
                         {
                             // Slide → Document: get source line of current slide
-                            var lineJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                            var lineJson = await tab.Host.ExecuteScriptAsync(
                                 "typeof Reveal !== 'undefined' && Reveal.isReady() ? " +
                                 "(function(){var s=Reveal.getCurrentSlide();" +
                                 "var el=s.querySelector('[data-line]');" +
@@ -265,7 +265,7 @@ namespace MarkdownPointer
                         else
                         {
                             // Document → Slide: get source line of first visible element
-                            var lineJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                            var lineJson = await tab.Host.ExecuteScriptAsync(
                                 "(function(){var els=document.querySelectorAll('[data-line]');" +
                                 "for(var i=0;i<els.length;i++){var r=els[i].getBoundingClientRect();" +
                                 "if(r.bottom>0&&r.top<window.innerHeight)return els[i].getAttribute('data-line')}" +
@@ -351,9 +351,9 @@ namespace MarkdownPointer
 
             foreach (var tab in _tabs)
             {
-                if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+                if (tab.IsInitialized && tab.Host.IsReady)
                 {
-                    tab.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(" + (_isPointingMode ? "true" : "false") + ")");
+                    tab.Host.ExecuteScriptAsync("setPointingMode(" + (_isPointingMode ? "true" : "false") + ")");
                 }
             }
         }
@@ -382,9 +382,9 @@ namespace MarkdownPointer
                     
                     foreach (var t in _tabs)
                     {
-                        if (t.IsInitialized && t.WebView.CoreWebView2 != null)
+                        if (t.IsInitialized && t.Host.IsReady)
                         {
-                            t.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(false)");
+                            t.Host.ExecuteScriptAsync("setPointingMode(false)");
                         }
                     }
                 }
@@ -399,9 +399,9 @@ namespace MarkdownPointer
                     
                     foreach (var t in _tabs)
                     {
-                        if (t.IsInitialized && t.WebView.CoreWebView2 != null)
+                        if (t.IsInitialized && t.Host.IsReady)
                         {
-                            t.WebView.CoreWebView2.ExecuteScriptAsync("setPointingMode(true)");
+                            t.Host.ExecuteScriptAsync("setPointingMode(true)");
                         }
                     }
                 }

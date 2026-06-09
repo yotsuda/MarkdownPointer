@@ -454,9 +454,9 @@ public class PipeServer : IDisposable
             return new PipeResponse { Success = false, Error = $"Unknown slide action: {action}" };
         }
 
-        if (activeTab.IsInitialized && activeTab.WebView.CoreWebView2 != null)
+        if (activeTab.IsInitialized && activeTab.Host.IsReady)
         {
-            await activeTab.WebView.CoreWebView2.ExecuteScriptAsync(jsAction);
+            await activeTab.Host.ExecuteScriptAsync(jsAction);
             // Small delay for reveal.js to update state
             await Task.Delay(100);
         }
@@ -493,11 +493,11 @@ public class PipeServer : IDisposable
                 if (tabIdx == selectedIndex)
                 {
                     // Get current visible line for the selected tab
-                    if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+                    if (tab.IsInitialized && tab.Host.IsReady)
                     {
                         try
                         {
-                            var lineJs = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                            var lineJs = await tab.Host.ExecuteScriptAsync(
                                 "(function(){var els=document.querySelectorAll('[data-line]');" +
                                 "for(var i=0;i<els.length;i++){var r=els[i].getBoundingClientRect();" +
                                 "if(r.bottom>0&&r.top<window.innerHeight)return parseInt(els[i].getAttribute('data-line'));}" +

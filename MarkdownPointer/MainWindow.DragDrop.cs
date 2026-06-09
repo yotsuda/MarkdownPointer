@@ -436,9 +436,9 @@ namespace MarkdownPointer
             tab.WebView.IsEnabled = true;
 
             // Sync pointing mode state with target window
-            if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+            if (tab.IsInitialized && tab.Host.IsReady)
             {
-                tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(targetWindow._isPointingMode ? "true" : "false")})");
+                tab.Host.ExecuteScriptAsync($"setPointingMode({(targetWindow._isPointingMode ? "true" : "false")})");
             }
 
             // Update owner window reference for message routing
@@ -501,9 +501,9 @@ namespace MarkdownPointer
             // Inherit pointing mode state from source window
             newWindow._isPointingMode = _isPointingMode;
             newWindow.PointingModeToggle.IsChecked = _isPointingMode;
-            if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+            if (tab.IsInitialized && tab.Host.IsReady)
             {
-                tab.WebView.CoreWebView2.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
+                tab.Host.ExecuteScriptAsync($"setPointingMode({(_isPointingMode ? "true" : "false")})");
             }
 
             // Inherit topmost state from source window

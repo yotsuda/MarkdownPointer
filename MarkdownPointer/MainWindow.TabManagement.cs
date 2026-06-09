@@ -38,10 +38,10 @@ namespace MarkdownPointer
 
         public void ScrollToLine(TabItemData tab, int line)
         {
-            if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+            if (tab.IsInitialized && tab.Host.IsReady)
             {
                 // Use setTimeout to ensure page is fully rendered
-                tab.WebView.CoreWebView2.ExecuteScriptAsync($"setTimeout(function() {{ scrollToLine({line}); }}, 100)");
+                tab.Host.ExecuteScriptAsync($"setTimeout(function() {{ scrollToLine({line}); }}, 100)");
             }
         }
 
@@ -79,12 +79,12 @@ namespace MarkdownPointer
 
         public async Task<SlideStateInfo?> GetSlideStateAsync(TabItemData tab)
         {
-            if (!tab.IsInitialized || tab.WebView.CoreWebView2 == null || !tab.IsSlideView)
+            if (!tab.IsInitialized || !tab.Host.IsReady || !tab.IsSlideView)
                 return null;
 
             try
             {
-                var json = await tab.WebView.CoreWebView2.ExecuteScriptAsync("getSlideState()");
+                var json = await tab.Host.ExecuteScriptAsync("getSlideState()");
                 if (json == "null" || string.IsNullOrEmpty(json))
                     return null;
 
@@ -274,7 +274,8 @@ namespace MarkdownPointer
         {
             tab.CssZoomFactor = zoomFactor;
             var zoomStr = zoomFactor.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            tab.WebView.CoreWebView2?.ExecuteScriptAsync($"document.body.style.zoom = '{zoomStr}'");
+            if (tab.Host.IsReady)
+                tab.Host.ExecuteScriptAsync($"document.body.style.zoom = '{zoomStr}'");
         }
 
         private void ApplyZoomDelta(int delta)
@@ -618,13 +619,13 @@ namespace MarkdownPointer
             try
             {
                 // Save current position before re-rendering
-                if (tab.IsInitialized && tab.WebView.CoreWebView2 != null)
+                if (tab.IsInitialized && tab.Host.IsReady)
                 {
                     try
                     {
                         if (tab.IsSlideView)
                         {
-                            var lineJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync(
+                            var lineJson = await tab.Host.ExecuteScriptAsync(
                                 "typeof Reveal !== 'undefined' && Reveal.isReady() ? " +
                                 "(function(){var s=Reveal.getCurrentSlide();" +
                                 "var el=s.querySelector('[data-line]');" +
@@ -635,7 +636,7 @@ namespace MarkdownPointer
                         }
                         else
                         {
-                            var scrollPosJson = await tab.WebView.CoreWebView2.ExecuteScriptAsync("window.scrollY");
+                            var scrollPosJson = await tab.Host.ExecuteScriptAsync("window.scrollY");
                             if (double.TryParse(scrollPosJson, out var scrollPos))
                                 tab.SavedScrollPosition = scrollPos;
                         }
@@ -651,7 +652,7 @@ namespace MarkdownPointer
                 {
                     tab.CleanupTempFile();
                     tab.RenderedHtml = null;
-                    tab.WebView.CoreWebView2.Navigate(new Uri(tab.FilePath).AbsoluteUri);
+                    tab.Host.Navigate(new Uri(tab.FilePath).AbsoluteUri);
                     return;
                 }
 
@@ -785,7 +786,7 @@ namespace MarkdownPointer
             var tempPath = Path.Combine(Path.GetTempPath(), $"mdp-{Guid.NewGuid():N}.html");
             File.WriteAllText(tempPath, html, Encoding.UTF8);
             tab.TempHtmlPath = tempPath;
-            tab.WebView.CoreWebView2.Navigate(new Uri(tempPath).AbsoluteUri);
+            tab.Host.Navigate(new Uri(tempPath).AbsoluteUri);
         }
 
         #endregion
