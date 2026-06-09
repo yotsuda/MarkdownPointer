@@ -71,7 +71,7 @@ namespace MarkdownPointer.Resources
             if (_cache.TryGetValue(filename, out var cached))
                 return cached;
 
-            var resourceName = $"MarkdownPointer.App.Resources.Scripts.{filename}";
+            var resourceName = $"MarkdownPointer.Rendering.Resources.Scripts.{filename}";
             using var stream = _assembly.GetManifestResourceStream(resourceName)
                 ?? throw new InvalidOperationException($"Embedded resource not found: {resourceName}");
             using var reader = new StreamReader(stream);
