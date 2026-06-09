@@ -13,6 +13,12 @@ namespace MarkdownPointer.Resources
         private static readonly Dictionary<string, string> _cache = new();
 
         /// <summary>
+        /// Host bridge shim: defines window.chrome.webview on non-WebView2 hosts (WebKit).
+        /// Must run before any script that posts messages to the host.
+        /// </summary>
+        public static string BridgeShim => GetScript("BridgeShim.js");
+
+        /// <summary>
         /// Core event handlers: link clicks, hovers, zoom, mouse events.
         /// </summary>
         public static string CoreEventHandlers => GetScript("CoreEventHandlers.js");

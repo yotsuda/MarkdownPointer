@@ -94,6 +94,11 @@ namespace MarkdownPointer.Services
             html.AppendLine("<script defer src='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js'></script>");
             html.AppendLine("<script src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'></script>");
 
+            // Host bridge shim (must precede any script that posts to the host)
+            html.AppendLine($"<script nonce='{nonce}'>");
+            html.AppendLine(JsResources.BridgeShim);
+            html.AppendLine("</script>");
+
             // Core event handlers
             html.AppendLine($"<script nonce='{nonce}'>");
             html.AppendLine(JsResources.CoreEventHandlers);
