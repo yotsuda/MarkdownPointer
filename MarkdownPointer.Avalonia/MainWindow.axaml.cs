@@ -57,9 +57,23 @@ public partial class MainWindow : Window
         };
         _smokeTimer.Start();
 
+        // Dispatch a real click on a pointable element. The DOM is shared across JS worlds,
+        // so this fires the page's own (main-world) pointing handler -> window.chrome.webview
+        // .postMessage (BridgeShim) -> native host, exercising the genuine point-and-prompt
+        // path. (A direct window.chrome.webview call from InvokeScript fails on WebKitGTK,
+        // where InvokeScript runs in an isolated world without the shim.)
+        const string probe = @"(function(){
+            var el = document.querySelector('[data-line]');
+            if (!el) return 'no-pointable';
+            ['mouseover','mousedown','click'].forEach(function(t){
+                el.dispatchEvent(new MouseEvent(t, {bubbles:true, cancelable:true, view:window}));
+            });
+            return 'dispatched';
+        })()";
         try
         {
-            await _host.ExecuteScriptAsync("window.chrome.webview.postMessage('point:0|smoke-probe')");
+            var result = await _host.ExecuteScriptAsync(probe);
+            Console.Error.WriteLine("SMOKE: probe dispatched, result=" + result);
         }
         catch (Exception ex)
         {
