@@ -144,8 +144,13 @@ public partial class MarkdownToDeckConverter
                 continue;
             }
 
-            // # or ## heading starts a new slide (but not ### or deeper)
-            if (SlideHeadingPattern().IsMatch(trimmed) && current.Any(l => !string.IsNullOrWhiteSpace(l)))
+            // # or ## heading starts a new slide (but not ### or deeper).
+            // A lone slide/bg annotation does NOT count as content: "<!-- slide: title -->"
+            // before a heading marks that heading's slide, it must not split it off.
+            if (SlideHeadingPattern().IsMatch(trimmed) && current.Any(l =>
+                    !string.IsNullOrWhiteSpace(l)
+                    && !SlideAnnotationPattern().IsMatch(l)
+                    && !BgAnnotationPattern().IsMatch(l)))
             {
                 slides.Add(string.Join('\n', current));
                 current.Clear();
