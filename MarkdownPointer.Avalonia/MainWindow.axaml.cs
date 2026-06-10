@@ -46,6 +46,7 @@ public partial class MainWindow : Window
         _host = new AvaloniaWebViewHost(_webView);
         _host.MessageReceived += OnHostMessage;
         _host.NavigationCompleted += OnNavigationCompleted;
+        _host.NewWindowRequested += HandleLinkClick;   // target=_blank / window.open
 
         Loaded += (_, _) => { Render(); SetupWatcher(); };
         Closed += (_, _) => { _watcher?.Dispose(); _reloadDebounce?.Stop(); };

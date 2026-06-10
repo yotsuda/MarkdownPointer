@@ -28,8 +28,14 @@ public sealed class AvaloniaWebViewHost : IWebViewHost
 
         _webView.NavigationCompleted += (_, _) => NavigationCompleted?.Invoke();
 
-        // NewWindowRequested wiring deferred until the per-OS hosts are verified
-        // (arg shape differs); the minimal scaffold does not need it.
+        // target=_blank / window.open: suppress the popup and let the app decide
+        // (open in the OS browser, or follow a local Markdown link in-place).
+        _webView.NewWindowRequested += (_, e) =>
+        {
+            e.Handled = true;
+            if (e.Request is { } uri)
+                NewWindowRequested?.Invoke(uri.ToString());
+        };
     }
 
     public object Control => _webView;
