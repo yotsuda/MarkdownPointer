@@ -1,6 +1,9 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform; // ClipboardExtensions.SetTextAsync
+using Avalonia.Threading;
 using Markdig;
 using MarkdownPointer.Services;             // HtmlGenerator (shared rendering core)
 using MarkdownPointer.Services.WebViewHosting;
@@ -12,6 +15,8 @@ public partial class MainWindow : Window
     private readonly HtmlGenerator _htmlGenerator;
     private readonly NativeWebView _webView;
     private readonly AvaloniaWebViewHost _host;
+    private DispatcherTimer? _smokeTimer;
+    private bool _smokeProbed;
 
     public MainWindow()
     {
@@ -24,9 +29,52 @@ public partial class MainWindow : Window
 
         _host = new AvaloniaWebViewHost(_webView);
         _host.MessageReceived += OnHostMessage;
-        _host.NavigationCompleted += () => StatusText.Text = "rendered — point at an element (crosshair) to copy a ref";
+        _host.NavigationCompleted += OnNavigationCompleted;
 
         Loaded += (_, _) => RenderSample();
+    }
+
+    private void OnNavigationCompleted()
+    {
+        StatusText.Text = "rendered — point at an element (crosshair) to copy a ref";
+        if (App.SmokeMode && !_smokeProbed)
+        {
+            _smokeProbed = true;
+            StartSmokeProbe();
+        }
+    }
+
+    // Headless smoke (--smoke): drive a page->host bridge round-trip on the real native
+    // webview. If the host receives the message the JS posted, the JS<->WebKitGTK<->C#
+    // bridge works; exit 0. Otherwise time out and exit 1.
+    private async void StartSmokeProbe()
+    {
+        _smokeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
+        _smokeTimer.Tick += (_, _) =>
+        {
+            Console.Error.WriteLine("SMOKE FAIL: no bridge message within timeout");
+            Exit(1);
+        };
+        _smokeTimer.Start();
+
+        try
+        {
+            await _host.ExecuteScriptAsync("window.chrome.webview.postMessage('point:0|smoke-probe')");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("SMOKE FAIL: InvokeScript threw: " + ex.Message);
+            Exit(1);
+        }
+    }
+
+    private void Exit(int code)
+    {
+        _smokeTimer?.Stop();
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime life)
+            life.Shutdown(code);
+        else
+            Environment.Exit(code);
     }
 
     // Mirrors the WPF shell's Markdig pipeline so the shared HtmlGenerator behaves identically.
@@ -59,6 +107,13 @@ public partial class MainWindow : Window
 
     private async void OnHostMessage(string message)
     {
+        if (App.SmokeMode && message.StartsWith("point:", StringComparison.Ordinal))
+        {
+            Console.Error.WriteLine("SMOKE OK: bridge round-trip received: " + message);
+            Exit(0);
+            return;
+        }
+
         if (message.StartsWith("point:", StringComparison.Ordinal))
         {
             var data = message.Substring("point:".Length);

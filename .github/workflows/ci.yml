@@ -39,3 +39,27 @@ jobs:
           dotnet build MarkdownPointer/MarkdownPointer.App.csproj -c Release
           dotnet build MarkdownPointer.Mcp/MarkdownPointer.Mcp.csproj -c Release
           dotnet test MarkdownPointer.Tests/MarkdownPointer.Tests.csproj -c Release
+
+  smoke-linux:
+    name: smoke (ubuntu · WebKitGTK headless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Avalonia.Controls.NativeWebView on Linux is WebKitGTK (libwebkit2gtk-4.1) over GTK3;
+      # xvfb provides a virtual display so the GUI app can run on a headless runner.
+      - name: Install WebKitGTK + Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0 libgtk-3-0 xvfb
+
+      # --smoke renders the sample via the shared core, drives a page->host bridge round-trip
+      # on the real native webview, and exits 0 on success / 1 on timeout. This verifies the
+      # point-and-prompt JS<->WebKitGTK<->C# bridge actually works on Linux.
+      - name: Headless smoke (render + bridge round-trip on WebKitGTK)
+        run: xvfb-run -a dotnet run --project MarkdownPointer.Avalonia/MarkdownPointer.Avalonia.csproj -c Release -- --smoke
