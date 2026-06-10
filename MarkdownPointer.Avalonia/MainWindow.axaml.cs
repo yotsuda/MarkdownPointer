@@ -1,9 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
 using Avalonia.Input.Platform; // ClipboardExtensions.SetTextAsync
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Markdig;
 using MarkdownPointer.Services;             // HtmlGenerator (shared rendering core)
@@ -46,6 +49,52 @@ public partial class MainWindow : Window
 
         Loaded += (_, _) => { Render(); SetupWatcher(); };
         Closed += (_, _) => { _watcher?.Dispose(); _reloadDebounce?.Stop(); };
+
+        // Ctrl+O to open a file; drag-and-drop a file onto the window to open it.
+        KeyDown += OnKeyDown;
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DropEvent, OnDrop);
+    }
+
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.O && e.KeyModifiers == KeyModifiers.Control)
+        {
+            OpenFileDialog();
+            e.Handled = true;
+        }
+    }
+
+    private async void OpenFileDialog()
+    {
+        var top = TopLevel.GetTopLevel(this);
+        if (top is null) return;
+
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open Markdown",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Markdown") { Patterns = new[] { "*.md", "*.markdown", "*.txt" } },
+                FilePickerFileTypes.All,
+            },
+        });
+
+        var path = files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        if (path is not null) LoadFile(path);
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
+    }
+
+    private void OnDrop(object? sender, DragEventArgs e)
+    {
+        var path = e.DataTransfer.TryGetFile()?.TryGetLocalPath();
+        if (path is not null && File.Exists(path)) LoadFile(path);
     }
 
     private void SetFile(string? path)
