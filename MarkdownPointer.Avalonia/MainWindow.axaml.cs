@@ -16,7 +16,9 @@ public partial class MainWindow : Window
     private readonly NativeWebView _webView;
     private readonly AvaloniaWebViewHost _host;
     private DispatcherTimer? _smokeTimer;
+    private DispatcherTimer? _smokePoll;
     private bool _smokeProbed;
+    private bool _smokeBusy;
 
     public MainWindow()
     {
@@ -47,9 +49,13 @@ public partial class MainWindow : Window
     // Headless smoke (--smoke): drive a page->host bridge round-trip on the real native
     // webview. If the host receives the message the JS posted, the JS<->WebKitGTK<->C#
     // bridge works; exit 0. Otherwise time out and exit 1.
-    private async void StartSmokeProbe()
+    // On WebKitGTK, NavigationCompleted fires while the document is still "loading" (body not
+    // yet parsed), so poll until the rendered DOM has pointable [data-line] elements, then
+    // dispatch a real click. The DOM is shared across JS worlds, so the click fires the page's
+    // own main-world pointing handler -> BridgeShim -> native host (the genuine path).
+    private void StartSmokeProbe()
     {
-        _smokeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
+        _smokeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _smokeTimer.Tick += (_, _) =>
         {
             Console.Error.WriteLine("SMOKE FAIL: no bridge message within timeout");
@@ -57,41 +63,48 @@ public partial class MainWindow : Window
         };
         _smokeTimer.Start();
 
-        // Diagnostic: report what InvokeScript's JS context actually sees, then (if pointable
-        // elements exist) dispatch a real click — the DOM is shared across JS worlds, so this
-        // fires the page's own main-world pointing handler -> BridgeShim -> native host.
-        const string probe = @"(function(){
-            var diag = JSON.stringify({
-                rs: document.readyState,
-                url: String(location.href).slice(0,80),
-                bodyKids: document.body ? document.body.childElementCount : -1,
-                allEls: document.querySelectorAll('*').length,
-                dataLine: document.querySelectorAll('[data-line]').length,
-                htmlLen: document.documentElement ? document.documentElement.outerHTML.length : -1,
-                chrome: typeof window.chrome,
-                invoke: typeof window.invokeCSharpAction
-            });
-            var el = document.querySelector('[data-line]');
-            if (el) ['mouseover','mousedown','click'].forEach(function(t){
-                el.dispatchEvent(new MouseEvent(t, {bubbles:true, cancelable:true, view:window}));
-            });
-            return diag;
-        })()";
+        _smokePoll = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _smokePoll.Tick += OnSmokePoll;
+        _smokePoll.Start();
+    }
+
+    private const string SmokeProbeJs = @"(function(){
+        if (document.readyState === 'loading') return 'waiting';
+        if (document.querySelectorAll('[data-line]').length === 0) return 'waiting';
+        var el = document.querySelector('[data-line]');
+        ['mouseover','mousedown','click'].forEach(function(t){
+            el.dispatchEvent(new MouseEvent(t, {bubbles:true, cancelable:true, view:window}));
+        });
+        return 'dispatched';
+    })()";
+
+    private async void OnSmokePoll(object? sender, EventArgs e)
+    {
+        if (_smokeBusy) return;
+        _smokeBusy = true;
         try
         {
-            var result = await _host.ExecuteScriptAsync(probe);
-            Console.Error.WriteLine("SMOKE DIAG: " + result);
+            var result = await _host.ExecuteScriptAsync(SmokeProbeJs);
+            if (result != null && result.Contains("dispatched"))
+            {
+                _smokePoll?.Stop();
+                Console.Error.WriteLine("SMOKE: dispatched click on a pointable element");
+            }
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("SMOKE FAIL: InvokeScript threw: " + ex.Message);
-            Exit(1);
+            Console.Error.WriteLine("SMOKE probe error (retrying): " + ex.Message);
+        }
+        finally
+        {
+            _smokeBusy = false;
         }
     }
 
     private void Exit(int code)
     {
         _smokeTimer?.Stop();
+        _smokePoll?.Stop();
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime life)
             life.Shutdown(code);
         else
