@@ -17,9 +17,10 @@ public partial class MainWindow : Window
     private readonly NativeWebView _webView;
     private readonly AvaloniaWebViewHost _host;
 
-    private readonly string? _filePath;   // null => render the built-in sample
-    private readonly string _baseDir;
-    private readonly string _refName;      // shown in the copied filepath:line reference
+    private string? _filePath;             // null => render the built-in sample
+    private string _baseDir = AppContext.BaseDirectory;
+    private string _refName = "sample.md"; // shown in the copied filepath:line reference
+    private double _zoom = 1.0;
     private FileSystemWatcher? _watcher;
     private DispatcherTimer? _reloadDebounce;
 
@@ -32,12 +33,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        _filePath = App.FilePath != null && File.Exists(App.FilePath) ? Path.GetFullPath(App.FilePath) : null;
-        _baseDir = _filePath != null ? Path.GetDirectoryName(_filePath)! : AppContext.BaseDirectory;
-        _refName = _filePath ?? "sample.md";
-        Title = _filePath != null
-            ? $"{Path.GetFileName(_filePath)} — MarkdownPointer"
-            : "MarkdownPointer (Avalonia)";
+        SetFile(App.FilePath);
 
         _htmlGenerator = new HtmlGenerator(BuildPipeline());
 
@@ -50,6 +46,26 @@ public partial class MainWindow : Window
 
         Loaded += (_, _) => { Render(); SetupWatcher(); };
         Closed += (_, _) => { _watcher?.Dispose(); _reloadDebounce?.Stop(); };
+    }
+
+    private void SetFile(string? path)
+    {
+        _filePath = path != null && File.Exists(path) ? Path.GetFullPath(path) : null;
+        _baseDir = _filePath != null ? Path.GetDirectoryName(_filePath)! : AppContext.BaseDirectory;
+        _refName = _filePath ?? "sample.md";
+        Title = _filePath != null
+            ? $"{Path.GetFileName(_filePath)} — MarkdownPointer"
+            : "MarkdownPointer (Avalonia)";
+    }
+
+    // Navigate the single window to a different local Markdown file (e.g. a clicked link).
+    private void LoadFile(string path)
+    {
+        _watcher?.Dispose();
+        _watcher = null;
+        SetFile(path);
+        Render();
+        SetupWatcher();
     }
 
     private void Render()
@@ -236,6 +252,84 @@ public partial class MainWindow : Window
         {
             StatusText.Text = "L" + message.Substring("pointhover:".Length);
         }
+        else if (message.StartsWith("click:", StringComparison.Ordinal))
+        {
+            HandleLinkClick(message.Substring("click:".Length));
+        }
+        else if (message.StartsWith("hover:", StringComparison.Ordinal))
+        {
+            StatusText.Text = ToDisplayPath(message.Substring("hover:".Length));
+        }
+        else if (message == "leave:")
+        {
+            StatusText.Text = "";
+        }
+        else if (message.StartsWith("zoom:", StringComparison.Ordinal))
+        {
+            ApplyZoom(message.Substring("zoom:".Length));
+        }
+    }
+
+    private void HandleLinkClick(string uri)
+    {
+        if (uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenExternally(uri);
+            return;
+        }
+
+        if (uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var path = Uri.UnescapeDataString(new Uri(uri).LocalPath);
+                if (File.Exists(path) && IsMarkdown(path))
+                    LoadFile(path);          // follow local Markdown links in-place
+                else
+                    OpenExternally(path);    // hand anything else to the OS
+            }
+            catch
+            {
+                // ignore malformed file URIs
+            }
+        }
+    }
+
+    private async void ApplyZoom(string direction)
+    {
+        _zoom = Math.Clamp(_zoom + (direction == "in" ? 0.1 : -0.1), 0.3, 3.0);
+        await _host.ExecuteScriptAsync(
+            $"document.body.style.zoom='{_zoom.ToString(System.Globalization.CultureInfo.InvariantCulture)}'");
+    }
+
+    private static bool IsMarkdown(string path)
+    {
+        var ext = Path.GetExtension(path);
+        return ext.Equals(".md", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".markdown", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void OpenExternally(string target)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true });
+        }
+        catch
+        {
+            // no OS handler / blocked — ignore
+        }
+    }
+
+    private static string ToDisplayPath(string url)
+    {
+        if (url.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+        {
+            try { return Uri.UnescapeDataString(new Uri(url).LocalPath); }
+            catch { return url; }
+        }
+        return url;
     }
 
     private const string Sample = @"# Avalonia shell — cross-platform proof
