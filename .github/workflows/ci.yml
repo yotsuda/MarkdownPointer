@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Cross-platform: the shared rendering core + the Avalonia shell (which uses the
+      # native per-OS webview, Avalonia.Controls.WebView) must build on every OS.
+      # Building the shell pulls MarkdownPointer.Rendering and SlideKit transitively.
+      - name: Build Avalonia shell (+ Rendering, SlideKit)
+        run: dotnet build MarkdownPointer.Avalonia/MarkdownPointer.Avalonia.csproj -c Release
+
+      # Cross-platform unit tests (pure managed; no WebView2 / WPF).
+      - name: Test SlideKit
+        run: dotnet test SlideKit.Tests/SlideKit.Tests.csproj -c Release
+
+      # Windows-only: the WPF app, the MCP server, and their tests target net10.0-windows.
+      - name: Build + test Windows-only projects
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dotnet build MarkdownPointer/MarkdownPointer.App.csproj -c Release
+          dotnet build MarkdownPointer.Mcp/MarkdownPointer.Mcp.csproj -c Release
+          dotnet test MarkdownPointer.Tests/MarkdownPointer.Tests.csproj -c Release
