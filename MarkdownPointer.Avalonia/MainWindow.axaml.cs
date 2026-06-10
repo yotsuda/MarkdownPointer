@@ -57,23 +57,30 @@ public partial class MainWindow : Window
         };
         _smokeTimer.Start();
 
-        // Dispatch a real click on a pointable element. The DOM is shared across JS worlds,
-        // so this fires the page's own (main-world) pointing handler -> window.chrome.webview
-        // .postMessage (BridgeShim) -> native host, exercising the genuine point-and-prompt
-        // path. (A direct window.chrome.webview call from InvokeScript fails on WebKitGTK,
-        // where InvokeScript runs in an isolated world without the shim.)
+        // Diagnostic: report what InvokeScript's JS context actually sees, then (if pointable
+        // elements exist) dispatch a real click — the DOM is shared across JS worlds, so this
+        // fires the page's own main-world pointing handler -> BridgeShim -> native host.
         const string probe = @"(function(){
+            var diag = JSON.stringify({
+                rs: document.readyState,
+                url: String(location.href).slice(0,80),
+                bodyKids: document.body ? document.body.childElementCount : -1,
+                allEls: document.querySelectorAll('*').length,
+                dataLine: document.querySelectorAll('[data-line]').length,
+                htmlLen: document.documentElement ? document.documentElement.outerHTML.length : -1,
+                chrome: typeof window.chrome,
+                invoke: typeof window.invokeCSharpAction
+            });
             var el = document.querySelector('[data-line]');
-            if (!el) return 'no-pointable';
-            ['mouseover','mousedown','click'].forEach(function(t){
+            if (el) ['mouseover','mousedown','click'].forEach(function(t){
                 el.dispatchEvent(new MouseEvent(t, {bubbles:true, cancelable:true, view:window}));
             });
-            return 'dispatched';
+            return diag;
         })()";
         try
         {
             var result = await _host.ExecuteScriptAsync(probe);
-            Console.Error.WriteLine("SMOKE: probe dispatched, result=" + result);
+            Console.Error.WriteLine("SMOKE DIAG: " + result);
         }
         catch (Exception ex)
         {
