@@ -13,6 +13,9 @@ public partial class App : Application
     /// </summary>
     public static bool SmokeMode { get; set; }
 
+    /// <summary>Markdown file passed on the command line (first non-flag arg), or null.</summary>
+    public static string? FilePath { get; set; }
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);

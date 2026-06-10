@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -15,6 +16,13 @@ public partial class MainWindow : Window
     private readonly HtmlGenerator _htmlGenerator;
     private readonly NativeWebView _webView;
     private readonly AvaloniaWebViewHost _host;
+
+    private readonly string? _filePath;   // null => render the built-in sample
+    private readonly string _baseDir;
+    private readonly string _refName;      // shown in the copied filepath:line reference
+    private FileSystemWatcher? _watcher;
+    private DispatcherTimer? _reloadDebounce;
+
     private DispatcherTimer? _smokeTimer;
     private DispatcherTimer? _smokePoll;
     private bool _smokeProbed;
@@ -23,6 +31,13 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        _filePath = App.FilePath != null && File.Exists(App.FilePath) ? Path.GetFullPath(App.FilePath) : null;
+        _baseDir = _filePath != null ? Path.GetDirectoryName(_filePath)! : AppContext.BaseDirectory;
+        _refName = _filePath ?? "sample.md";
+        Title = _filePath != null
+            ? $"{Path.GetFileName(_filePath)} — MarkdownPointer"
+            : "MarkdownPointer (Avalonia)";
 
         _htmlGenerator = new HtmlGenerator(BuildPipeline());
 
@@ -33,7 +48,68 @@ public partial class MainWindow : Window
         _host.MessageReceived += OnHostMessage;
         _host.NavigationCompleted += OnNavigationCompleted;
 
-        Loaded += (_, _) => RenderSample();
+        Loaded += (_, _) => { Render(); SetupWatcher(); };
+        Closed += (_, _) => { _watcher?.Dispose(); _reloadDebounce?.Stop(); };
+    }
+
+    private void Render()
+    {
+        string markdown;
+        if (_filePath != null)
+        {
+            var read = TryRead(_filePath);
+            if (read == null) { _reloadDebounce?.Start(); return; } // mid-write; retry shortly
+            markdown = read;
+        }
+        else
+        {
+            markdown = Sample;
+        }
+
+        StatusText.Text = _filePath != null ? $"rendering {Path.GetFileName(_filePath)}…" : "rendering…";
+        var html = _htmlGenerator.ConvertToHtml(markdown, _baseDir);
+        var sep = Path.DirectorySeparatorChar;
+        _host.NavigateToString(html, new Uri(_baseDir.EndsWith(sep) ? _baseDir : _baseDir + sep));
+    }
+
+    // Tolerates the file being mid-write (returns null to retry) and a concurrent writer (ReadWrite share).
+    private static string? TryRead(string path)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(fs);
+            return reader.ReadToEnd();
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    // Live reload: re-render when the file changes (debounced to coalesce rapid editor saves).
+    private void SetupWatcher()
+    {
+        if (_filePath == null) return;
+
+        _reloadDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _reloadDebounce.Tick += (_, _) =>
+        {
+            _reloadDebounce!.Stop();
+            Render();
+            StatusText.Text = $"reloaded {Path.GetFileName(_filePath)}";
+        };
+
+        _watcher = new FileSystemWatcher(_baseDir, Path.GetFileName(_filePath))
+        {
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
+            EnableRaisingEvents = true,
+        };
+        void Bump(object? _, FileSystemEventArgs __) =>
+            Dispatcher.UIThread.Post(() => { _reloadDebounce!.Stop(); _reloadDebounce.Start(); });
+        _watcher.Changed += Bump;
+        _watcher.Created += Bump;
+        _watcher.Renamed += (s, e) => Bump(s, e);
     }
 
     private void OnNavigationCompleted()
@@ -132,13 +208,6 @@ public partial class MainWindow : Window
         .UseGenericAttributes()
         .Build();
 
-    private void RenderSample()
-    {
-        StatusText.Text = "rendering…";
-        var html = _htmlGenerator.ConvertToHtml(Sample, AppContext.BaseDirectory);
-        _host.NavigateToString(html, new Uri(AppContext.BaseDirectory));
-    }
-
     private async void OnHostMessage(string message)
     {
         if (App.SmokeMode && message.StartsWith("point:", StringComparison.Ordinal))
@@ -154,7 +223,7 @@ public partial class MainWindow : Window
             var parts = data.Split('|', 2);
             var line = parts[0];
             var content = parts.Length > 1 ? parts[1] : "";
-            var reference = $"[sample.md:{line}] {content}";
+            var reference = $"[{_refName}:{line}] {content}";
 
             // Copy the filepath:line reference to the OS clipboard — the point-and-prompt payload.
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;

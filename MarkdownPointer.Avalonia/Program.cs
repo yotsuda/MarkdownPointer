@@ -12,6 +12,7 @@ class Program
     public static void Main(string[] args)
     {
         App.SmokeMode = Array.IndexOf(args, "--smoke") >= 0;
+        App.FilePath = Array.Find(args, a => !a.StartsWith('-'));
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
